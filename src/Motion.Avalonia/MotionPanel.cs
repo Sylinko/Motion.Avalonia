@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Specialized;
 using Avalonia;
-using Avalonia.Animation.Easings;
 using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Metadata;
@@ -9,52 +8,23 @@ using Avalonia.Metadata;
 namespace Motion.Avalonia;
 
 /// <summary>
-/// Arranges stable direct children using persistent, live layout state templates.
+/// Projects live state templates onto stable direct children using a controller-provided pose.
 /// </summary>
 public sealed class MotionPanel : Control
 {
     /// <summary>
-    /// Defines the <see cref="State"/> property.
+    /// Defines the <see cref="Controller"/> property.
     /// </summary>
-    public static readonly StyledProperty<object?> StateProperty =
-        AvaloniaProperty.Register<MotionPanel, object?>(nameof(State));
+    public static readonly StyledProperty<IMotionController?> ControllerProperty =
+        AvaloniaProperty.Register<MotionPanel, IMotionController?>(nameof(Controller));
 
-    /// <summary>
-    /// Defines the <see cref="StateTransitionDuration"/> property.
-    /// </summary>
-    public static readonly StyledProperty<TimeSpan> StateTransitionDurationProperty =
-        AvaloniaProperty.Register<MotionPanel, TimeSpan>(
-            nameof(StateTransitionDuration),
-            TimeSpan.FromMilliseconds(300),
-            validate: static value => value >= TimeSpan.Zero);
-
-    /// <summary>
-    /// Defines the <see cref="StateTransitionEasing"/> property.
-    /// </summary>
-    public static readonly StyledProperty<Easing?> StateTransitionEasingProperty =
-        AvaloniaProperty.Register<MotionPanel, Easing?>(nameof(StateTransitionEasing));
-
-    /// <summary>
-    /// Defines the <see cref="LayoutTransitionDuration"/> property.
-    /// </summary>
-    public static readonly StyledProperty<TimeSpan> LayoutTransitionDurationProperty =
-        AvaloniaProperty.Register<MotionPanel, TimeSpan>(
-            nameof(LayoutTransitionDuration),
-            TimeSpan.FromMilliseconds(250),
-            validate: static value => value >= TimeSpan.Zero);
-
-    /// <summary>
-    /// Defines the <see cref="LayoutTransitionEasing"/> property.
-    /// </summary>
-    public static readonly StyledProperty<Easing?> LayoutTransitionEasingProperty =
-        AvaloniaProperty.Register<MotionPanel, Easing?>(nameof(LayoutTransitionEasing));
+    private static readonly MotionLayout EmptyLayout =
+        new(default, new Dictionary<string, MotionLayoutEntry>(StringComparer.Ordinal));
 
     static MotionPanel()
     {
-        AffectsMeasure<MotionPanel>(StateProperty);
-        StateProperty.Changed.AddClassHandler<MotionPanel>(static (panel, _) => panel.OnRequestedStateChanged());
-        StateTransitionEasingProperty.Changed.AddClassHandler<MotionPanel>(static (panel, _) => panel.OnStateTransitionSettingsChanged());
-        StateTransitionDurationProperty.Changed.AddClassHandler<MotionPanel>(static (panel, _) => panel.OnStateTransitionSettingsChanged());
+        AffectsMeasure<MotionPanel>(ControllerProperty);
+        ControllerProperty.Changed.AddClassHandler<MotionPanel>(static (panel, _) => panel.OnControllerChanged());
     }
 
     /// <summary>
@@ -66,82 +36,30 @@ public sealed class MotionPanel : Control
     /// <summary>
     /// Gets the persistent layout states known to the panel.
     /// </summary>
-    public AvaloniaList<MotionState> States { get; } = new();
+    public AvaloniaList<MotionState> States { get; } = [];
 
     /// <summary>
-    /// Gets or sets the key of the requested layout state.
+    /// Gets or sets the controller that produces the current pose.
     /// </summary>
-    public object? State
+    public IMotionController? Controller
     {
-        get => GetValue(StateProperty);
-        set => SetValue(StateProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the duration used when <see cref="State"/> changes.
-    /// </summary>
-    public TimeSpan StateTransitionDuration
-    {
-        get => GetValue(StateTransitionDurationProperty);
-        set => SetValue(StateTransitionDurationProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the easing used when <see cref="State"/> changes.
-    /// A null value disables state transition animation.
-    /// </summary>
-    public Easing? StateTransitionEasing
-    {
-        get => GetValue(StateTransitionEasingProperty);
-        set => SetValue(StateTransitionEasingProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the duration used when the active state layout changes without a state change.
-    /// </summary>
-    public TimeSpan LayoutTransitionDuration
-    {
-        get => GetValue(LayoutTransitionDurationProperty);
-        set => SetValue(LayoutTransitionDurationProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the easing used when the active state layout changes without a state change.
-    /// A null value applies live layout changes immediately.
-    /// </summary>
-    public Easing? LayoutTransitionEasing
-    {
-        get => GetValue(LayoutTransitionEasingProperty);
-        set => SetValue(LayoutTransitionEasingProperty, value);
+        get => GetValue(ControllerProperty);
+        set => SetValue(ControllerProperty, value);
     }
 
     internal int TargetCount => _targets.Count;
 
-    private readonly Dictionary<MotionState, MotionPanelHost> _scenes = new();
+    private readonly Dictionary<MotionState, MotionPanelHost> _scenes = [];
     private readonly Dictionary<string, TargetEntry> _targets = new(StringComparer.Ordinal);
-    private readonly Dictionary<Control, MotionPanelItemContainer> _containers = new();
-    private readonly Dictionary<Control, MotionPanelPropertyTarget> _propertyTargets = new();
-    private readonly Dictionary<MotionState, double> _stateSourceWeights = new();
-    private readonly Dictionary<MotionState, Size> _measuredSizes = new();
-    private readonly Dictionary<MotionState, MotionLayout> _arrangedLayouts = new();
-    private readonly List<MotionState> _requiredStates = new();
-    private readonly List<KeyValuePair<MotionState, double>> _stateWeightBuffer = new();
-    private MotionState? _selectedState;
-    private MotionState? _settledState;
-    private MotionLayout? _fixedStateSource;
-    private MotionLayout? _layoutSource;
+    private readonly Dictionary<Control, MotionPanelItemContainer> _containers = [];
+    private readonly Dictionary<Control, MotionPanelPropertyTarget> _propertyTargets = [];
+    private readonly Dictionary<MotionState, Size> _measuredSizes = [];
+    private readonly Dictionary<MotionState, MotionLayout> _arrangedLayouts = [];
+    private readonly List<MotionState> _requiredStates = [];
+    private IMotionController? _attachedController;
     private MotionLayout? _presentedLayout;
-    private MotionLayout? _lastTargetLayout;
-    private TransitionKind _transitionKind;
     private TopLevel? _topLevel;
-    private TimeSpan _transitionElapsed;
-    private TimeSpan? _lastFrameTime;
-    private bool _hasPresentedLayout;
-    private bool _stateChangePending = true;
     private bool _targetMapDirty = true;
-    private bool _frameRequested;
-    private bool _suppressLayoutTransitionOnce;
-    private int _frameGeneration;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MotionPanel"/> class.
@@ -161,41 +79,139 @@ public sealed class MotionPanel : Control
 
         if (!_targets.TryGetValue(id, out var target))
         {
-            throw new InvalidOperationException($"Transition state references target '{id}', but no direct child has that name.");
+            throw new InvalidOperationException($"Motion state references target '{id}', but no direct child has that name.");
         }
 
         target.Child.Measure(availableSize);
         return target.Child.DesiredSize;
     }
 
+    internal bool RequestControllerAnimationFrame(
+        MotionController controller,
+        Action<TimeSpan> callback)
+    {
+        if (!ReferenceEquals(controller, _attachedController) || _topLevel is null)
+        {
+            return false;
+        }
+
+        _topLevel.RequestAnimationFrame(timestamp =>
+        {
+            if (ReferenceEquals(controller, _attachedController) && _topLevel is not null)
+            {
+                callback(timestamp);
+            }
+        });
+        return true;
+    }
+
     /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)
     {
         RebuildTargetMap();
-        ApplyPendingStateChange();
-
-        var layouts = MeasureRequiredScenes(availableSize);
+        var pose = _attachedController?.CurrentPose ?? MotionPose.Empty;
+        MeasureRequiredScenes(pose, availableSize);
         MeasurePresentedContainers();
-        return GetDesiredSize(layouts);
+        return EvaluateDesiredSize(pose);
     }
 
     /// <inheritdoc />
     protected override Size ArrangeOverride(Size finalSize)
     {
-        ApplyPendingStateChange();
+        var pose = _attachedController?.CurrentPose ?? MotionPose.Empty;
+        CaptureRequiredLayouts(pose, finalSize);
+        UpdatePropertyTargets(pose);
 
-        var layouts = CaptureRequiredLayouts(finalSize);
-        var targetLayout = GetStateLayout(_selectedState, layouts) ?? new MotionLayout(default, new Dictionary<string, MotionLayoutEntry>());
-        UpdatePropertyTargets(targetLayout);
-        var presentedLayout = ResolvePresentedLayout(targetLayout, layouts);
+        var layout = EvaluateLayout(pose);
+        ApplyLayout(layout);
+        _presentedLayout = layout;
 
-        ApplyLayout(presentedLayout);
-        _presentedLayout = presentedLayout;
-        _lastTargetLayout = targetLayout;
-        _hasPresentedLayout = true;
+        if (_attachedController is MotionController controller)
+        {
+            controller.NotifyOwnerPresented();
+        }
 
         return finalSize;
     }
+
+    /// <inheritdoc />
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        _topLevel = TopLevel.GetTopLevel(this);
+
+        if (_attachedController is MotionController controller)
+        {
+            controller.NotifyOwnerAttachedToVisualTree();
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        if (_attachedController is MotionController controller)
+        {
+            controller.NotifyOwnerDetachedFromVisualTree();
+        }
+
+        foreach (var propertyTarget in _propertyTargets.Values)
+        {
+            propertyTarget.CompleteImmediately();
+        }
+
+        _topLevel = null;
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void OnControllerChanged()
+    {
+        DetachController();
+        _attachedController = Controller;
+
+        if (_attachedController is null)
+        {
+            InvalidateMeasure();
+            return;
+        }
+
+        _attachedController.CurrentPoseChanged += OnCurrentPoseChanged;
+        if (_attachedController is MotionController controller)
+        {
+            controller.Attach(this);
+            LogicalChildren.Add(controller);
+
+            if (_topLevel is not null)
+            {
+                controller.NotifyOwnerAttachedToVisualTree();
+            }
+        }
+
+        InvalidateMeasure();
+    }
+
+    private void DetachController()
+    {
+        if (_attachedController is null)
+        {
+            return;
+        }
+
+        _attachedController.CurrentPoseChanged -= OnCurrentPoseChanged;
+        if (_attachedController is MotionController controller)
+        {
+            if (_topLevel is not null)
+            {
+                controller.NotifyOwnerDetachedFromVisualTree();
+            }
+
+            LogicalChildren.Remove(controller);
+            controller.Detach(this);
+        }
+
+        _attachedController = null;
+    }
+
+    private void OnCurrentPoseChanged(object? sender, EventArgs e) => InvalidateMeasure();
 
     private void OnChildrenChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -205,11 +221,19 @@ public sealed class MotionPanel : Control
                 AddChildren(e.NewStartingIndex, e.NewItems);
                 break;
             case NotifyCollectionChangedAction.Remove when e.OldItems is not null:
-                RemoveChildren(e.OldStartingIndex, e.OldItems);
+                RemoveChildren(e.OldItems);
                 break;
             case NotifyCollectionChangedAction.Replace:
-                if (e.OldItems is not null) RemoveChildren(e.OldStartingIndex, e.OldItems);
-                if (e.NewItems is not null) AddChildren(e.NewStartingIndex, e.NewItems);
+                if (e.OldItems is not null)
+                {
+                    RemoveChildren(e.OldItems);
+                }
+
+                if (e.NewItems is not null)
+                {
+                    AddChildren(e.NewStartingIndex, e.NewItems);
+                }
+
                 break;
             case NotifyCollectionChangedAction.Move when e.OldItems is not null:
                 LogicalChildren.MoveRange(e.OldStartingIndex, e.OldItems.Count, e.NewStartingIndex);
@@ -221,7 +245,6 @@ public sealed class MotionPanel : Control
         }
 
         _targetMapDirty = true;
-        _stateChangePending = true;
         InvalidateMeasure();
     }
 
@@ -244,7 +267,7 @@ public sealed class MotionPanel : Control
         }
     }
 
-    private void RemoveChildren(int index, IList items)
+    private void RemoveChildren(IList items)
     {
         foreach (var child in items.OfType<Control>())
         {
@@ -283,58 +306,18 @@ public sealed class MotionPanel : Control
 
     private void OnChildPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
-        if (e.Property == NameProperty)
+        if (e.Property != NameProperty)
         {
-            _targetMapDirty = true;
-            InvalidateMeasure();
-        }
-    }
-
-    /// <inheritdoc />
-    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
-    {
-        base.OnAttachedToVisualTree(e);
-        _topLevel = TopLevel.GetTopLevel(this);
-        RequestNextFrame();
-    }
-
-    /// <inheritdoc />
-    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
-    {
-        _topLevel = null;
-        // Preserve accumulated progress, but discard the root-specific timestamp so time
-        // spent outside a visual tree is not counted when the animation resumes.
-        _lastFrameTime = null;
-        _frameGeneration++;
-        _frameRequested = false;
-
-        foreach (var propertyTarget in _propertyTargets.Values)
-        {
-            propertyTarget.CompleteImmediately();
+            return;
         }
 
-        base.OnDetachedFromVisualTree(e);
+        _targetMapDirty = true;
+        InvalidateMeasure();
     }
 
     private void OnStatesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         SynchronizeScenes();
-
-        if (_selectedState is not null && !_scenes.ContainsKey(_selectedState))
-        {
-            _selectedState = null;
-            _settledState = null;
-            _suppressLayoutTransitionOnce = true;
-            ClearTransition();
-        }
-        else if (_transitionKind == TransitionKind.State && _stateSourceWeights.Keys.Any(state => !_scenes.ContainsKey(state)))
-        {
-            _settledState = _selectedState;
-            _suppressLayoutTransitionOnce = true;
-            ClearTransition();
-        }
-
-        _stateChangePending = true;
         InvalidateMeasure();
     }
 
@@ -345,26 +328,6 @@ public sealed class MotionPanel : Control
             _scenes[(MotionState)sender!].Rebuild();
         }
 
-        _stateChangePending = true;
-        InvalidateMeasure();
-    }
-
-    private void OnRequestedStateChanged()
-    {
-        _stateChangePending = true;
-        InvalidateMeasure();
-    }
-
-    private void OnStateTransitionSettingsChanged()
-    {
-        if (_transitionKind != TransitionKind.State || StateTransitionEasing is not null && StateTransitionDuration > TimeSpan.Zero)
-        {
-            return;
-        }
-
-        _settledState = _selectedState;
-        _suppressLayoutTransitionOnce = true;
-        ClearTransition();
         InvalidateMeasure();
     }
 
@@ -419,117 +382,9 @@ public sealed class MotionPanel : Control
         _targetMapDirty = false;
     }
 
-    private void ApplyPendingStateChange()
+    private void MeasureRequiredScenes(MotionPose pose, Size availableSize)
     {
-        if (!_stateChangePending)
-        {
-            return;
-        }
-
-        _stateChangePending = false;
-        var requested = FindRequestedState();
-        if (ReferenceEquals(requested, _selectedState))
-        {
-            return;
-        }
-
-        if (!_hasPresentedLayout ||
-            requested is null ||
-            _selectedState is null ||
-            StateTransitionEasing is null ||
-            StateTransitionDuration <= TimeSpan.Zero)
-        {
-            _selectedState = requested;
-            _settledState = requested;
-            _suppressLayoutTransitionOnce = true;
-            ClearTransition();
-            return;
-        }
-
-        PrepareStateSource();
-        _selectedState = requested;
-        _transitionKind = TransitionKind.State;
-        RestartTransitionClock();
-        RequestNextFrame();
-    }
-
-    private MotionState? FindRequestedState()
-    {
-        MotionState? match = null;
-        foreach (var candidate in States)
-        {
-            if (!Equals(candidate.Key, State))
-            {
-                continue;
-            }
-
-            if (match is not null)
-            {
-                throw new InvalidOperationException($"{nameof(MotionPanel)} contains multiple states with key '{State}'.");
-            }
-
-            match = candidate;
-        }
-
-        return match;
-    }
-
-    private void PrepareStateSource()
-    {
-        if (_transitionKind == TransitionKind.State)
-        {
-            if (_fixedStateSource is not null)
-            {
-                _fixedStateSource = _presentedLayout;
-                _stateSourceWeights.Clear();
-                return;
-            }
-
-            var progress = GetTransitionProgress(StateTransitionDuration);
-            var eased = StateTransitionEasing!.Ease(progress);
-            _stateWeightBuffer.Clear();
-            foreach (var pair in _stateSourceWeights)
-            {
-                _stateWeightBuffer.Add(pair);
-            }
-
-            _stateSourceWeights.Clear();
-
-            foreach (var pair in _stateWeightBuffer)
-            {
-                _stateSourceWeights[pair.Key] = pair.Value * (1 - eased);
-            }
-
-            if (_selectedState is not null)
-            {
-                _stateSourceWeights[_selectedState] = _stateSourceWeights.GetValueOrDefault(_selectedState) + eased;
-            }
-
-            return;
-        }
-
-        _fixedStateSource = null;
-        _stateSourceWeights.Clear();
-
-        if (_transitionKind == TransitionKind.Layout && _presentedLayout is not null)
-        {
-            _fixedStateSource = _presentedLayout;
-            return;
-        }
-
-        if (_settledState is not null)
-        {
-            _stateSourceWeights[_settledState] = 1;
-        }
-        else if (_selectedState is not null)
-        {
-            _stateSourceWeights[_selectedState] = 1;
-        }
-    }
-
-    private Dictionary<MotionState, Size> MeasureRequiredScenes(Size availableSize)
-    {
-        CollectRequiredStates();
+        CollectRequiredStates(pose);
         _measuredSizes.Clear();
 
         foreach (var state in _requiredStates)
@@ -538,8 +393,6 @@ public sealed class MotionPanel : Control
             scene.Measure(availableSize);
             _measuredSizes.Add(state, scene.DesiredSize);
         }
-
-        return _measuredSizes;
     }
 
     private void MeasurePresentedContainers()
@@ -563,9 +416,9 @@ public sealed class MotionPanel : Control
         }
     }
 
-    private Dictionary<MotionState, MotionLayout> CaptureRequiredLayouts(Size finalSize)
+    private void CaptureRequiredLayouts(MotionPose pose, Size finalSize)
     {
-        CollectRequiredStates();
+        CollectRequiredStates(pose);
         _arrangedLayouts.Clear();
 
         foreach (var state in _requiredStates)
@@ -574,83 +427,109 @@ public sealed class MotionPanel : Control
             scene.Arrange(new Rect(finalSize));
             _arrangedLayouts.Add(state, scene.CaptureLayout());
         }
-
-        return _arrangedLayouts;
     }
 
-    private void CollectRequiredStates()
+    private void CollectRequiredStates(MotionPose pose)
     {
         _requiredStates.Clear();
+        CollectRequiredStatesCore(pose);
+    }
 
-        if (_selectedState is not null)
+    private void CollectRequiredStatesCore(MotionPose pose)
+    {
+        switch (pose)
         {
-            _requiredStates.Add(_selectedState);
-        }
-
-        if (_transitionKind == TransitionKind.State && _fixedStateSource is null)
-        {
-            foreach (var state in _stateSourceWeights.Keys)
-            {
-                if (!_requiredStates.Contains(state))
+            case StateMotionPose statePose:
+                var state = FindState(statePose.Key);
+                if (state is not null && !_requiredStates.Contains(state))
                 {
                     _requiredStates.Add(state);
                 }
+
+                break;
+            case BlendMotionPose blend:
+                CollectRequiredStatesCore(blend.Source);
+                CollectRequiredStatesCore(blend.Target);
+                break;
+        }
+    }
+
+    private MotionState? FindState(object? key)
+    {
+        MotionState? result = null;
+
+        foreach (var state in States)
+        {
+            if (!Equals(state.Key, key))
+            {
+                continue;
             }
+
+            if (result is not null)
+            {
+                throw new InvalidOperationException($"{nameof(MotionPanel)} contains multiple states with key '{key}'.");
+            }
+
+            result = state;
         }
+
+        return result;
     }
 
-    private Size GetDesiredSize(IReadOnlyDictionary<MotionState, Size> sizes)
-    {
-        var target = _selectedState is not null && sizes.TryGetValue(_selectedState, out var selectedSize) ? selectedSize : default;
-        if (_transitionKind != TransitionKind.State)
+    private Size EvaluateDesiredSize(MotionPose pose) =>
+        pose switch
         {
-            return target;
-        }
+            StateMotionPose statePose => GetMeasuredSize(statePose.Key),
+            BlendMotionPose blend => Lerp(
+                EvaluateDesiredSize(blend.Source),
+                EvaluateDesiredSize(blend.Target),
+                blend.Easing.Ease(blend.Progress)),
+            _ => default,
+        };
 
-        var source = _fixedStateSource?.DesiredSize ?? MixDesiredSizes(sizes, _stateSourceWeights);
-        var progress = StateTransitionEasing!.Ease(GetTransitionProgress(StateTransitionDuration));
-        return Lerp(source, target, progress);
+    private Size GetMeasuredSize(object? key)
+    {
+        var state = FindState(key);
+        return state is not null && _measuredSizes.TryGetValue(state, out var size) ? size : default;
     }
 
-    private MotionLayout ResolvePresentedLayout(MotionLayout target, IReadOnlyDictionary<MotionState, MotionLayout> layouts)
+    private MotionLayout EvaluateLayout(MotionPose pose) =>
+        pose switch
+        {
+            StateMotionPose statePose => GetArrangedLayout(statePose.Key),
+            BlendMotionPose blend => BlendLayouts(
+                EvaluateLayout(blend.Source),
+                EvaluateLayout(blend.Target),
+                blend.Easing.Ease(blend.Progress)),
+            _ => EmptyLayout,
+        };
+
+    private MotionLayout GetArrangedLayout(object? key)
     {
-        if (_transitionKind == TransitionKind.State)
-        {
-            var source = _fixedStateSource ?? MixStateLayouts(layouts, _stateSourceWeights);
-            var progress = StateTransitionEasing!.Ease(GetTransitionProgress(StateTransitionDuration));
-            return BlendLayouts(source, target, progress);
-        }
+        var state = FindState(key);
+        return state is not null && _arrangedLayouts.TryGetValue(state, out var layout) ? layout : EmptyLayout;
+    }
 
-        if (_suppressLayoutTransitionOnce)
+    private MotionLayout? GetPropertyTargetLayout(MotionPose pose) =>
+        pose switch
         {
-            _suppressLayoutTransitionOnce = false;
-            _transitionKind = TransitionKind.None;
-            _settledState = _selectedState;
-            return target;
-        }
+            StateMotionPose statePose => GetArrangedLayout(statePose.Key),
+            BlendMotionPose blend => GetPropertyTargetLayout(blend.Target),
+            _ => null,
+        };
 
-        if (!_hasPresentedLayout || LayoutTransitionEasing is null || LayoutTransitionDuration <= TimeSpan.Zero)
+    private void UpdatePropertyTargets(MotionPose pose)
+    {
+        var targetLayout = GetPropertyTargetLayout(pose);
+        var blend = pose as BlendMotionPose;
+        var duration = blend?.PropertyTransitionDuration ?? TimeSpan.Zero;
+        var easing = blend?.PropertyTransitionDuration is not null ? blend.Easing : null;
+
+        foreach (var pair in _targets)
         {
-            _transitionKind = TransitionKind.None;
-            _settledState = _selectedState;
-            return target;
+            var slot = targetLayout?.Entries.TryGetValue(pair.Key, out var entry) == true ? entry.Slot : null;
+            pair.Value.Properties.Update(slot, duration, easing);
         }
-
-        if (_lastTargetLayout is not null && !LayoutsEqual(_lastTargetLayout, target))
-        {
-            _layoutSource = _presentedLayout;
-            _transitionKind = TransitionKind.Layout;
-            RestartTransitionClock();
-            RequestNextFrame();
-        }
-
-        if (_transitionKind != TransitionKind.Layout || _layoutSource is null)
-        {
-            return target;
-        }
-
-        var layoutProgress = LayoutTransitionEasing.Ease(GetTransitionProgress(LayoutTransitionDuration));
-        return BlendLayouts(_layoutSource, target, layoutProgress);
     }
 
     private void ApplyLayout(MotionLayout layout)
@@ -679,250 +558,61 @@ public sealed class MotionPanel : Control
         }
     }
 
-    private void UpdatePropertyTargets(MotionLayout targetLayout)
+    private MotionLayout BlendLayouts(MotionLayout source, MotionLayout target, double progress)
     {
-        var duration = _transitionKind == TransitionKind.State ? StateTransitionDuration : LayoutTransitionDuration;
-        var easing = _transitionKind == TransitionKind.State ? StateTransitionEasing : LayoutTransitionEasing;
-
-        foreach (var pair in _targets)
-        {
-            var slot = targetLayout.Entries.TryGetValue(pair.Key, out var entry) ? entry.Slot : null;
-            pair.Value.Properties.Update(slot, duration, easing);
-        }
-    }
-
-    private void RequestNextFrame()
-    {
-        if (_frameRequested || _transitionKind == TransitionKind.None || _topLevel is null)
-        {
-            return;
-        }
-
-        _frameRequested = true;
-        var generation = _frameGeneration;
-        _topLevel.RequestAnimationFrame(timestamp => OnAnimationFrame(timestamp, generation));
-    }
-
-    private void OnAnimationFrame(TimeSpan timestamp, int generation)
-    {
-        if (generation != _frameGeneration)
-        {
-            return;
-        }
-
-        _frameRequested = false;
-        if (_lastFrameTime is { } lastFrameTime && timestamp > lastFrameTime)
-        {
-            _transitionElapsed += timestamp - lastFrameTime;
-        }
-
-        _lastFrameTime = timestamp;
-        if (IsTransitionComplete())
-        {
-            _suppressLayoutTransitionOnce = _transitionKind == TransitionKind.State;
-            _settledState = _selectedState;
-            ClearTransition();
-        }
-
-        InvalidateMeasure();
-        RequestNextFrame();
-    }
-
-    private bool IsTransitionComplete()
-    {
-        if (_transitionKind == TransitionKind.None)
-        {
-            return false;
-        }
-
-        var duration = _transitionKind == TransitionKind.State ? StateTransitionDuration : LayoutTransitionDuration;
-        return duration <= TimeSpan.Zero || _transitionElapsed >= duration;
-    }
-
-    private double GetTransitionProgress(TimeSpan duration)
-    {
-        if (duration <= TimeSpan.Zero)
-        {
-            return 0;
-        }
-
-        return Math.Clamp(_transitionElapsed.TotalMilliseconds / duration.TotalMilliseconds, 0, 1);
-    }
-
-    private void ClearTransition()
-    {
-        _transitionKind = TransitionKind.None;
-        RestartTransitionClock();
-        _fixedStateSource = null;
-        _layoutSource = null;
-        _stateSourceWeights.Clear();
-    }
-
-    private void RestartTransitionClock()
-    {
-        _transitionElapsed = TimeSpan.Zero;
-        _lastFrameTime = null;
-    }
-
-    private static MotionLayout? GetStateLayout(MotionState? state, IReadOnlyDictionary<MotionState, MotionLayout> layouts) =>
-        state is not null && layouts.TryGetValue(state, out var result) ? result : null;
-
-    private static Size MixDesiredSizes(
-        IReadOnlyDictionary<MotionState, Size> sizes,
-        IReadOnlyDictionary<MotionState, double> weights)
-    {
-        var width = 0d;
-        var height = 0d;
-
-        foreach (var pair in weights)
-        {
-            if (sizes.TryGetValue(pair.Key, out var size))
-            {
-                width += size.Width * pair.Value;
-                height += size.Height * pair.Value;
-            }
-        }
-
-        return new Size(width, height);
-    }
-
-    private MotionLayout MixStateLayouts(
-        IReadOnlyDictionary<MotionState, MotionLayout> layouts,
-        IReadOnlyDictionary<MotionState, double> weights)
-    {
-        var desiredWidth = 0d;
-        var desiredHeight = 0d;
-        var entries = new Dictionary<string, MotionLayoutEntry>(_targets.Count, StringComparer.Ordinal);
-
-        foreach (var pair in weights)
-        {
-            if (layouts.TryGetValue(pair.Key, out var layout))
-            {
-                desiredWidth += layout.DesiredSize.Width * pair.Value;
-                desiredHeight += layout.DesiredSize.Height * pair.Value;
-            }
-        }
+        var entries = new Dictionary<string, MotionLayoutEntry>(
+            _targets.Count,
+            StringComparer.Ordinal);
 
         foreach (var id in _targets.Keys)
         {
-            var rectWeight = 0d;
-            var x = 0d;
-            var y = 0d;
-            var width = 0d;
-            var height = 0d;
-            var opacity = 0d;
-            MotionSlot? slot = null;
+            var hasSource = source.Entries.TryGetValue(id, out var sourceEntry);
+            var hasTarget = target.Entries.TryGetValue(id, out var targetEntry);
 
-            foreach (var pair in weights)
+            if (!hasSource && !hasTarget)
             {
-                if (!layouts.TryGetValue(pair.Key, out var layout) ||
-                    !layout.Entries.TryGetValue(id, out var entry))
-                {
-                    continue;
-                }
-
-                rectWeight += pair.Value;
-                x += entry.Bounds.X * pair.Value;
-                y += entry.Bounds.Y * pair.Value;
-                width += entry.Bounds.Width * pair.Value;
-                height += entry.Bounds.Height * pair.Value;
-                opacity += entry.Opacity * pair.Value;
-                slot ??= entry.Slot;
+                continue;
             }
 
-            if (rectWeight > 0)
+            if (!hasSource)
             {
-                entries.Add(
-                    id,
-                    new MotionLayoutEntry(
-                        new Rect(
-                            x / rectWeight,
-                            y / rectWeight,
-                            width / rectWeight,
-                            height / rectWeight),
-                        opacity,
-                        slot));
-            }
-        }
-
-        return new MotionLayout(new Size(desiredWidth, desiredHeight), entries);
-    }
-
-    private MotionLayout BlendLayouts(MotionLayout from, MotionLayout to, double progress)
-    {
-        var entries = new Dictionary<string, MotionLayoutEntry>(_targets.Count, StringComparer.Ordinal);
-
-        foreach (var id in _targets.Keys)
-        {
-            var hasFrom = from.Entries.TryGetValue(id, out var fromEntry);
-            var hasTo = to.Entries.TryGetValue(id, out var toEntry);
-
-            if (!hasFrom)
-            {
-                fromEntry = toEntry with { Opacity = 0 };
+                sourceEntry = targetEntry with { Opacity = 0 };
             }
 
-            if (!hasTo)
+            if (!hasTarget)
             {
-                toEntry = fromEntry with { Opacity = 0 };
+                targetEntry = sourceEntry with { Opacity = 0 };
             }
 
             entries.Add(
                 id,
                 new MotionLayoutEntry(
-                    Lerp(fromEntry.Bounds, toEntry.Bounds, progress),
-                    Lerp(fromEntry.Opacity, toEntry.Opacity, progress),
-                    toEntry.Slot ?? fromEntry.Slot));
+                    Lerp(sourceEntry.Bounds, targetEntry.Bounds, progress),
+                    Lerp(sourceEntry.Opacity, targetEntry.Opacity, progress),
+                    targetEntry.Slot ?? sourceEntry.Slot));
         }
 
-        return new MotionLayout(Lerp(from.DesiredSize, to.DesiredSize, progress), entries);
+        return new MotionLayout(Lerp(source.DesiredSize, target.DesiredSize, progress), entries);
     }
 
-    private static bool LayoutsEqual(MotionLayout left, MotionLayout right)
-    {
-        if (!Close(left.DesiredSize.Width, right.DesiredSize.Width) ||
-            !Close(left.DesiredSize.Height, right.DesiredSize.Height) ||
-            left.Entries.Count != right.Entries.Count)
-        {
-            return false;
-        }
+    private static double Lerp(double source, double target, double progress) =>
+        source + ((target - source) * progress);
 
-        foreach (var pair in left.Entries)
-        {
-            if (!right.Entries.TryGetValue(pair.Key, out var other) ||
-                !Close(pair.Value.Bounds.X, other.Bounds.X) ||
-                !Close(pair.Value.Bounds.Y, other.Bounds.Y) ||
-                !Close(pair.Value.Bounds.Width, other.Bounds.Width) ||
-                !Close(pair.Value.Bounds.Height, other.Bounds.Height) ||
-                !Close(pair.Value.Opacity, other.Opacity))
-            {
-                return false;
-            }
-        }
+    private static Size Lerp(Size source, Size target, double progress) =>
+        new(
+            Lerp(source.Width, target.Width, progress),
+            Lerp(source.Height, target.Height, progress));
 
-        return true;
-    }
+    private static Rect Lerp(Rect source, Rect target, double progress) =>
+        new(
+            Lerp(source.X, target.X, progress),
+            Lerp(source.Y, target.Y, progress),
+            Lerp(source.Width, target.Width, progress),
+            Lerp(source.Height, target.Height, progress));
 
-    private static bool Close(double left, double right) => Math.Abs(left - right) < 0.01;
-
-    private static double Lerp(double from, double to, double progress) =>
-        from + (to - from) * progress;
-
-    private static Size Lerp(Size from, Size to, double progress) =>
-        new(Lerp(from.Width, to.Width, progress), Lerp(from.Height, to.Height, progress));
-
-    private static Rect Lerp(Rect from, Rect to, double progress) => new(
-        Lerp(from.X, to.X, progress),
-        Lerp(from.Y, to.Y, progress),
-        Lerp(from.Width, to.Width, progress),
-        Lerp(from.Height, to.Height, progress));
-
-    private enum TransitionKind
-    {
-        None,
-        State,
-        Layout,
-    }
-
-    private readonly record struct TargetEntry(Control Child, MotionPanelItemContainer Container, MotionPanelPropertyTarget Properties);
+    private readonly record struct TargetEntry(
+        Control Child,
+        MotionPanelItemContainer Container,
+        MotionPanelPropertyTarget Properties
+    );
 }

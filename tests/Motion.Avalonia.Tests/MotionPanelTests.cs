@@ -15,7 +15,7 @@ namespace Motion.Avalonia.Tests;
 public sealed class MotionPanelTests
 {
     [Test]
-    public void Arrange_WhenStateChangesWithoutEasing_SnapsToRequestedLiveLayout()
+    public void Arrange_WhenControllerDurationIsZero_SnapsToRequestedLiveLayout()
     {
         var child = new Border();
         var panel = CreatePanel(child);
@@ -36,7 +36,7 @@ public sealed class MotionPanelTests
     }
 
     [Test]
-    public void Arrange_WhenPanelSizeChangesAndLayoutEasingIsNull_ReevaluatesStateImmediately()
+    public void Arrange_WhenPanelSizeChanges_ReevaluatesSettledStateImmediately()
     {
         var child = new Border();
         var panel = CreatePanel(child);
@@ -112,11 +112,12 @@ public sealed class MotionPanelTests
     }
 
     [Test]
-    public void Arrange_WhenStateEasingIsNull_DoesNotFallThroughToLayoutEasing()
+    public void Arrange_WhenControllerEasingIsNull_SnapsToRequestedState()
     {
         var child = new Border();
         var panel = CreatePanel(child);
-        panel.LayoutTransitionEasing = new LinearEasing();
+        GetBasicController(panel).Duration = TimeSpan.FromSeconds(1);
+        GetBasicController(panel).Easing = null;
         panel.States.Add(CreateState(
             "center",
             () => CreateSlot("editor", 100, HorizontalAlignment.Center)));
@@ -199,8 +200,8 @@ public sealed class MotionPanelTests
     {
         var child = new Border();
         var panel = CreatePanel(child);
-        panel.StateTransitionDuration = TimeSpan.FromSeconds(1);
-        panel.StateTransitionEasing = new LinearEasing();
+        GetBasicController(panel).Duration = TimeSpan.FromSeconds(1);
+        GetBasicController(panel).Easing = new LinearEasing();
         panel.States.Add(CreateState(
             "center",
             () => CreateSlot("editor", 100, HorizontalAlignment.Center)));
@@ -225,8 +226,8 @@ public sealed class MotionPanelTests
     {
         var child = new Border();
         var panel = CreatePanel(child);
-        panel.StateTransitionDuration = TimeSpan.FromSeconds(1);
-        panel.StateTransitionEasing = new LinearEasing();
+        GetBasicController(panel).Duration = TimeSpan.FromSeconds(1);
+        GetBasicController(panel).Easing = new LinearEasing();
         panel.States.Add(CreateState(
             "center",
             () => CreateSlot("editor", 100, HorizontalAlignment.Center)));
@@ -248,28 +249,25 @@ public sealed class MotionPanelTests
     }
 
     [Test]
-    public void LayoutTransition_WhenTargetChangesDuringAnimation_RetargetsFromPresentedBounds()
+    public void StateTransition_WhenPanelResizes_ReevaluatesLiveEndpointsAtCurrentProgress()
     {
         var child = new Border();
         var panel = CreatePanel(child);
-        panel.LayoutTransitionDuration = TimeSpan.FromSeconds(1);
-        panel.LayoutTransitionEasing = new LinearEasing();
+        GetBasicController(panel).Duration = TimeSpan.FromSeconds(1);
+        GetBasicController(panel).Easing = new LinearEasing();
         panel.States.Add(CreateState(
             "center",
             () => CreateSlot("editor", 100, HorizontalAlignment.Center)));
+        panel.States.Add(CreateState(
+            "left",
+            () => CreateSlot("editor", 80, HorizontalAlignment.Left)));
         Arrange(panel, "center", new Size(400, 200));
 
-        Arrange(panel, "center", new Size(600, 200));
+        Arrange(panel, "left", new Size(400, 200));
         AdvanceAnimation(panel, TimeSpan.Zero, new Size(600, 200));
         AdvanceAnimation(panel, TimeSpan.FromMilliseconds(500), new Size(600, 200));
-        Assert.That(GetPresentedBounds(child).X, Is.EqualTo(200));
 
-        Arrange(panel, "center", new Size(800, 200));
-        Assert.That(GetPresentedBounds(child).X, Is.EqualTo(200));
-        AdvanceAnimation(panel, TimeSpan.FromSeconds(1), new Size(800, 200));
-        AdvanceAnimation(panel, TimeSpan.FromMilliseconds(1500), new Size(800, 200));
-
-        Assert.That(GetPresentedBounds(child).X, Is.EqualTo(275));
+        Assert.That(GetPresentedBounds(child), Is.EqualTo(new Rect(125, 0, 90, 40)));
     }
 
     [Test]
@@ -278,8 +276,8 @@ public sealed class MotionPanelTests
         var editor = new Border();
         var preview = new Border { Opacity = 0.8 };
         var panel = CreatePanel(editor, preview);
-        panel.StateTransitionDuration = TimeSpan.FromSeconds(1);
-        panel.StateTransitionEasing = new LinearEasing();
+        GetBasicController(panel).Duration = TimeSpan.FromSeconds(1);
+        GetBasicController(panel).Easing = new LinearEasing();
         panel.States.Add(CreateState(
             "quick",
             () => CreateSlot("editor", 100, HorizontalAlignment.Center)));
@@ -418,7 +416,13 @@ public sealed class MotionPanelTests
 
     private static MotionPanel CreatePanel(params Control[] children)
     {
-        var panel = new MotionPanel();
+        var panel = new MotionPanel
+        {
+            Controller = new BasicMotionController
+            {
+                Duration = TimeSpan.Zero,
+            },
+        };
 
         for (var i = 0; i < children.Length; i++)
         {
@@ -458,15 +462,18 @@ public sealed class MotionPanelTests
 
     private static void Arrange(MotionPanel panel, object state, Size size)
     {
-        panel.State = state;
+        GetBasicController(panel).State = state;
         RunLayoutToConvergence(panel, size);
     }
 
     private static void AdvanceAnimation(MotionPanel panel, TimeSpan timestamp, Size size)
     {
-        InvokeAnimationFrame(panel, timestamp, 0);
+        InvokeAnimationFrame(GetBasicController(panel), timestamp, 0);
         RunLayoutToConvergence(panel, size);
     }
+
+    private static BasicMotionController GetBasicController(MotionPanel panel) =>
+        (BasicMotionController)panel.Controller!;
 
     private static void RunLayoutToConvergence(MotionPanel panel, Size size)
     {
@@ -484,7 +491,7 @@ public sealed class MotionPanelTests
 
     [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "OnAnimationFrame")]
     private static extern void InvokeAnimationFrame(
-        MotionPanel panel,
+        BasicMotionController controller,
         TimeSpan timestamp,
         int generation);
 

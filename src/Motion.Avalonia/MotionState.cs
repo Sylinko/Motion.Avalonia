@@ -22,7 +22,7 @@ public sealed class MotionState : AvaloniaObject
         AvaloniaProperty.Register<MotionState, IDataTemplate?>(nameof(Template));
 
     /// <summary>
-    /// Gets or sets the value matched against <see cref="MotionPanel.State"/>.
+    /// Gets or sets the key referenced by controller-produced poses.
     /// </summary>
     public object? Key
     {
