@@ -60,9 +60,9 @@ internal sealed class TransitionPanelHost : Decorator
                 $"Every {nameof(TransitionPanelSlot)} in state '{State.Key}' must specify a non-empty target.");
         }
 
-        if (!entries.TryAdd(target, new MotionLayoutEntry(GetLayoutBounds(slot), slot.Opacity)))
+        if (!entries.TryAdd(target, new MotionLayoutEntry(GetLayoutBounds(slot), slot.Opacity, slot)))
         {
-            throw new InvalidOperationException($"State '{State.Key}' contains more than one slot for layout morph target '{target}'.");
+            throw new InvalidOperationException($"State '{State.Key}' contains more than one slot for transition target '{target}'.");
         }
     }
 
@@ -79,7 +79,7 @@ internal sealed class TransitionPanelHost : Decorator
 
         if (current != this)
         {
-            throw new InvalidOperationException($"Motion slot '{slot.Target}' is not a descendant of its state scene.");
+            throw new InvalidOperationException($"Transition slot '{slot.Target}' is not a descendant of its state scene.");
         }
 
         return new Rect(position, slot.Bounds.Size);
@@ -88,4 +88,4 @@ internal sealed class TransitionPanelHost : Decorator
 
 internal sealed record MotionLayout(Size DesiredSize, IReadOnlyDictionary<string, MotionLayoutEntry> Entries);
 
-internal readonly record struct MotionLayoutEntry(Rect Bounds, double Opacity);
+internal readonly record struct MotionLayoutEntry(Rect Bounds, double Opacity, TransitionPanelSlot? Slot);

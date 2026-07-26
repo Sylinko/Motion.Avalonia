@@ -1,9 +1,13 @@
-using System;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Avalonia;
+using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
+using Avalonia.Data;
 using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.VisualTree;
 
 namespace Motion.Avalonia.Tests;
@@ -112,7 +116,7 @@ public sealed class TransitionPanelTests
     {
         var child = new Border();
         var panel = CreatePanel(child);
-        panel.LayoutTransitionEasing = new global::Avalonia.Animation.Easings.LinearEasing();
+        panel.LayoutTransitionEasing = new LinearEasing();
         panel.States.Add(CreateState(
             "center",
             () => CreateSlot("editor", 100, HorizontalAlignment.Center)));
@@ -196,7 +200,7 @@ public sealed class TransitionPanelTests
         var child = new Border();
         var panel = CreatePanel(child);
         panel.StateTransitionDuration = TimeSpan.FromSeconds(1);
-        panel.StateTransitionEasing = new global::Avalonia.Animation.Easings.LinearEasing();
+        panel.StateTransitionEasing = new LinearEasing();
         panel.States.Add(CreateState(
             "center",
             () => CreateSlot("editor", 100, HorizontalAlignment.Center)));
@@ -222,7 +226,7 @@ public sealed class TransitionPanelTests
         var child = new Border();
         var panel = CreatePanel(child);
         panel.StateTransitionDuration = TimeSpan.FromSeconds(1);
-        panel.StateTransitionEasing = new global::Avalonia.Animation.Easings.LinearEasing();
+        panel.StateTransitionEasing = new LinearEasing();
         panel.States.Add(CreateState(
             "center",
             () => CreateSlot("editor", 100, HorizontalAlignment.Center)));
@@ -249,7 +253,7 @@ public sealed class TransitionPanelTests
         var child = new Border();
         var panel = CreatePanel(child);
         panel.LayoutTransitionDuration = TimeSpan.FromSeconds(1);
-        panel.LayoutTransitionEasing = new global::Avalonia.Animation.Easings.LinearEasing();
+        panel.LayoutTransitionEasing = new LinearEasing();
         panel.States.Add(CreateState(
             "center",
             () => CreateSlot("editor", 100, HorizontalAlignment.Center)));
@@ -275,7 +279,7 @@ public sealed class TransitionPanelTests
         var preview = new Border { Opacity = 0.8 };
         var panel = CreatePanel(editor, preview);
         panel.StateTransitionDuration = TimeSpan.FromSeconds(1);
-        panel.StateTransitionEasing = new global::Avalonia.Animation.Easings.LinearEasing();
+        panel.StateTransitionEasing = new LinearEasing();
         panel.States.Add(CreateState(
             "quick",
             () => CreateSlot("editor", 100, HorizontalAlignment.Center)));
@@ -328,6 +332,90 @@ public sealed class TransitionPanelTests
         });
     }
 
+    [Test]
+    public void Arrange_WhenStateSlotDefinesSetter_AppliesTargetStyledProperty()
+    {
+        var quickBrush = new SolidColorBrush(Colors.Crimson);
+        var advancedBrush = new SolidColorBrush(Colors.CornflowerBlue);
+        var child = new Border();
+        var panel = CreatePanel(child);
+        panel.States.Add(CreateState(
+            "quick",
+            () => CreateSlotWithSetter("editor", quickBrush)));
+        panel.States.Add(CreateState(
+            "advanced",
+            () => CreateSlotWithSetter("editor", advancedBrush)));
+
+        Arrange(panel, "quick", new Size(400, 200));
+        Assert.That(child.Background, Is.SameAs(quickBrush));
+
+        Arrange(panel, "advanced", new Size(400, 200));
+        Assert.That(child.Background, Is.SameAs(advancedBrush));
+    }
+
+    [Test]
+    public void Children_WhenTargetWithSetterIsRemoved_RestoresLatestBoundValue()
+    {
+        var initialBrush = new SolidColorBrush(Colors.DarkGreen);
+        var latestBrush = new SolidColorBrush(Colors.Goldenrod);
+        var stateBrush = new SolidColorBrush(Colors.MediumPurple);
+        var source = new TestObservable<IBrush?>();
+        var child = new Border();
+        child.Bind(Border.BackgroundProperty, source);
+        source.Publish(initialBrush);
+        var panel = CreatePanel(child);
+        panel.States.Add(CreateState(
+            "active",
+            () => CreateSlotWithSetter("editor", stateBrush)));
+
+        Arrange(panel, "active", new Size(400, 200));
+        source.Publish(latestBrush);
+        Assert.That(child.Background, Is.SameAs(stateBrush));
+
+        panel.Children.Remove(child);
+
+        Assert.That(child.Background, Is.SameAs(latestBrush));
+    }
+
+    [Test]
+    public void Arrange_WhenSetterValueIsBound_TracksLiveEndpointValue()
+    {
+        var initialBrush = new SolidColorBrush(Colors.IndianRed);
+        var latestBrush = new SolidColorBrush(Colors.SteelBlue);
+        var values = new BrushValues(initialBrush);
+        var child = new Border();
+        var panel = CreatePanel(child);
+        panel.States.Add(CreateState(
+            "active",
+            () =>
+            {
+                var slot = CreateSlot("editor", 100, HorizontalAlignment.Left);
+                slot.Setters.Add(new Setter(
+                    Border.BackgroundProperty,
+                    new Binding(nameof(BrushValues.Brush)) { Source = values }));
+                return slot;
+            }));
+
+        Arrange(panel, "active", new Size(400, 200));
+        Assert.That(child.Background, Is.SameAs(initialBrush));
+
+        values.Brush = latestBrush;
+
+        Assert.That(child.Background, Is.SameAs(latestBrush));
+    }
+
+    [Test]
+    public void Setters_WhenPropertyIsDuplicated_ThrowsConfigurationError()
+    {
+        var slot = CreateSlot("editor", 100, HorizontalAlignment.Left);
+        slot.Setters.Add(new Setter(Border.BackgroundProperty, Brushes.Red));
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => slot.Setters.Add(new Setter(Border.BackgroundProperty, Brushes.Blue)));
+
+        Assert.That(exception!.Message, Does.Contain("more than one Setter"));
+    }
+
     private static TransitionPanel CreatePanel(params Control[] children)
     {
         var panel = new TransitionPanel();
@@ -361,6 +449,13 @@ public sealed class TransitionPanelTests
             VerticalAlignment = VerticalAlignment.Top,
         };
 
+    private static TransitionPanelSlot CreateSlotWithSetter(string target, IBrush brush)
+    {
+        var slot = CreateSlot(target, 100, HorizontalAlignment.Left);
+        slot.Setters.Add(new Setter(Border.BackgroundProperty, brush));
+        return slot;
+    }
+
     private static void Arrange(TransitionPanel panel, object state, Size size)
     {
         panel.State = state;
@@ -393,29 +488,15 @@ public sealed class TransitionPanelTests
         TimeSpan timestamp,
         int generation);
 
-    private sealed class TestTemplate : IDataTemplate
+    private sealed class TestTemplate(Func<Control> build) : IDataTemplate
     {
-        private readonly Func<Control> _build;
-
-        public TestTemplate(Func<Control> build)
-        {
-            _build = build;
-        }
-
         public bool Match(object? data) => true;
 
-        public Control Build(object? param) => _build();
+        public Control Build(object? param) => build();
     }
 
-    private sealed class CountingTemplate : IDataTemplate
+    private sealed class CountingTemplate(Func<Control> build) : IDataTemplate
     {
-        private readonly Func<Control> _build;
-
-        public CountingTemplate(Func<Control> build)
-        {
-            _build = build;
-        }
-
         public int BuildCount { get; private set; }
 
         public bool Match(object? data) => true;
@@ -423,7 +504,51 @@ public sealed class TransitionPanelTests
         public Control Build(object? param)
         {
             BuildCount++;
-            return _build();
+            return build();
         }
+    }
+
+    private sealed class TestObservable<T> : IObservable<T>
+    {
+        private readonly List<IObserver<T>> _observers = [];
+
+        public IDisposable Subscribe(IObserver<T> observer)
+        {
+            _observers.Add(observer);
+            return new Subscription(_observers, observer);
+        }
+
+        public void Publish(T value)
+        {
+            foreach (var observer in _observers.ToArray())
+            {
+                observer.OnNext(value);
+            }
+        }
+
+        private sealed class Subscription(List<IObserver<T>> observers, IObserver<T> observer) : IDisposable
+        {
+            public void Dispose() => observers.Remove(observer);
+        }
+    }
+
+    private sealed class BrushValues(IBrush brush) : INotifyPropertyChanged
+    {
+        public IBrush Brush
+        {
+            get => field;
+            set
+            {
+                if (ReferenceEquals(field, value))
+                {
+                    return;
+                }
+
+                field = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Brush)));
+            }
+        } = brush;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

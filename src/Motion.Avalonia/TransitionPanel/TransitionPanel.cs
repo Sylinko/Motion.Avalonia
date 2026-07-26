@@ -120,6 +120,7 @@ public sealed class TransitionPanel : Control
     private readonly Dictionary<TransitionPanelState, TransitionPanelHost> _scenes = new();
     private readonly Dictionary<string, TargetEntry> _targets = new(StringComparer.Ordinal);
     private readonly Dictionary<Control, TransitionPanelItemContainer> _containers = new();
+    private readonly Dictionary<Control, TransitionPanelPropertyTarget> _propertyTargets = new();
     private readonly Dictionary<TransitionPanelState, double> _stateSourceWeights = new();
     private readonly Dictionary<TransitionPanelState, Size> _measuredSizes = new();
     private readonly Dictionary<TransitionPanelState, MotionLayout> _arrangedLayouts = new();
@@ -160,8 +161,7 @@ public sealed class TransitionPanel : Control
 
         if (!_targets.TryGetValue(id, out var target))
         {
-            throw new InvalidOperationException(
-                $"Layout morph state references target '{id}', but no direct child has that name.");
+            throw new InvalidOperationException($"Transition state references target '{id}', but no direct child has that name.");
         }
 
         target.Child.Measure(availableSize);
@@ -186,6 +186,7 @@ public sealed class TransitionPanel : Control
 
         var layouts = CaptureRequiredLayouts(finalSize);
         var targetLayout = GetStateLayout(_selectedState, layouts) ?? new MotionLayout(default, new Dictionary<string, MotionLayoutEntry>());
+        UpdatePropertyTargets(targetLayout);
         var presentedLayout = ResolvePresentedLayout(targetLayout, layouts);
 
         ApplyLayout(presentedLayout);
@@ -200,25 +201,19 @@ public sealed class TransitionPanel : Control
     {
         switch (e.Action)
         {
-            case NotifyCollectionChangedAction.Add:
-                AddChildren(e.NewStartingIndex, e.NewItems!);
+            case NotifyCollectionChangedAction.Add when e.NewItems is not null:
+                AddChildren(e.NewStartingIndex, e.NewItems);
                 break;
-            case NotifyCollectionChangedAction.Remove:
-                RemoveChildren(e.OldStartingIndex, e.OldItems!);
+            case NotifyCollectionChangedAction.Remove when e.OldItems is not null:
+                RemoveChildren(e.OldStartingIndex, e.OldItems);
                 break;
             case NotifyCollectionChangedAction.Replace:
-                RemoveChildren(e.OldStartingIndex, e.OldItems!);
-                AddChildren(e.NewStartingIndex, e.NewItems!);
+                if (e.OldItems is not null) RemoveChildren(e.OldStartingIndex, e.OldItems);
+                if (e.NewItems is not null) AddChildren(e.NewStartingIndex, e.NewItems);
                 break;
-            case NotifyCollectionChangedAction.Move:
-                LogicalChildren.MoveRange(
-                    e.OldStartingIndex,
-                    e.OldItems!.Count,
-                    e.NewStartingIndex);
-                VisualChildren.MoveRange(
-                    e.OldStartingIndex,
-                    e.OldItems.Count,
-                    e.NewStartingIndex);
+            case NotifyCollectionChangedAction.Move when e.OldItems is not null:
+                LogicalChildren.MoveRange(e.OldStartingIndex, e.OldItems.Count, e.NewStartingIndex);
+                VisualChildren.MoveRange(e.OldStartingIndex, e.OldItems.Count, e.NewStartingIndex);
                 break;
             case NotifyCollectionChangedAction.Reset:
                 ResetChildren();
@@ -236,12 +231,12 @@ public sealed class TransitionPanel : Control
         {
             if (_containers.ContainsKey(child))
             {
-                throw new InvalidOperationException(
-                    $"{nameof(TransitionPanel)} cannot contain the same child more than once.");
+                throw new InvalidOperationException($"{nameof(TransitionPanel)} cannot contain the same child more than once.");
             }
 
             var container = new TransitionPanelItemContainer(child);
             _containers.Add(child, container);
+            _propertyTargets.Add(child, new TransitionPanelPropertyTarget(child));
             child.PropertyChanged += OnChildPropertyChanged;
             LogicalChildren.Insert(index, child);
             VisualChildren.Insert(index, container);
@@ -261,6 +256,11 @@ public sealed class TransitionPanel : Control
                 container.DetachChild();
             }
 
+            if (_propertyTargets.Remove(child, out var propertyTarget))
+            {
+                propertyTarget.Dispose();
+            }
+
             LogicalChildren.Remove(child);
         }
     }
@@ -273,9 +273,11 @@ public sealed class TransitionPanel : Control
             VisualChildren.Remove(pair.Value);
             pair.Value.DetachChild();
             LogicalChildren.Remove(pair.Key);
+            _propertyTargets[pair.Key].Dispose();
         }
 
         _containers.Clear();
+        _propertyTargets.Clear();
         AddChildren(0, Children);
     }
 
@@ -305,6 +307,12 @@ public sealed class TransitionPanel : Control
         _lastFrameTime = null;
         _frameGeneration++;
         _frameRequested = false;
+
+        foreach (var propertyTarget in _propertyTargets.Values)
+        {
+            propertyTarget.CompleteImmediately();
+        }
+
         base.OnDetachedFromVisualTree(e);
     }
 
@@ -399,14 +407,12 @@ public sealed class TransitionPanel : Control
             var id = child.Name;
             if (string.IsNullOrWhiteSpace(id))
             {
-                throw new InvalidOperationException(
-                    $"Every direct child of {nameof(TransitionPanel)} must have a non-empty x:Name.");
+                throw new InvalidOperationException($"Every direct child of {nameof(TransitionPanel)} must have a non-empty x:Name.");
             }
 
-            if (!_targets.TryAdd(id, new TargetEntry(child, _containers[child])))
+            if (!_targets.TryAdd(id, new TargetEntry(child, _containers[child], _propertyTargets[child])))
             {
-                throw new InvalidOperationException(
-                    $"{nameof(TransitionPanel)} contains more than one direct child named '{id}'.");
+                throw new InvalidOperationException($"{nameof(TransitionPanel)} contains more than one direct child named '{id}'.");
             }
         }
 
@@ -459,8 +465,7 @@ public sealed class TransitionPanel : Control
 
             if (match is not null)
             {
-                throw new InvalidOperationException(
-                    $"{nameof(TransitionPanel)} contains multiple states with key '{State}'.");
+                throw new InvalidOperationException($"{nameof(TransitionPanel)} contains multiple states with key '{State}'.");
             }
 
             match = candidate;
@@ -497,8 +502,7 @@ public sealed class TransitionPanel : Control
 
             if (_selectedState is not null)
             {
-                _stateSourceWeights[_selectedState] =
-                    _stateSourceWeights.GetValueOrDefault(_selectedState) + eased;
+                _stateSourceWeights[_selectedState] = _stateSourceWeights.GetValueOrDefault(_selectedState) + eased;
             }
 
             return;
@@ -597,9 +601,7 @@ public sealed class TransitionPanel : Control
 
     private Size GetDesiredSize(IReadOnlyDictionary<TransitionPanelState, Size> sizes)
     {
-        var target = _selectedState is not null && sizes.TryGetValue(_selectedState, out var selectedSize)
-            ? selectedSize
-            : default;
+        var target = _selectedState is not null && sizes.TryGetValue(_selectedState, out var selectedSize) ? selectedSize : default;
         if (_transitionKind != TransitionKind.State)
         {
             return target;
@@ -674,6 +676,18 @@ public sealed class TransitionPanel : Control
             container.Width = entry.Bounds.Width;
             container.Height = entry.Bounds.Height;
             container.Arrange(new Rect(container.Position, entry.Bounds.Size));
+        }
+    }
+
+    private void UpdatePropertyTargets(MotionLayout targetLayout)
+    {
+        var duration = _transitionKind == TransitionKind.State ? StateTransitionDuration : LayoutTransitionDuration;
+        var easing = _transitionKind == TransitionKind.State ? StateTransitionEasing : LayoutTransitionEasing;
+
+        foreach (var pair in _targets)
+        {
+            var slot = targetLayout.Entries.TryGetValue(pair.Key, out var entry) ? entry.Slot : null;
+            pair.Value.Properties.Update(slot, duration, easing);
         }
     }
 
@@ -797,6 +811,7 @@ public sealed class TransitionPanel : Control
             var width = 0d;
             var height = 0d;
             var opacity = 0d;
+            TransitionPanelSlot? slot = null;
 
             foreach (var pair in weights)
             {
@@ -812,6 +827,7 @@ public sealed class TransitionPanel : Control
                 width += entry.Bounds.Width * pair.Value;
                 height += entry.Bounds.Height * pair.Value;
                 opacity += entry.Opacity * pair.Value;
+                slot ??= entry.Slot;
             }
 
             if (rectWeight > 0)
@@ -824,7 +840,8 @@ public sealed class TransitionPanel : Control
                             y / rectWeight,
                             width / rectWeight,
                             height / rectWeight),
-                        opacity));
+                        opacity,
+                        slot));
             }
         }
 
@@ -854,7 +871,8 @@ public sealed class TransitionPanel : Control
                 id,
                 new MotionLayoutEntry(
                     Lerp(fromEntry.Bounds, toEntry.Bounds, progress),
-                    Lerp(fromEntry.Opacity, toEntry.Opacity, progress)));
+                    Lerp(fromEntry.Opacity, toEntry.Opacity, progress),
+                    toEntry.Slot ?? fromEntry.Slot));
         }
 
         return new MotionLayout(Lerp(from.DesiredSize, to.DesiredSize, progress), entries);
@@ -906,5 +924,5 @@ public sealed class TransitionPanel : Control
         Layout,
     }
 
-    private readonly record struct TargetEntry(Control Child, TransitionPanelItemContainer Container);
+    private readonly record struct TargetEntry(Control Child, TransitionPanelItemContainer Container, TransitionPanelPropertyTarget Properties);
 }

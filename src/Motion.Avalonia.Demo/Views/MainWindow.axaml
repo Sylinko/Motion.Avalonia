@@ -38,7 +38,10 @@
                     Target="QuickEditor"/>
                   <motion:TransitionPanelSlot
                     MaxWidth="600" HorizontalAlignment="Stretch"
-                    Opacity="0" Target="AdvancedEditor"/>
+                    x:SetterTargetType="Border" Opacity="0"
+                    Target="AdvancedEditor">
+                    <Setter Property="Background" Value="#FF3C284D"/>
+                  </motion:TransitionPanelSlot>
                 </Grid>
               </DataTemplate>
             </motion:TransitionPanelState.Template>
@@ -52,7 +55,10 @@
                     DockPanel.Dock="Left" MaxWidth="420">
                     <motion:TransitionPanelSlot
                       Opacity="0" Target="QuickEditor"/>
-                    <motion:TransitionPanelSlot Target="AdvancedEditor"/>
+                    <motion:TransitionPanelSlot
+                      x:SetterTargetType="Border" Target="AdvancedEditor">
+                      <Setter Property="Background" Value="#FF243D59"/>
+                    </motion:TransitionPanelSlot>
                   </Grid>
                   <motion:TransitionPanelSlot Target="Preview"/>
                 </DockPanel>

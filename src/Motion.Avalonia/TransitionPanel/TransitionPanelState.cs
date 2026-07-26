@@ -22,7 +22,7 @@ public sealed class TransitionPanelState : AvaloniaObject
         AvaloniaProperty.Register<TransitionPanelState, IDataTemplate?>(nameof(Template));
 
     /// <summary>
-    /// Gets or sets the value matched against <see cref="TransitionPanelTransitionPanelte"/>.
+    /// Gets or sets the value matched against <see cref="TransitionPanel.State"/>.
     /// </summary>
     public object? Key
     {
