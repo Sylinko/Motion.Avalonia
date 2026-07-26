@@ -12,7 +12,7 @@ using Avalonia.VisualTree;
 
 namespace Motion.Avalonia.Tests;
 
-public sealed class TransitionPanelTests
+public sealed class MotionPanelTests
 {
     [Test]
     public void Arrange_WhenStateChangesWithoutEasing_SnapsToRequestedLiveLayout()
@@ -154,7 +154,7 @@ public sealed class TransitionPanelTests
         var panel = CreatePanel(child);
         var firstTemplate = new CountingTemplate(
             () => CreateSlot("editor", 100, HorizontalAlignment.Center));
-        panel.States.Add(new TransitionPanelState { Key = "first", Template = firstTemplate });
+        panel.States.Add(new MotionState { Key = "first", Template = firstTemplate });
 
         panel.States.Add(CreateState(
             "second",
@@ -416,9 +416,9 @@ public sealed class TransitionPanelTests
         Assert.That(exception!.Message, Does.Contain("more than one Setter"));
     }
 
-    private static TransitionPanel CreatePanel(params Control[] children)
+    private static MotionPanel CreatePanel(params Control[] children)
     {
-        var panel = new TransitionPanel();
+        var panel = new MotionPanel();
 
         for (var i = 0; i < children.Length; i++)
         {
@@ -429,14 +429,14 @@ public sealed class TransitionPanelTests
         return panel;
     }
 
-    private static TransitionPanelState CreateState(object key, Func<Control> build) =>
+    private static MotionState CreateState(object key, Func<Control> build) =>
         new()
         {
             Key = key,
             Template = new TestTemplate(build),
         };
 
-    private static TransitionPanelSlot CreateSlot(
+    private static MotionSlot CreateSlot(
         string target,
         double width,
         HorizontalAlignment horizontalAlignment) =>
@@ -449,26 +449,26 @@ public sealed class TransitionPanelTests
             VerticalAlignment = VerticalAlignment.Top,
         };
 
-    private static TransitionPanelSlot CreateSlotWithSetter(string target, IBrush brush)
+    private static MotionSlot CreateSlotWithSetter(string target, IBrush brush)
     {
         var slot = CreateSlot(target, 100, HorizontalAlignment.Left);
         slot.Setters.Add(new Setter(Border.BackgroundProperty, brush));
         return slot;
     }
 
-    private static void Arrange(TransitionPanel panel, object state, Size size)
+    private static void Arrange(MotionPanel panel, object state, Size size)
     {
         panel.State = state;
         RunLayoutToConvergence(panel, size);
     }
 
-    private static void AdvanceAnimation(TransitionPanel panel, TimeSpan timestamp, Size size)
+    private static void AdvanceAnimation(MotionPanel panel, TimeSpan timestamp, Size size)
     {
         InvokeAnimationFrame(panel, timestamp, 0);
         RunLayoutToConvergence(panel, size);
     }
 
-    private static void RunLayoutToConvergence(TransitionPanel panel, Size size)
+    private static void RunLayoutToConvergence(MotionPanel panel, Size size)
     {
         panel.Measure(size);
         panel.Arrange(new Rect(size));
@@ -484,7 +484,7 @@ public sealed class TransitionPanelTests
 
     [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "OnAnimationFrame")]
     private static extern void InvokeAnimationFrame(
-        TransitionPanel panel,
+        MotionPanel panel,
         TimeSpan timestamp,
         int generation);
 

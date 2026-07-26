@@ -11,19 +11,19 @@ namespace Motion.Avalonia;
 /// <summary>
 /// Arranges stable direct children using persistent, live layout state templates.
 /// </summary>
-public sealed class TransitionPanel : Control
+public sealed class MotionPanel : Control
 {
     /// <summary>
     /// Defines the <see cref="State"/> property.
     /// </summary>
     public static readonly StyledProperty<object?> StateProperty =
-        AvaloniaProperty.Register<TransitionPanel, object?>(nameof(State));
+        AvaloniaProperty.Register<MotionPanel, object?>(nameof(State));
 
     /// <summary>
     /// Defines the <see cref="StateTransitionDuration"/> property.
     /// </summary>
     public static readonly StyledProperty<TimeSpan> StateTransitionDurationProperty =
-        AvaloniaProperty.Register<TransitionPanel, TimeSpan>(
+        AvaloniaProperty.Register<MotionPanel, TimeSpan>(
             nameof(StateTransitionDuration),
             TimeSpan.FromMilliseconds(300),
             validate: static value => value >= TimeSpan.Zero);
@@ -32,13 +32,13 @@ public sealed class TransitionPanel : Control
     /// Defines the <see cref="StateTransitionEasing"/> property.
     /// </summary>
     public static readonly StyledProperty<Easing?> StateTransitionEasingProperty =
-        AvaloniaProperty.Register<TransitionPanel, Easing?>(nameof(StateTransitionEasing));
+        AvaloniaProperty.Register<MotionPanel, Easing?>(nameof(StateTransitionEasing));
 
     /// <summary>
     /// Defines the <see cref="LayoutTransitionDuration"/> property.
     /// </summary>
     public static readonly StyledProperty<TimeSpan> LayoutTransitionDurationProperty =
-        AvaloniaProperty.Register<TransitionPanel, TimeSpan>(
+        AvaloniaProperty.Register<MotionPanel, TimeSpan>(
             nameof(LayoutTransitionDuration),
             TimeSpan.FromMilliseconds(250),
             validate: static value => value >= TimeSpan.Zero);
@@ -47,14 +47,14 @@ public sealed class TransitionPanel : Control
     /// Defines the <see cref="LayoutTransitionEasing"/> property.
     /// </summary>
     public static readonly StyledProperty<Easing?> LayoutTransitionEasingProperty =
-        AvaloniaProperty.Register<TransitionPanel, Easing?>(nameof(LayoutTransitionEasing));
+        AvaloniaProperty.Register<MotionPanel, Easing?>(nameof(LayoutTransitionEasing));
 
-    static TransitionPanel()
+    static MotionPanel()
     {
-        AffectsMeasure<TransitionPanel>(StateProperty);
-        StateProperty.Changed.AddClassHandler<TransitionPanel>(static (panel, _) => panel.OnRequestedStateChanged());
-        StateTransitionEasingProperty.Changed.AddClassHandler<TransitionPanel>(static (panel, _) => panel.OnStateTransitionSettingsChanged());
-        StateTransitionDurationProperty.Changed.AddClassHandler<TransitionPanel>(static (panel, _) => panel.OnStateTransitionSettingsChanged());
+        AffectsMeasure<MotionPanel>(StateProperty);
+        StateProperty.Changed.AddClassHandler<MotionPanel>(static (panel, _) => panel.OnRequestedStateChanged());
+        StateTransitionEasingProperty.Changed.AddClassHandler<MotionPanel>(static (panel, _) => panel.OnStateTransitionSettingsChanged());
+        StateTransitionDurationProperty.Changed.AddClassHandler<MotionPanel>(static (panel, _) => panel.OnStateTransitionSettingsChanged());
     }
 
     /// <summary>
@@ -66,7 +66,7 @@ public sealed class TransitionPanel : Control
     /// <summary>
     /// Gets the persistent layout states known to the panel.
     /// </summary>
-    public AvaloniaList<TransitionPanelState> States { get; } = new();
+    public AvaloniaList<MotionState> States { get; } = new();
 
     /// <summary>
     /// Gets or sets the key of the requested layout state.
@@ -117,17 +117,17 @@ public sealed class TransitionPanel : Control
 
     internal int TargetCount => _targets.Count;
 
-    private readonly Dictionary<TransitionPanelState, TransitionPanelHost> _scenes = new();
+    private readonly Dictionary<MotionState, MotionPanelHost> _scenes = new();
     private readonly Dictionary<string, TargetEntry> _targets = new(StringComparer.Ordinal);
-    private readonly Dictionary<Control, TransitionPanelItemContainer> _containers = new();
-    private readonly Dictionary<Control, TransitionPanelPropertyTarget> _propertyTargets = new();
-    private readonly Dictionary<TransitionPanelState, double> _stateSourceWeights = new();
-    private readonly Dictionary<TransitionPanelState, Size> _measuredSizes = new();
-    private readonly Dictionary<TransitionPanelState, MotionLayout> _arrangedLayouts = new();
-    private readonly List<TransitionPanelState> _requiredStates = new();
-    private readonly List<KeyValuePair<TransitionPanelState, double>> _stateWeightBuffer = new();
-    private TransitionPanelState? _selectedState;
-    private TransitionPanelState? _settledState;
+    private readonly Dictionary<Control, MotionPanelItemContainer> _containers = new();
+    private readonly Dictionary<Control, MotionPanelPropertyTarget> _propertyTargets = new();
+    private readonly Dictionary<MotionState, double> _stateSourceWeights = new();
+    private readonly Dictionary<MotionState, Size> _measuredSizes = new();
+    private readonly Dictionary<MotionState, MotionLayout> _arrangedLayouts = new();
+    private readonly List<MotionState> _requiredStates = new();
+    private readonly List<KeyValuePair<MotionState, double>> _stateWeightBuffer = new();
+    private MotionState? _selectedState;
+    private MotionState? _settledState;
     private MotionLayout? _fixedStateSource;
     private MotionLayout? _layoutSource;
     private MotionLayout? _presentedLayout;
@@ -144,9 +144,9 @@ public sealed class TransitionPanel : Control
     private int _frameGeneration;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="TransitionPanel"/> class.
+    /// Initializes a new instance of the <see cref="MotionPanel"/> class.
     /// </summary>
-    public TransitionPanel()
+    public MotionPanel()
     {
         Children.CollectionChanged += OnChildrenChanged;
         States.CollectionChanged += OnStatesChanged;
@@ -231,12 +231,12 @@ public sealed class TransitionPanel : Control
         {
             if (_containers.ContainsKey(child))
             {
-                throw new InvalidOperationException($"{nameof(TransitionPanel)} cannot contain the same child more than once.");
+                throw new InvalidOperationException($"{nameof(MotionPanel)} cannot contain the same child more than once.");
             }
 
-            var container = new TransitionPanelItemContainer(child);
+            var container = new MotionPanelItemContainer(child);
             _containers.Add(child, container);
-            _propertyTargets.Add(child, new TransitionPanelPropertyTarget(child));
+            _propertyTargets.Add(child, new MotionPanelPropertyTarget(child));
             child.PropertyChanged += OnChildPropertyChanged;
             LogicalChildren.Insert(index, child);
             VisualChildren.Insert(index, container);
@@ -340,9 +340,9 @@ public sealed class TransitionPanel : Control
 
     private void OnStatePropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
-        if (e.Property == TransitionPanelState.TemplateProperty)
+        if (e.Property == MotionState.TemplateProperty)
         {
-            _scenes[(TransitionPanelState)sender!].Rebuild();
+            _scenes[(MotionState)sender!].Rebuild();
         }
 
         _stateChangePending = true;
@@ -386,7 +386,7 @@ public sealed class TransitionPanel : Control
             }
 
             state.PropertyChanged += OnStatePropertyChanged;
-            var scene = new TransitionPanelHost(this, state);
+            var scene = new MotionPanelHost(this, state);
             _scenes.Add(state, scene);
             LogicalChildren.Add(scene);
             VisualChildren.Add(scene);
@@ -407,12 +407,12 @@ public sealed class TransitionPanel : Control
             var id = child.Name;
             if (string.IsNullOrWhiteSpace(id))
             {
-                throw new InvalidOperationException($"Every direct child of {nameof(TransitionPanel)} must have a non-empty x:Name.");
+                throw new InvalidOperationException($"Every direct child of {nameof(MotionPanel)} must have a non-empty x:Name.");
             }
 
             if (!_targets.TryAdd(id, new TargetEntry(child, _containers[child], _propertyTargets[child])))
             {
-                throw new InvalidOperationException($"{nameof(TransitionPanel)} contains more than one direct child named '{id}'.");
+                throw new InvalidOperationException($"{nameof(MotionPanel)} contains more than one direct child named '{id}'.");
             }
         }
 
@@ -453,9 +453,9 @@ public sealed class TransitionPanel : Control
         RequestNextFrame();
     }
 
-    private TransitionPanelState? FindRequestedState()
+    private MotionState? FindRequestedState()
     {
-        TransitionPanelState? match = null;
+        MotionState? match = null;
         foreach (var candidate in States)
         {
             if (!Equals(candidate.Key, State))
@@ -465,7 +465,7 @@ public sealed class TransitionPanel : Control
 
             if (match is not null)
             {
-                throw new InvalidOperationException($"{nameof(TransitionPanel)} contains multiple states with key '{State}'.");
+                throw new InvalidOperationException($"{nameof(MotionPanel)} contains multiple states with key '{State}'.");
             }
 
             match = candidate;
@@ -527,7 +527,7 @@ public sealed class TransitionPanel : Control
         }
     }
 
-    private Dictionary<TransitionPanelState, Size> MeasureRequiredScenes(Size availableSize)
+    private Dictionary<MotionState, Size> MeasureRequiredScenes(Size availableSize)
     {
         CollectRequiredStates();
         _measuredSizes.Clear();
@@ -563,7 +563,7 @@ public sealed class TransitionPanel : Control
         }
     }
 
-    private Dictionary<TransitionPanelState, MotionLayout> CaptureRequiredLayouts(Size finalSize)
+    private Dictionary<MotionState, MotionLayout> CaptureRequiredLayouts(Size finalSize)
     {
         CollectRequiredStates();
         _arrangedLayouts.Clear();
@@ -599,7 +599,7 @@ public sealed class TransitionPanel : Control
         }
     }
 
-    private Size GetDesiredSize(IReadOnlyDictionary<TransitionPanelState, Size> sizes)
+    private Size GetDesiredSize(IReadOnlyDictionary<MotionState, Size> sizes)
     {
         var target = _selectedState is not null && sizes.TryGetValue(_selectedState, out var selectedSize) ? selectedSize : default;
         if (_transitionKind != TransitionKind.State)
@@ -612,7 +612,7 @@ public sealed class TransitionPanel : Control
         return Lerp(source, target, progress);
     }
 
-    private MotionLayout ResolvePresentedLayout(MotionLayout target, IReadOnlyDictionary<TransitionPanelState, MotionLayout> layouts)
+    private MotionLayout ResolvePresentedLayout(MotionLayout target, IReadOnlyDictionary<MotionState, MotionLayout> layouts)
     {
         if (_transitionKind == TransitionKind.State)
         {
@@ -764,12 +764,12 @@ public sealed class TransitionPanel : Control
         _lastFrameTime = null;
     }
 
-    private static MotionLayout? GetStateLayout(TransitionPanelState? state, IReadOnlyDictionary<TransitionPanelState, MotionLayout> layouts) =>
+    private static MotionLayout? GetStateLayout(MotionState? state, IReadOnlyDictionary<MotionState, MotionLayout> layouts) =>
         state is not null && layouts.TryGetValue(state, out var result) ? result : null;
 
     private static Size MixDesiredSizes(
-        IReadOnlyDictionary<TransitionPanelState, Size> sizes,
-        IReadOnlyDictionary<TransitionPanelState, double> weights)
+        IReadOnlyDictionary<MotionState, Size> sizes,
+        IReadOnlyDictionary<MotionState, double> weights)
     {
         var width = 0d;
         var height = 0d;
@@ -787,8 +787,8 @@ public sealed class TransitionPanel : Control
     }
 
     private MotionLayout MixStateLayouts(
-        IReadOnlyDictionary<TransitionPanelState, MotionLayout> layouts,
-        IReadOnlyDictionary<TransitionPanelState, double> weights)
+        IReadOnlyDictionary<MotionState, MotionLayout> layouts,
+        IReadOnlyDictionary<MotionState, double> weights)
     {
         var desiredWidth = 0d;
         var desiredHeight = 0d;
@@ -811,7 +811,7 @@ public sealed class TransitionPanel : Control
             var width = 0d;
             var height = 0d;
             var opacity = 0d;
-            TransitionPanelSlot? slot = null;
+            MotionSlot? slot = null;
 
             foreach (var pair in weights)
             {
@@ -924,5 +924,5 @@ public sealed class TransitionPanel : Control
         Layout,
     }
 
-    private readonly record struct TargetEntry(Control Child, TransitionPanelItemContainer Container, TransitionPanelPropertyTarget Properties);
+    private readonly record struct TargetEntry(Control Child, MotionPanelItemContainer Container, MotionPanelPropertyTarget Properties);
 }

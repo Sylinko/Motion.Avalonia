@@ -24,48 +24,48 @@
       Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
       BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
       BorderThickness="1" CornerRadius="12">
-      <motion:TransitionPanel
+      <motion:MotionPanel
         x:Name="EditorPanel" ClipToBounds="True"
         State="Quick" StateTransitionDuration="0:0:0.45"
         StateTransitionEasing="CubicEaseInOut">
-        <motion:TransitionPanel.States>
-          <motion:TransitionPanelState Key="Quick">
-            <motion:TransitionPanelState.Template>
+        <motion:MotionPanel.States>
+          <motion:MotionState Key="Quick">
+            <motion:MotionState.Template>
               <DataTemplate>
                 <Grid>
-                  <motion:TransitionPanelSlot
+                  <motion:MotionSlot
                     MaxWidth="600" HorizontalAlignment="Stretch"
                     Target="QuickEditor"/>
-                  <motion:TransitionPanelSlot
+                  <motion:MotionSlot
                     MaxWidth="600" HorizontalAlignment="Stretch"
                     x:SetterTargetType="Border" Opacity="0"
                     Target="AdvancedEditor">
                     <Setter Property="Background" Value="#FF3C284D"/>
-                  </motion:TransitionPanelSlot>
+                  </motion:MotionSlot>
                 </Grid>
               </DataTemplate>
-            </motion:TransitionPanelState.Template>
-          </motion:TransitionPanelState>
+            </motion:MotionState.Template>
+          </motion:MotionState>
 
-          <motion:TransitionPanelState Key="Advanced">
-            <motion:TransitionPanelState.Template>
+          <motion:MotionState Key="Advanced">
+            <motion:MotionState.Template>
               <DataTemplate>
                 <DockPanel HorizontalSpacing="24">
                   <Grid
                     DockPanel.Dock="Left" MaxWidth="420">
-                    <motion:TransitionPanelSlot
+                    <motion:MotionSlot
                       Opacity="0" Target="QuickEditor"/>
-                    <motion:TransitionPanelSlot
+                    <motion:MotionSlot
                       x:SetterTargetType="Border" Target="AdvancedEditor">
                       <Setter Property="Background" Value="#FF243D59"/>
-                    </motion:TransitionPanelSlot>
+                    </motion:MotionSlot>
                   </Grid>
-                  <motion:TransitionPanelSlot Target="Preview"/>
+                  <motion:MotionSlot Target="Preview"/>
                 </DockPanel>
               </DataTemplate>
-            </motion:TransitionPanelState.Template>
-          </motion:TransitionPanelState>
-        </motion:TransitionPanel.States>
+            </motion:MotionState.Template>
+          </motion:MotionState>
+        </motion:MotionPanel.States>
 
         <Border
           x:Name="QuickEditor" Padding="22"
@@ -122,7 +122,7 @@
             </Border>
           </StackPanel>
         </Border>
-      </motion:TransitionPanel>
+      </motion:MotionPanel>
     </Border>
   </Grid>
 </Window>

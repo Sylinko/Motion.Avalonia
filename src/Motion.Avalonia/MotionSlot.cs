@@ -10,15 +10,15 @@ using Avalonia.VisualTree;
 namespace Motion.Avalonia;
 
 /// <summary>
-/// Represents the live layout proxy for a direct child of a <see cref="TransitionPanel"/>.
+/// Represents the live layout proxy for a direct child of a <see cref="MotionPanel"/>.
 /// </summary>
-public sealed class TransitionPanelSlot : Control
+public sealed class MotionSlot : Control
 {
     /// <summary>
     /// Defines the <see cref="Target"/> property.
     /// </summary>
     public static readonly StyledProperty<string?> TargetProperty =
-        AvaloniaProperty.Register<TransitionPanelSlot, string?>(nameof(Target));
+        AvaloniaProperty.Register<MotionSlot, string?>(nameof(Target));
 
     /// <summary>
     /// Gets or sets the name of the represented direct child.
@@ -40,15 +40,15 @@ public sealed class TransitionPanelSlot : Control
     private static readonly HashSet<AvaloniaProperty> EndpointProperties = [];
     private readonly Dictionary<AvaloniaProperty, IDisposable?> _setterBindings = [];
 
-    static TransitionPanelSlot()
+    static MotionSlot()
     {
-        AffectsMeasure<TransitionPanelSlot>(TargetProperty);
+        AffectsMeasure<MotionSlot>(TargetProperty);
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="TransitionPanelSlot"/> class.
+    /// Initializes a new instance of the <see cref="MotionSlot"/> class.
     /// </summary>
-    public TransitionPanelSlot()
+    public MotionSlot()
     {
         Setters.CollectionChanged += OnSettersChanged;
     }
@@ -58,7 +58,7 @@ public sealed class TransitionPanelSlot : Control
     /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)
     {
-        var scene = this.GetVisualAncestors().OfType<TransitionPanelHost>().FirstOrDefault();
+        var scene = this.GetVisualAncestors().OfType<MotionPanelHost>().FirstOrDefault();
         return scene?.MeasureTarget(Target, availableSize) ?? default;
     }
 
@@ -81,11 +81,11 @@ public sealed class TransitionPanelSlot : Control
         foreach (var setter in Setters)
         {
             var property = setter.Property ??
-                throw new InvalidOperationException($"{nameof(TransitionPanelSlot)} contains a Setter without a Property.");
+                throw new InvalidOperationException($"{nameof(MotionSlot)} contains a Setter without a Property.");
 
             if (property.IsDirect)
             {
-                throw new InvalidOperationException($"{nameof(TransitionPanelSlot)} cannot animate direct property '{property}'.");
+                throw new InvalidOperationException($"{nameof(MotionSlot)} cannot animate direct property '{property}'.");
             }
 
             if (!EndpointProperties.Contains(property))
@@ -93,17 +93,17 @@ public sealed class TransitionPanelSlot : Control
                 if (AvaloniaPropertyRegistry.Instance.IsRegistered(this, property))
                 {
                     throw new InvalidOperationException(
-                        $"Property '{property}' already belongs to {nameof(TransitionPanelSlot)}. " +
+                        $"Property '{property}' already belongs to {nameof(MotionSlot)}. " +
                         "Set it directly on the slot instead of using a Setter.");
                 }
 
-                AvaloniaPropertyRegistry.Instance.Register(typeof(TransitionPanelSlot), property);
+                AvaloniaPropertyRegistry.Instance.Register(typeof(MotionSlot), property);
                 EndpointProperties.Add(property);
             }
 
             if (_setterBindings.ContainsKey(property))
             {
-                throw new InvalidOperationException($"{nameof(TransitionPanelSlot)} contains more than one Setter for property '{property}'.");
+                throw new InvalidOperationException($"{nameof(MotionSlot)} contains more than one Setter for property '{property}'.");
             }
 
             if (setter.Value is BindingBase binding)

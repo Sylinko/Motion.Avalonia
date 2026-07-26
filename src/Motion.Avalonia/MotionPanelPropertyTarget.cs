@@ -11,17 +11,17 @@ namespace Motion.Avalonia;
 /// <summary>
 /// Applies live state property values to one transition target without replacing its base values.
 /// </summary>
-internal sealed class TransitionPanelPropertyTarget(Control target) : IDisposable
+internal sealed class MotionPanelPropertyTarget(Control target) : IDisposable
 {
     private readonly PropertyProxy _proxy = new();
     private readonly Dictionary<AvaloniaProperty, IDisposable> _endpointBindings = new();
     private readonly Dictionary<AvaloniaProperty, IDisposable> _outputBindings = new();
-    private TransitionPanelSlot? _slot;
+    private MotionSlot? _slot;
     private CancellationTokenSource? _animationCancellation;
     private int _slotVersion = -1;
     private int _animationGeneration;
 
-    public void Update(TransitionPanelSlot? slot, TimeSpan duration, Easing? easing)
+    public void Update(MotionSlot? slot, TimeSpan duration, Easing? easing)
     {
         if (ReferenceEquals(_slot, slot) && _slotVersion == slot?.SetterVersion)
         {
@@ -109,7 +109,7 @@ internal sealed class TransitionPanelPropertyTarget(Control target) : IDisposabl
     }
 
     private Dictionary<AvaloniaProperty, object?> PrepareOutputs(
-        TransitionPanelSlot? slot,
+        MotionSlot? slot,
         IReadOnlySet<AvaloniaProperty> nextProperties,
         IReadOnlyCollection<AvaloniaProperty> properties,
         IReadOnlyDictionary<AvaloniaProperty, object?> currentValues)
@@ -143,7 +143,7 @@ internal sealed class TransitionPanelPropertyTarget(Control target) : IDisposabl
     }
 
     private void ApplyEndpointBindings(
-        TransitionPanelSlot? slot,
+        MotionSlot? slot,
         IEnumerable<AvaloniaProperty> properties)
     {
         ClearEndpointBindings();
@@ -181,7 +181,7 @@ internal sealed class TransitionPanelPropertyTarget(Control target) : IDisposabl
         {
             if (property.IsDirect)
             {
-                throw new InvalidOperationException($"{nameof(TransitionPanelSlot)} cannot animate direct property '{property}'.");
+                throw new InvalidOperationException($"{nameof(MotionSlot)} cannot animate direct property '{property}'.");
             }
 
             if (!AvaloniaPropertyRegistry.Instance.IsRegistered(target, property))
@@ -195,7 +195,7 @@ internal sealed class TransitionPanelPropertyTarget(Control target) : IDisposabl
         Task animation,
         CancellationTokenSource cancellation,
         int generation,
-        TransitionPanelSlot? slot,
+        MotionSlot? slot,
         IReadOnlySet<AvaloniaProperty> endpointProperties,
         IReadOnlyCollection<AvaloniaProperty> removedProperties)
     {

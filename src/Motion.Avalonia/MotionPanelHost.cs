@@ -4,13 +4,13 @@ using Avalonia.VisualTree;
 
 namespace Motion.Avalonia;
 
-internal sealed class TransitionPanelHost : Decorator
+internal sealed class MotionPanelHost : Decorator
 {
-    public TransitionPanelState State { get; }
+    public MotionState State { get; }
 
-    private readonly TransitionPanel _owner;
+    private readonly MotionPanel _owner;
 
-    public TransitionPanelHost(TransitionPanel owner, TransitionPanelState state)
+    public MotionPanelHost(MotionPanel owner, MotionState state)
     {
         _owner = owner;
         State = state;
@@ -32,7 +32,7 @@ internal sealed class TransitionPanelHost : Decorator
     public MotionLayout CaptureLayout()
     {
         var entries = new Dictionary<string, MotionLayoutEntry>(_owner.TargetCount, StringComparer.Ordinal);
-        if (Child is TransitionPanelSlot rootSlot)
+        if (Child is MotionSlot rootSlot)
         {
             AddSlot(rootSlot, entries);
         }
@@ -41,7 +41,7 @@ internal sealed class TransitionPanelHost : Decorator
         {
             foreach (var descendant in Child.GetVisualDescendants())
             {
-                if (descendant is TransitionPanelSlot slot)
+                if (descendant is MotionSlot slot)
                 {
                     AddSlot(slot, entries);
                 }
@@ -51,13 +51,13 @@ internal sealed class TransitionPanelHost : Decorator
         return new MotionLayout(DesiredSize, entries);
     }
 
-    private void AddSlot(TransitionPanelSlot slot, Dictionary<string, MotionLayoutEntry> entries)
+    private void AddSlot(MotionSlot slot, Dictionary<string, MotionLayoutEntry> entries)
     {
         var target = slot.Target;
         if (string.IsNullOrWhiteSpace(target))
         {
             throw new InvalidOperationException(
-                $"Every {nameof(TransitionPanelSlot)} in state '{State.Key}' must specify a non-empty target.");
+                $"Every {nameof(MotionSlot)} in state '{State.Key}' must specify a non-empty target.");
         }
 
         if (!entries.TryAdd(target, new MotionLayoutEntry(GetLayoutBounds(slot), slot.Opacity, slot)))
@@ -66,7 +66,7 @@ internal sealed class TransitionPanelHost : Decorator
         }
     }
 
-    private Rect GetLayoutBounds(TransitionPanelSlot slot)
+    private Rect GetLayoutBounds(MotionSlot slot)
     {
         var position = slot.Bounds.Position;
         var current = slot.GetVisualParent();
@@ -88,4 +88,4 @@ internal sealed class TransitionPanelHost : Decorator
 
 internal sealed record MotionLayout(Size DesiredSize, IReadOnlyDictionary<string, MotionLayoutEntry> Entries);
 
-internal readonly record struct MotionLayoutEntry(Rect Bounds, double Opacity, TransitionPanelSlot? Slot);
+internal readonly record struct MotionLayoutEntry(Rect Bounds, double Opacity, MotionSlot? Slot);
