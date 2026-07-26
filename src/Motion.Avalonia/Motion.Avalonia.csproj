@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(MotionTargetFrameworks)</TargetFrameworks>
+    <IsPackable>true</IsPackable>
+    <PackageId>Motion.Avalonia</PackageId>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <Authors>Sylinko</Authors>
+    <Description>A declarative motion and interaction framework for Avalonia.</Description>
+    <PackageTags>avalonia;animation;motion;layout;physics;interaction</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/Sylinko/Motion.Avalonia</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Sylinko/Motion.Avalonia</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

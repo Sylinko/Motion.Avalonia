@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Motion.Avalonia/Motion.Avalonia.csproj" />
+    <Project Path="src/Motion.Avalonia.Demo/Motion.Avalonia.Demo.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Motion.Avalonia.Tests/Motion.Avalonia.Tests.csproj" />
+  </Folder>
+</Solution>
