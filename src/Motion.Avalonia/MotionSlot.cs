@@ -10,7 +10,7 @@ using Avalonia.VisualTree;
 namespace Motion.Avalonia;
 
 /// <summary>
-/// Represents the live layout proxy for a direct child of a <see cref="MotionPanel"/>.
+/// Represents the live layout and property proxy for a direct child of a <see cref="MotionPanel"/>.
 /// </summary>
 public sealed class MotionSlot : Control
 {
@@ -30,14 +30,35 @@ public sealed class MotionSlot : Control
     }
 
     /// <summary>
-    /// Gets the target property values represented by this layout state.
+    /// Gets the additional target property values represented by this layout state.
     /// </summary>
     [Content]
     public AvaloniaList<Setter> Setters { get; } = new();
 
-    internal int SetterVersion { get; private set; }
+    internal event EventHandler? EndpointChanged;
 
-    private static readonly HashSet<AvaloniaProperty> EndpointProperties = [];
+    private static readonly AvaloniaProperty[] ShortcutProperties =
+    [
+        OpacityProperty,
+        ClipToBoundsProperty,
+        ClipProperty,
+        OpacityMaskProperty,
+        EffectProperty,
+        RenderTransformProperty,
+        RenderTransformOriginProperty,
+        ZIndexProperty,
+        IsEnabledProperty,
+        IsHitTestVisibleProperty,
+        CursorProperty,
+        FocusableProperty,
+        IsTabStopProperty,
+        TabIndexProperty,
+    ];
+
+    private static readonly HashSet<AvaloniaProperty> ShortcutPropertySet = [.. ShortcutProperties];
+    private static readonly HashSet<AvaloniaProperty> RegisteredSetterProperties = [];
+
+    private readonly SetterTarget _setterTarget = new();
     private readonly Dictionary<AvaloniaProperty, IDisposable?> _setterBindings = [];
 
     static MotionSlot()
@@ -51,9 +72,44 @@ public sealed class MotionSlot : Control
     public MotionSlot()
     {
         Setters.CollectionChanged += OnSettersChanged;
+        _setterTarget.PropertyChanged += OnSetterTargetPropertyChanged;
     }
 
-    internal IEnumerable<AvaloniaProperty> GetEndpointProperties() => _setterBindings.Keys;
+    internal IReadOnlyDictionary<AvaloniaProperty, object?> CaptureEndpointValues()
+    {
+        var result = new Dictionary<AvaloniaProperty, object?>(_setterBindings.Count + ShortcutProperties.Length);
+
+        foreach (var property in _setterBindings.Keys)
+        {
+            result.Add(property, _setterTarget.GetValue(property));
+        }
+
+        foreach (var property in ShortcutProperties)
+        {
+            if (!IsSet(property))
+            {
+                continue;
+            }
+
+            if (!result.TryAdd(property, GetValue(property)))
+            {
+                throw new InvalidOperationException(
+                    $"{nameof(MotionSlot)} for target '{Target}' defines property '{property}' both directly and with a Setter.");
+            }
+        }
+
+        return result;
+    }
+
+    internal int GetStateZIndex()
+    {
+        if (_setterBindings.ContainsKey(ZIndexProperty))
+        {
+            return _setterTarget.GetValue(ZIndexProperty);
+        }
+
+        return ZIndex;
+    }
 
     /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)
@@ -62,10 +118,21 @@ public sealed class MotionSlot : Control
         return scene?.MeasureTarget(Target, availableSize) ?? default;
     }
 
+    /// <inheritdoc />
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (ShortcutPropertySet.Contains(change.Property))
+        {
+            EndpointChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
     private void OnSettersChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         RebuildSetters();
-        SetterVersion++;
+        EndpointChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void RebuildSetters()
@@ -73,33 +140,21 @@ public sealed class MotionSlot : Control
         foreach (var pair in _setterBindings)
         {
             pair.Value?.Dispose();
-            ClearValue(pair.Key);
+            _setterTarget.ClearValue(pair.Key);
         }
 
         _setterBindings.Clear();
 
         foreach (var setter in Setters)
         {
-            var property = setter.Property ??
-                throw new InvalidOperationException($"{nameof(MotionSlot)} contains a Setter without a Property.");
+            var property = setter.Property ?? throw new InvalidOperationException($"{nameof(MotionSlot)} contains a Setter without a Property.");
 
             if (property.IsDirect)
             {
                 throw new InvalidOperationException($"{nameof(MotionSlot)} cannot animate direct property '{property}'.");
             }
 
-            if (!EndpointProperties.Contains(property))
-            {
-                if (AvaloniaPropertyRegistry.Instance.IsRegistered(this, property))
-                {
-                    throw new InvalidOperationException(
-                        $"Property '{property}' already belongs to {nameof(MotionSlot)}. " +
-                        "Set it directly on the slot instead of using a Setter.");
-                }
-
-                AvaloniaPropertyRegistry.Instance.Register(typeof(MotionSlot), property);
-                EndpointProperties.Add(property);
-            }
+            RegisterSetterProperty(property);
 
             if (_setterBindings.ContainsKey(property))
             {
@@ -108,7 +163,7 @@ public sealed class MotionSlot : Control
 
             if (setter.Value is BindingBase binding)
             {
-                _setterBindings.Add(property, Bind(property, binding));
+                _setterBindings.Add(property, _setterTarget.Bind(property, binding));
                 continue;
             }
 
@@ -117,7 +172,25 @@ public sealed class MotionSlot : Control
                 throw new InvalidOperationException($"Value '{setter.Value}' is not valid for property '{property}'.");
             }
 
-            _setterBindings.Add(property, SetValue(property, setter.Value));
+            _setterBindings.Add(property, _setterTarget.SetValue(property, setter.Value));
         }
     }
+
+    private static void RegisterSetterProperty(AvaloniaProperty property)
+    {
+        if (RegisteredSetterProperties.Add(property))
+        {
+            AvaloniaPropertyRegistry.Instance.Register(typeof(SetterTarget), property);
+        }
+    }
+
+    private void OnSetterTargetPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (_setterBindings.ContainsKey(e.Property))
+        {
+            EndpointChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private sealed class SetterTarget : AvaloniaObject;
 }

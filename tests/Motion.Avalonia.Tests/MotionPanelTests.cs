@@ -414,6 +414,200 @@ public sealed class MotionPanelTests
         Assert.That(exception!.Message, Does.Contain("more than one Setter"));
     }
 
+    [Test]
+    public void StateTransition_WhenSetterPropertyBlends_UsesPoseProgress()
+    {
+        var child = new Border();
+        var panel = CreatePanel(child);
+        GetBasicController(panel).Duration = TimeSpan.FromSeconds(1);
+        GetBasicController(panel).Easing = new LinearEasing();
+        panel.States.Add(CreateState(
+            "square",
+            () => CreateSlotWithSetter("editor", Border.CornerRadiusProperty, new CornerRadius(0))));
+        panel.States.Add(CreateState(
+            "rounded",
+            () => CreateSlotWithSetter("editor", Border.CornerRadiusProperty, new CornerRadius(20))));
+        Arrange(panel, "square", new Size(400, 200));
+
+        Arrange(panel, "rounded", new Size(400, 200));
+        AdvanceAnimation(panel, TimeSpan.Zero, new Size(400, 200));
+        AdvanceAnimation(panel, TimeSpan.FromMilliseconds(500), new Size(400, 200));
+
+        Assert.That(child.CornerRadius, Is.EqualTo(new CornerRadius(10)));
+    }
+
+    [Test]
+    public void StateTransition_WhenShortcutPropertyBlends_MatchesSetterSemantics()
+    {
+        var child = new Border();
+        var panel = CreatePanel(child);
+        GetBasicController(panel).Duration = TimeSpan.FromSeconds(1);
+        GetBasicController(panel).Easing = new LinearEasing();
+        panel.States.Add(CreateState(
+            "dim",
+            () => CreateSlotWithOpacity("editor", 0.2)));
+        panel.States.Add(CreateState(
+            "bright",
+            () => CreateSlotWithSetter("editor", Visual.OpacityProperty, 0.8)));
+        Arrange(panel, "dim", new Size(400, 200));
+
+        Arrange(panel, "bright", new Size(400, 200));
+        AdvanceAnimation(panel, TimeSpan.Zero, new Size(400, 200));
+        AdvanceAnimation(panel, TimeSpan.FromMilliseconds(500), new Size(400, 200));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(child.Opacity, Is.EqualTo(0.5).Within(0.001));
+            Assert.That(GetMotionOpacity(child), Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void StateTransition_WhenBrushPropertyBlends_UsesAvaloniaBrushAnimator()
+    {
+        var child = new Border();
+        var panel = CreatePanel(child);
+        GetBasicController(panel).Duration = TimeSpan.FromSeconds(1);
+        GetBasicController(panel).Easing = new LinearEasing();
+        panel.States.Add(CreateState(
+            "red",
+            () => CreateSlotWithSetter(
+                "editor",
+                Border.BackgroundProperty,
+                new SolidColorBrush(Colors.Red))));
+        panel.States.Add(CreateState(
+            "blue",
+            () => CreateSlotWithSetter(
+                "editor",
+                Border.BackgroundProperty,
+                new SolidColorBrush(Colors.Blue))));
+        Arrange(panel, "red", new Size(400, 200));
+
+        Arrange(panel, "blue", new Size(400, 200));
+        AdvanceAnimation(panel, TimeSpan.Zero, new Size(400, 200));
+        AdvanceAnimation(panel, TimeSpan.FromMilliseconds(500), new Size(400, 200));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(child.Background, Is.InstanceOf<ISolidColorBrush>());
+            Assert.That(((ISolidColorBrush)child.Background!).Color, Is.Not.EqualTo(Colors.Red));
+            Assert.That(((ISolidColorBrush)child.Background!).Color, Is.Not.EqualTo(Colors.Blue));
+        });
+    }
+
+    [Test]
+    public void StateTransition_WhenCustomInterpolatorMatches_UsesTypedInterpolator()
+    {
+        var child = new Border();
+        var panel = CreatePanel(child);
+        panel.Interpolators.Add(new QuadraticDoubleInterpolator
+        {
+            Target = "editor",
+            Property = Visual.OpacityProperty,
+        });
+        GetBasicController(panel).Duration = TimeSpan.FromSeconds(1);
+        GetBasicController(panel).Easing = new LinearEasing();
+        panel.States.Add(CreateState(
+            "dim",
+            () => CreateSlotWithOpacity("editor", 0.2)));
+        panel.States.Add(CreateState(
+            "bright",
+            () => CreateSlotWithOpacity("editor", 1)));
+        Arrange(panel, "dim", new Size(400, 200));
+
+        Arrange(panel, "bright", new Size(400, 200));
+        AdvanceAnimation(panel, TimeSpan.Zero, new Size(400, 200));
+        AdvanceAnimation(panel, TimeSpan.FromMilliseconds(500), new Size(400, 200));
+
+        Assert.That(child.Opacity, Is.EqualTo(0.4).Within(0.001));
+    }
+
+    [Test]
+    public void StateTransition_WhenEdgeInterpolatorMatches_OverridesGeneralInterpolator()
+    {
+        var child = new Border();
+        var panel = CreatePanel(child);
+        var edge = new MotionEdge { From = "dim", To = "bright" };
+        GetBasicController(panel).Edges.Add(edge);
+        panel.Interpolators.Add(new QuadraticDoubleInterpolator
+        {
+            Target = "editor",
+            Property = Visual.OpacityProperty,
+        });
+        var edgeInterpolator = new TargetDoubleInterpolator
+        {
+            Target = "editor",
+            Property = Visual.OpacityProperty,
+        };
+        edgeInterpolator.Edges.Add(edge);
+        panel.Interpolators.Add(edgeInterpolator);
+        GetBasicController(panel).Duration = TimeSpan.FromSeconds(1);
+        GetBasicController(panel).Easing = new LinearEasing();
+        panel.States.Add(CreateState(
+            "dim",
+            () => CreateSlotWithOpacity("editor", 0)));
+        panel.States.Add(CreateState(
+            "bright",
+            () => CreateSlotWithOpacity("editor", 1)));
+        Arrange(panel, "dim", new Size(400, 200));
+
+        Arrange(panel, "bright", new Size(400, 200));
+        AdvanceAnimation(panel, TimeSpan.Zero, new Size(400, 200));
+        AdvanceAnimation(panel, TimeSpan.FromMilliseconds(500), new Size(400, 200));
+
+        Assert.That(child.Opacity, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void Arrange_WhenSlotsHaveNestedZIndices_AppliesRelativeOrderToContainers()
+    {
+        var editor = new Border();
+        var preview = new Border();
+        var panel = CreatePanel(editor, preview);
+        panel.States.Add(CreateState(
+            "stacked",
+            () =>
+            {
+                var root = new Panel();
+                var editorSlot = CreateSlot("editor", 100, HorizontalAlignment.Left);
+                editorSlot.ZIndex = 20;
+                root.Children.Add(editorSlot);
+
+                var nested = new Panel { ZIndex = 10 };
+                nested.Children.Add(CreateSlot("preview", 100, HorizontalAlignment.Left));
+                root.Children.Add(nested);
+                return root;
+            }));
+
+        Arrange(panel, "stacked", new Size(400, 200));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(((Control)editor.GetVisualParent()!).ZIndex, Is.EqualTo(1));
+            Assert.That(((Control)preview.GetVisualParent()!).ZIndex, Is.EqualTo(0));
+        });
+    }
+
+    [Test]
+    public void Arrange_WhenShortcutAndSetterDefineSameProperty_ThrowsConfigurationError()
+    {
+        var child = new Border();
+        var panel = CreatePanel(child);
+        panel.States.Add(CreateState(
+            "invalid",
+            () =>
+            {
+                var slot = CreateSlotWithOpacity("editor", 0.5);
+                slot.Setters.Add(new Setter(Visual.OpacityProperty, 0.8));
+                return slot;
+            }));
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => Arrange(panel, "invalid", new Size(400, 200)));
+
+        Assert.That(exception!.Message, Does.Contain("both directly and with a Setter"));
+    }
+
     private static MotionPanel CreatePanel(params Control[] children)
     {
         var panel = new MotionPanel
@@ -457,6 +651,23 @@ public sealed class MotionPanelTests
     {
         var slot = CreateSlot(target, 100, HorizontalAlignment.Left);
         slot.Setters.Add(new Setter(Border.BackgroundProperty, brush));
+        return slot;
+    }
+
+    private static MotionSlot CreateSlotWithSetter(
+        string target,
+        AvaloniaProperty property,
+        object? value)
+    {
+        var slot = CreateSlot(target, 100, HorizontalAlignment.Left);
+        slot.Setters.Add(new Setter(property, value));
+        return slot;
+    }
+
+    private static MotionSlot CreateSlotWithOpacity(string target, double opacity)
+    {
+        var slot = CreateSlot(target, 100, HorizontalAlignment.Left);
+        slot.Opacity = opacity;
         return slot;
     }
 
@@ -557,5 +768,17 @@ public sealed class MotionPanelTests
         } = brush;
 
         public event PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    private sealed class QuadraticDoubleInterpolator : MotionInterpolator<double>
+    {
+        public override double Interpolate(double progress, double oldValue, double newValue) =>
+            oldValue + ((newValue - oldValue) * progress * progress);
+    }
+
+    private sealed class TargetDoubleInterpolator : MotionInterpolator<double>
+    {
+        public override double Interpolate(double progress, double oldValue, double newValue) =>
+            newValue;
     }
 }

@@ -74,6 +74,7 @@ public sealed class BasicMotionController : MotionController
     private MotionPose _source = MotionPose.Empty;
     private MotionPose _target = MotionPose.Empty;
     private Easing? _activeEasing;
+    private MotionEdge? _activeEdge;
     private TimeSpan _activeDuration;
     private TimeSpan _elapsed;
     private TimeSpan? _lastFrameTime;
@@ -139,10 +140,11 @@ public sealed class BasicMotionController : MotionController
         _target = MotionPose.State(newState);
         _activeDuration = duration;
         _activeEasing = easing;
+        _activeEdge = edge;
         _elapsed = TimeSpan.Zero;
         _lastFrameTime = null;
         _isAnimating = true;
-        SetCurrentPose(MotionPose.CreateBlend(_source, _target, 0, easing, duration));
+        SetCurrentPose(MotionPose.CreateBlend(_source, _target, 0, easing, edge));
         RequestNextFrame();
     }
 
@@ -213,7 +215,7 @@ public sealed class BasicMotionController : MotionController
             return;
         }
 
-        SetCurrentPose(MotionPose.CreateBlend(_source, _target, progress, _activeEasing, _activeDuration));
+        SetCurrentPose(MotionPose.CreateBlend(_source, _target, progress, _activeEasing, _activeEdge));
         RequestNextFrame();
     }
 
@@ -238,6 +240,7 @@ public sealed class BasicMotionController : MotionController
         _source = MotionPose.Empty;
         _target = MotionPose.Empty;
         _activeEasing = null;
+        _activeEdge = null;
         _activeDuration = TimeSpan.Zero;
     }
 }

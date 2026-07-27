@@ -28,12 +28,7 @@ public abstract class MotionPose
     public static MotionPose Blend(MotionPose source, MotionPose target, double progress, Easing? easing = null) =>
         CreateBlend(source, target, progress, easing ?? new LinearEasing(), null);
 
-    internal static MotionPose CreateBlend(
-        MotionPose source,
-        MotionPose target,
-        double progress,
-        Easing easing,
-        TimeSpan? propertyTransitionDuration)
+    internal static MotionPose CreateBlend(MotionPose source, MotionPose target, double progress, Easing easing, MotionEdge? edge)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
@@ -44,7 +39,7 @@ public abstract class MotionPose
             throw new ArgumentOutOfRangeException(nameof(progress), "Progress must be finite.");
         }
 
-        return new BlendMotionPose(source, target, Math.Clamp(progress, 0, 1), easing, propertyTransitionDuration);
+        return new BlendMotionPose(source, target, Math.Clamp(progress, 0, 1), easing, edge);
     }
 }
 
@@ -55,13 +50,7 @@ internal sealed class StateMotionPose(object? key) : MotionPose
     public object? Key { get; } = key;
 }
 
-internal sealed class BlendMotionPose(
-    MotionPose source,
-    MotionPose target,
-    double progress,
-    Easing easing,
-    TimeSpan? propertyTransitionDuration
-) : MotionPose
+internal sealed class BlendMotionPose(MotionPose source, MotionPose target, double progress, Easing easing, MotionEdge? edge) : MotionPose
 {
     public MotionPose Source { get; } = source;
 
@@ -71,5 +60,5 @@ internal sealed class BlendMotionPose(
 
     public Easing Easing { get; } = easing;
 
-    public TimeSpan? PropertyTransitionDuration { get; } = propertyTransitionDuration;
+    public MotionEdge? Edge { get; } = edge;
 }
