@@ -24,8 +24,28 @@ For most custom controllers, derive from `MotionController` instead of implement
 - Avalonia property-system integration;
 - safe attachment and detachment from a single `MotionPanel`;
 - `SetCurrentPose` for publishing a pose;
+- a controller-owned `Player` for controllers that consume playback progress;
+- `PlayerProgressChanged` for opting into that player;
 - `RequestAnimationFrame` for frame-aligned animation;
 - lifecycle hooks for the panel and visual tree.
+
+## Controller-Owned Playback
+
+`MotionController.Player` is null until a derived controller subscribes to the protected
+`PlayerProgressChanged` event. The first subscription creates one stable `MotionPlayer`; removing the last subscription
+stops and releases it. Event subscription and every player operation are UI-thread-affine.
+
+`MotionPlayer` is public so applications can use advanced transport controls without taking over ownership:
+
+```csharp
+controller.Player?.Pause();
+controller.Player?.Resume();
+controller.Player?.Seek(0.5);
+```
+
+`Play(duration)` always starts at progress zero. `Pause` and `Resume` preserve position, `Stop` leaves the current value,
+and natural completion leaves progress at one. The player publishes linear progress; easing remains the responsibility
+of edges, stops, poses, and interpolators.
 
 ## BasicMotionController
 
@@ -175,8 +195,51 @@ the target stop and shapes the interval arriving at that stop; `null` means line
 Duplicate offsets express an instantaneous cut. The interval on the left still approaches the first stop at that
 offset, while the exact offset and its right side use the last stop declared at that offset.
 
-The sequence controller owns no clock, duration, playback, or loop behavior. Bind any source to `Progress`; a separate
-player can advance it over time when playback is needed.
+The sequence controller has no clock, `Play`, or `Duration`, and it intentionally does not opt into a
+controller-owned player. `Progress` is its single source of truth. Bind it to a `Slider`, scroll calculation, gesture,
+solver, or any other external value that owns position.
+
+## TimelineMotionController
+
+`TimelineMotionController` evaluates absolute `Time` across an ordered collection of `MotionKeyFrame` objects. Use it
+when authored timing matters independently of the eventual playback speed:
+
+```xml
+<motion:TimelineMotionController
+    x:Name="Timeline"
+    Time="{Binding PreviewPosition}">
+    <motion:MotionKeyFrame
+        State="Intro"
+        KeyTime="0:0:0" />
+    <motion:MotionKeyFrame
+        State="Reveal"
+        KeyTime="0:0:0.8"
+        Easing="CubicEaseOut" />
+    <motion:MotionKeyFrame
+        State="Discussion"
+        KeyTime="0:0:2.4"
+        Easing="CubicEaseInOut" />
+</motion:TimelineMotionController>
+```
+
+`Duration` is read-only and equals the latest `KeyTime`. Setting `Time` seeks the controller and its player. Values
+outside the authored range hold the nearest endpoint. Start frame-aligned playback with:
+
+```csharp
+Timeline.Player?.Play(Timeline.Duration);
+```
+
+The duration passed to `Play` controls how long the player takes to traverse normalized playback progress. Passing
+`Timeline.Duration` plays at the authored rate; a different positive duration changes the playback rate without
+rewriting key times.
+
+Keyframes are stable-sorted by `KeyTime`. At an exact key time the controller publishes a state pose. Between
+keyframes it publishes a blend whose local progress is shaped by the destination keyframe's `Easing`. Duplicate key
+times form an instantaneous cut, with the last declared keyframe winning at and after that time.
+
+Changing the keyframe collection or a `KeyTime` while playback is active stops the player, preserves the current
+absolute time, and seeks against the newly derived duration. Changing only `State` or `Easing`
+reevaluates the current pose without stopping playback.
 
 ## A Progress-Driven Controller
 
@@ -220,13 +283,17 @@ public sealed class ProgressMotionController : MotionController
 }
 ```
 
-This controller has no `Play`, `Pause`, or `Duration` because progress is its only responsibility. A separate player can advance `Progress` over time when playback is needed.
+This controller has no `Play`, `Pause`, or `Duration` because progress is its only responsibility. A different custom
+controller can subscribe to `PlayerProgressChanged` when time-based playback is part of its contract.
 
 ## Frame Scheduling
 
-Time-based custom controllers should call the protected `RequestAnimationFrame` method. The callback is scheduled through the owning panel's `TopLevel`, follows the visual-tree lifetime, and receives Avalonia's frame timestamp.
+Most time-based custom controllers should subscribe to `PlayerProgressChanged` and translate `Player.Progress` into a
+pose. The base class creates the player on the first subscription and schedules it through the owning panel's
+`TopLevel`.
 
-Do not keep an unrelated background timer that mutates UI state. Start or resume frame requests from the controller lifecycle, stop producing frames after detachment, and publish a new pose only when its value changes.
+The protected `RequestAnimationFrame` method remains available for controllers whose progression cannot be represented
+by linear player time. Do not keep an unrelated background timer that mutates UI state.
 
 The relevant lifecycle hooks are:
 
@@ -238,7 +305,8 @@ The relevant lifecycle hooks are:
 | `OnOwnerDetachedFromVisualTree` | The panel left a visual tree |
 | `OnOwnerPresented` | The panel completed its first presentation |
 
-`BasicMotionController` uses these hooks so that initial presentation snaps, active animation follows render frames, and a detached panel does not retain a frame loop.
+`MotionPlayer` uses these hooks so active playback follows render frames and a detached panel does not retain a frame
+loop. `BasicMotionController` additionally completes its active transition when the panel leaves the visual tree.
 
 ## Choosing a Controller
 
@@ -251,7 +319,8 @@ Use `SequenceMotionController` when an external value owns position in an ordere
 - pointer drag distance;
 - gesture progress;
 
-Keep playback in a separate object when the same sequence should support both manual scrubbing and timed playback.
+Use `TimelineMotionController` when absolute authored times own position, including playback, time seeking, or media
+synchronization.
 
 Create a custom controller when pose selection is not an ordered sequence, for example when it comes from a physics
 solver or an application-specific graph.

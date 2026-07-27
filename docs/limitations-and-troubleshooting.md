@@ -70,13 +70,13 @@ If a deliberate entrance animation is required, present a real initial state fir
 For a custom time-based controller:
 
 1. Derive from `MotionController`.
-2. Schedule through protected `RequestAnimationFrame`.
-3. Keep requesting the next frame while animation is active.
-4. Call `SetCurrentPose` with a new pose on each meaningful frame.
-5. Resume scheduling when the owner enters the visual tree.
-6. Ignore or cancel stale work after detachment.
+2. Subscribe to protected `PlayerProgressChanged`.
+3. Translate `Player.Progress` into a pose.
+4. Call `SetCurrentPose` with the new pose.
+5. Start playback only after the controller is owned by a presented panel.
 
-`RequestAnimationFrame` returns `false` when the controller is not attached to a panel with a current `TopLevel`.
+For procedural clocks that cannot use linear player progress, protected `RequestAnimationFrame` remains available and
+returns `false` when the controller is not attached to a panel with a current `TopLevel`.
 
 Changing ordinary fields without publishing a pose does not notify the panel.
 

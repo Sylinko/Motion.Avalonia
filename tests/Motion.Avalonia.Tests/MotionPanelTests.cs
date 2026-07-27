@@ -679,7 +679,8 @@ public sealed class MotionPanelTests
 
     private static void AdvanceAnimation(MotionPanel panel, TimeSpan timestamp, Size size)
     {
-        InvokeAnimationFrame(GetBasicController(panel), timestamp, 0);
+        var player = GetBasicController(panel).Player!;
+        InvokeAnimationFrame(player, timestamp, GetFrameGeneration(player));
         RunLayoutToConvergence(panel, size);
     }
 
@@ -702,9 +703,12 @@ public sealed class MotionPanelTests
 
     [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "OnAnimationFrame")]
     private static extern void InvokeAnimationFrame(
-        BasicMotionController controller,
+        MotionPlayer player,
         TimeSpan timestamp,
         int generation);
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_frameGeneration")]
+    private static extern ref int GetFrameGeneration(MotionPlayer player);
 
     private sealed class TestTemplate(Func<Control> build) : IDataTemplate
     {

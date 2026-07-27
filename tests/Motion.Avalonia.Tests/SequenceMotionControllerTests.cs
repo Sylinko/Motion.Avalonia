@@ -123,6 +123,16 @@ public sealed class SequenceMotionControllerTests
     }
 
     [Test]
+    public void SequenceController_DoesNotCreateAPlayer()
+    {
+        var controller = new SequenceMotionController();
+
+        controller.Progress = 0.25;
+
+        Assert.That(controller.Player, Is.Null);
+    }
+
+    [Test]
     public void CreateBlend_WhenEasingOvershoots_PreservesLayoutOvershoot()
     {
         var child = new Border();

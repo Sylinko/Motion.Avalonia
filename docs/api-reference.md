@@ -119,8 +119,10 @@ Base class for controllers that need Avalonia integration and frame scheduling.
 | Member | Type | Description |
 | --- | --- | --- |
 | `CurrentPose` | `MotionPose` | Current read-only pose |
+| `Player` | `MotionPlayer?` | Controller-owned playback transport when the controller consumes progress |
 | `CurrentPoseChanged` | `event EventHandler?` | Pose-change notification |
 | `CurrentPoseProperty` | `DirectProperty<MotionController, MotionPose>` | Avalonia property for `CurrentPose` |
+| `PlayerProperty` | `DirectProperty<MotionController, MotionPlayer?>` | Avalonia property for `Player` |
 
 ### Protected members
 
@@ -128,6 +130,7 @@ Base class for controllers that need Avalonia integration and frame scheduling.
 | --- | --- |
 | `IsAttached` | Whether this controller currently owns a panel attachment |
 | `SetCurrentPose(MotionPose)` | Publishes a non-null pose |
+| `PlayerProgressChanged` | First subscription creates `Player`; removing the last releases it |
 | `RequestAnimationFrame(Action<TimeSpan>)` | Schedules through the owning panel's `TopLevel`; returns whether scheduling succeeded |
 | `OnAttached()` | Called after assignment to a panel |
 | `OnDetached()` | Called before removal from a panel |
@@ -136,6 +139,38 @@ Base class for controllers that need Avalonia integration and frame scheduling.
 | `OnOwnerPresented()` | Called after the panel first presents its current pose |
 
 A controller instance can be attached to only one panel at a time.
+
+## MotionPlayer
+
+```csharp
+public sealed class MotionPlayer : AvaloniaObject
+```
+
+Provides a controller-owned, frame-aligned playback transport. Applications obtain it from `MotionController.Player`;
+its constructor is internal.
+
+| Member | Type | Description |
+| --- | --- | --- |
+| `Duration` | `TimeSpan` | Duration of the current or most recent playback |
+| `Position` | `TimeSpan` | Current playback position |
+| `Progress` | `double` | Linear normalized progress |
+| `State` | `MotionPlayerState` | `Stopped`, `Playing`, or `Paused` |
+| `Play(TimeSpan)` | Method | Restarts from zero using a positive duration |
+| `Pause()` | Method | Pauses without changing position |
+| `Resume()` | Method | Resumes paused playback |
+| `Stop()` | Method | Stops at the current position |
+| `Seek(double)` | Method | Seeks to finite progress clamped to `[0, 1]` |
+
+The corresponding direct-property fields are `DurationProperty`, `PositionProperty`, `ProgressProperty`, and
+`StateProperty`.
+
+## MotionPlayerState
+
+```csharp
+public enum MotionPlayerState
+```
+
+Reports whether a player is `Stopped`, `Playing`, or `Paused`.
 
 ## BasicMotionController
 
@@ -162,7 +197,7 @@ The initial request snaps. Later animated changes start from `CurrentPose`, whic
 public sealed class SequenceMotionController : MotionController
 ```
 
-Maps normalized external progress across ordered state stops. It provides no clock or playback commands.
+Maps externally owned normalized progress across ordered state stops. It does not create an inherited `Player`.
 
 | Member | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -190,6 +225,45 @@ Defines one endpoint in a `SequenceMotionController`.
 | `Easing` | `Easing?` | `null` | Easing for the interval arriving at this stop; null means linear |
 
 The corresponding styled-property fields are `StateProperty`, `OffsetProperty`, and `EasingProperty`.
+
+## TimelineMotionController
+
+```csharp
+public sealed class TimelineMotionController : MotionController
+```
+
+Maps absolute time across ordered state keyframes and opts into controller-owned playback.
+
+| Member | Type | Default | Description |
+| --- | --- | --- | --- |
+| `Time` | `TimeSpan` | Zero | Absolute timeline position; must be non-negative |
+| `Duration` | `TimeSpan` | Zero | Read-only latest key time |
+| `KeyFrames` | `AvaloniaList<MotionKeyFrame>` | Empty | State keyframes; also the XAML content collection |
+
+The corresponding Avalonia fields are `TimeProperty` and read-only `DurationProperty`.
+
+Keyframes are stable-sorted by `KeyTime`. Before or after the defined range, the nearest endpoint is held. An exact key
+time publishes a state pose; an in-between value blends adjacent states. Duplicate key times use the last keyframe
+declared at that time for the exact and right-side result.
+
+`Player.Progress` maps linearly onto `[TimeSpan.Zero, Duration]`. Setting `Time` seeks the player, while player progress
+updates `Time`.
+
+## MotionKeyFrame
+
+```csharp
+public sealed class MotionKeyFrame : AvaloniaObject
+```
+
+Defines one state endpoint in a `TimelineMotionController`.
+
+| Member | Type | Default | Description |
+| --- | --- | --- | --- |
+| `State` | `object?` | `null` | State key presented at this keyframe |
+| `KeyTime` | `TimeSpan` | Zero | Non-negative absolute location |
+| `Easing` | `Easing?` | `null` | Easing for the interval arriving at this keyframe; null means linear |
+
+The corresponding styled-property fields are `StateProperty`, `KeyTimeProperty`, and `EasingProperty`.
 
 ## MotionEdge
 

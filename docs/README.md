@@ -28,6 +28,7 @@ used independently.
 | Preserve text input, selection, and local state | [Core Concepts: Stable Targets](core-concepts.md#stable-targets) |
 | Use different timing from A → B and B → A | [Directed Edges](controllers-and-poses.md#directed-edges) |
 | Bind motion to a slider or scroll offset | [SequenceMotionController](controllers-and-poses.md#sequencemotioncontroller) |
+| Author motion at absolute times and play it | [TimelineMotionController](controllers-and-poses.md#timelinemotioncontroller) |
 | Animate `CornerRadius`, `Background`, or another styled property | [Target Properties](target-properties.md) |
 | See the complete shortcut list | [Shortcut Properties](target-properties.md#shortcuts) |
 | Define a custom path or interpolation rule | [Strongly Typed Interpolators](interpolators.md#a-strongly-typed-custom-interpolator) |

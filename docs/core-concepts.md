@@ -80,9 +80,10 @@ blends, an interrupted transition can use the exact current pose as its new sour
 An `IMotionController` publishes the current pose. `MotionPanel` does not know whether progress came from elapsed time,
 a scrollbar, a slider, pointer movement, a physics solver, or an external synchronization source.
 
-`BasicMotionController` provides the common time-based state workflow. `SequenceMotionController` maps normalized
-progress across ordered state stops. Custom controllers derive from `MotionController`, call `SetCurrentPose`, and
-optionally use `RequestAnimationFrame` when they need an active clock.
+`BasicMotionController` provides the common time-based state workflow. `SequenceMotionController` is a pure sampler
+that maps externally owned normalized progress across ordered state stops. `TimelineMotionController` maps absolute
+time across authored keyframes and opts into a controller-owned `MotionPlayer`. Custom controllers derive from
+`MotionController`, call `SetCurrentPose`, and subscribe to `PlayerProgressChanged` only when they need a player.
 
 ## Presence
 

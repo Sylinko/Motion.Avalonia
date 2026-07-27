@@ -12,6 +12,8 @@ namespace Motion.Avalonia;
 /// The first requested state is presented immediately. Later changes animate unless the selected
 /// duration is zero or the selected easing is null. If a transition is interrupted, its current
 /// nested pose becomes the source of the next transition, avoiding a jump to an old endpoint.
+/// The inherited <see cref="MotionController.Player"/> provides pause, resume, stop, and seek
+/// controls for the active transition.
 /// </remarks>
 /// <example>
 /// Controller defaults cover ordinary changes while a directed edge customizes one route:
@@ -97,19 +99,15 @@ public sealed class BasicMotionController : MotionController
     private MotionPose _target = MotionPose.Empty;
     private Easing? _activeEasing;
     private MotionEdge? _activeEdge;
-    private TimeSpan _activeDuration;
-    private TimeSpan _elapsed;
-    private TimeSpan? _lastFrameTime;
-    private bool _isAnimating;
-    private bool _frameRequested;
     private bool _hasPresented;
-    private int _frameGeneration;
+    private bool _isTransitioning;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BasicMotionController"/> class.
     /// </summary>
     public BasicMotionController()
     {
+        PlayerProgressChanged += OnPlayerProgressChanged;
         SetCurrentPose(MotionPose.State(State));
     }
 
@@ -120,19 +118,12 @@ public sealed class BasicMotionController : MotionController
     protected override void OnDetached() => _hasPresented = false;
 
     /// <inheritdoc />
-    protected override void OnOwnerAttachedToVisualTree() => RequestNextFrame();
-
-    /// <inheritdoc />
     protected override void OnOwnerPresented() => _hasPresented = true;
 
     /// <inheritdoc />
     protected override void OnOwnerDetachedFromVisualTree()
     {
-        _frameGeneration++;
-        _frameRequested = false;
-        _lastFrameTime = null;
-
-        if (_isAnimating)
+        if (_isTransitioning)
         {
             CompleteTransition();
         }
@@ -160,14 +151,10 @@ public sealed class BasicMotionController : MotionController
 
         _source = CurrentPose;
         _target = MotionPose.State(newState);
-        _activeDuration = duration;
         _activeEasing = easing;
         _activeEdge = edge;
-        _elapsed = TimeSpan.Zero;
-        _lastFrameTime = null;
-        _isAnimating = true;
-        SetCurrentPose(MotionPose.CreateBlend(_source, _target, 0, easing, edge));
-        RequestNextFrame();
+        _isTransitioning = true;
+        Player!.Play(duration);
     }
 
     private MotionEdge? FindEdge(object? from, object? to)
@@ -193,7 +180,7 @@ public sealed class BasicMotionController : MotionController
 
     private void OnTimingChanged()
     {
-        if (!_isAnimating)
+        if (!_isTransitioning)
         {
             return;
         }
@@ -204,41 +191,20 @@ public sealed class BasicMotionController : MotionController
         }
     }
 
-    private void RequestNextFrame()
+    private void OnPlayerProgressChanged(object? sender, EventArgs e)
     {
-        if (!_isAnimating || _frameRequested)
+        if (!_isTransitioning || _activeEasing is null || Player is not { } player)
         {
             return;
         }
 
-        var generation = _frameGeneration;
-        _frameRequested = RequestAnimationFrame(timestamp => OnAnimationFrame(timestamp, generation));
-    }
-
-    private void OnAnimationFrame(TimeSpan timestamp, int generation)
-    {
-        if (generation != _frameGeneration || !_isAnimating || _activeEasing is null)
-        {
-            return;
-        }
-
-        _frameRequested = false;
-        if (_lastFrameTime is { } lastFrameTime && timestamp > lastFrameTime)
-        {
-            _elapsed += timestamp - lastFrameTime;
-        }
-
-        _lastFrameTime = timestamp;
-        var progress = _activeDuration <= TimeSpan.Zero ? 1 : Math.Clamp(_elapsed.TotalMilliseconds / _activeDuration.TotalMilliseconds, 0, 1);
-
-        if (progress >= 1)
+        if (player.Progress >= 1)
         {
             CompleteTransition();
             return;
         }
 
-        SetCurrentPose(MotionPose.CreateBlend(_source, _target, progress, _activeEasing, _activeEdge));
-        RequestNextFrame();
+        SetCurrentPose(MotionPose.CreateBlend(_source, _target, player.Progress, _activeEasing, _activeEdge));
     }
 
     private void CompleteTransition()
@@ -250,19 +216,11 @@ public sealed class BasicMotionController : MotionController
 
     private void StopTransition()
     {
-        if (_frameRequested)
-        {
-            _frameGeneration++;
-        }
-
-        _frameRequested = false;
-        _isAnimating = false;
-        _elapsed = TimeSpan.Zero;
-        _lastFrameTime = null;
+        _isTransitioning = false;
+        Player?.Stop();
         _source = MotionPose.Empty;
         _target = MotionPose.Empty;
         _activeEasing = null;
         _activeEdge = null;
-        _activeDuration = TimeSpan.Zero;
     }
 }

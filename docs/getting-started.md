@@ -72,8 +72,8 @@ Add a controller before the content controls:
 </motion:MotionPanel.Controller>
 ```
 
-`BasicMotionController` owns the requested state and the clock used to move to it. `Duration` and `Easing` are defaults
-for every state change unless a matching directed edge overrides them.
+`BasicMotionController` owns the requested state and uses its controller-owned `MotionPlayer` to move to it. `Duration`
+and `Easing` are defaults for every state change unless a matching directed edge overrides them.
 
 ## 4. Define the Quick State
 

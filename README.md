@@ -42,6 +42,7 @@ Motion.Avalonia separates those concerns. `MotionState` describes endpoints, `Mo
 - Real intermediate measure and arrange
 - Controller-driven and seekable motion
 - Built-in normalized state sequences
+- Absolute-time keyframe timelines with controller-owned playback
 - Layout and styled-property interpolation on one timeline
 - Directed `MotionEdge` timing overrides
 - Strongly typed custom interpolators
@@ -171,12 +172,13 @@ components continue to evolve.
 
 ## Roadmap
 
-The project is intended to grow beyond layout morphing. Planned areas include player abstractions, physics-based motion,
-pointer and hover interactions, richer interpolation policies, and higher-level animation-state-machine components.
+The project is intended to grow beyond layout morphing. Planned areas include richer player behaviors, physics-based
+motion, pointer and hover interactions, event and property tracks, richer interpolation policies, and higher-level
+animation-state-machine components.
 
 ## Projects
 
-- `Motion.Avalonia` — reusable controls, controllers, poses, and interpolators
+- `Motion.Avalonia` — reusable controls, controllers, players, poses, and interpolators
 - `Motion.Avalonia.Demo` — interactive desktop showcase
 - `Motion.Avalonia.Tests` — automated behavior and lifecycle tests
 

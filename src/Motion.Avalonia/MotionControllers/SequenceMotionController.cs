@@ -10,8 +10,9 @@ namespace Motion.Avalonia;
 /// Maps normalized progress across an ordered sequence of state stops.
 /// </summary>
 /// <remarks>
-/// This controller owns no clock or playback commands. Bind <see cref="Progress"/> to a slider,
-/// scroll position, gesture, or external player. At an exact stop it publishes a state pose;
+/// This controller has no playback commands of its own. Bind <see cref="Progress"/> to a slider,
+/// scroll position, gesture, or other external progress source. It intentionally does not opt
+/// into <see cref="MotionController.Player"/>. At an exact stop it publishes a state pose;
 /// between stops it publishes a blend using the destination stop's easing. Equal offsets create
 /// an instantaneous cut, with the last declared stop winning at and after that offset.
 /// </remarks>
@@ -109,65 +110,20 @@ public sealed class SequenceMotionController : MotionController
 
         foreach (var stop in Stops)
         {
-            var index = _orderedStops.FindIndex(existing => existing.Offset > stop.Offset);
-            if (index < 0)
-            {
-                _orderedStops.Add(stop);
-            }
-            else
-            {
-                _orderedStops.Insert(index, stop);
-            }
+            MotionSegmentEvaluator.InsertOrdered(
+                _orderedStops,
+                stop,
+                static item => item.Offset);
         }
     }
 
-    private void PublishPose()
-    {
-        if (_orderedStops.Count == 0)
-        {
-            SetCurrentPose(MotionPose.Empty);
-            return;
-        }
-
-        var progress = Progress;
-        if (progress < _orderedStops[0].Offset)
-        {
-            SetCurrentPose(MotionPose.State(_orderedStops[0].State));
-            return;
-        }
-
-        var sourceIndex = FindSourceIndex(progress);
-        var source = _orderedStops[sourceIndex];
-
-        if (sourceIndex == _orderedStops.Count - 1 || progress.IsCloseTo(source.Offset, 1e-10))
-        {
-            SetCurrentPose(MotionPose.State(source.State));
-            return;
-        }
-
-        var target = _orderedStops[sourceIndex + 1];
-        var localProgress = (progress - source.Offset) / (target.Offset - source.Offset);
-        SetCurrentPose(MotionPose.CreateBlend(MotionPose.State(source.State), MotionPose.State(target.State), localProgress, target.Easing));
-    }
-
-    private int FindSourceIndex(double progress)
-    {
-        var lower = 0;
-        var upper = _orderedStops.Count - 1;
-
-        while (lower <= upper)
-        {
-            var middle = lower + ((upper - lower) / 2);
-            if (_orderedStops[middle].Offset <= progress)
-            {
-                lower = middle + 1;
-            }
-            else
-            {
-                upper = middle - 1;
-            }
-        }
-
-        return Math.Max(upper, 0);
-    }
+    private void PublishPose() =>
+        SetCurrentPose(
+            MotionSegmentEvaluator.Evaluate(
+                _orderedStops,
+                Progress,
+                static item => item.Offset,
+                static item => item.State,
+                static item => item.Easing,
+                static (left, right) => left.IsCloseTo(right, 1e-10)));
 }

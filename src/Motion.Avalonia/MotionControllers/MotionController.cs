@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Threading;
 
 namespace Motion.Avalonia;
 
@@ -9,6 +10,8 @@ namespace Motion.Avalonia;
 /// A controller instance can be attached to only one <see cref="MotionPanel"/> at a time.
 /// Use <see cref="SetCurrentPose"/> to publish state and
 /// <see cref="RequestAnimationFrame"/> for a panel-lifetime-aware animation loop.
+/// Controllers that subscribe to <see cref="PlayerProgressChanged"/> receive a controller-owned
+/// <see cref="MotionPlayer"/> through <see cref="Player"/>.
 /// </remarks>
 /// <example>
 /// A progress-driven controller can publish a blend without owning a clock:
@@ -38,6 +41,14 @@ public abstract class MotionController : StyledElement, IMotionController
     public static readonly DirectProperty<MotionController, MotionPose> CurrentPoseProperty =
         AvaloniaProperty.RegisterDirect<MotionController, MotionPose>(nameof(CurrentPose), controller => controller.CurrentPose);
 
+    /// <summary>
+    /// Defines the <see cref="Player"/> property.
+    /// </summary>
+    public static readonly DirectProperty<MotionController, MotionPlayer?> PlayerProperty =
+        AvaloniaProperty.RegisterDirect<MotionController, MotionPlayer?>(
+            nameof(Player),
+            controller => controller.Player);
+
     /// <inheritdoc />
     public MotionPose CurrentPose
     {
@@ -45,10 +56,59 @@ public abstract class MotionController : StyledElement, IMotionController
         private set => SetAndRaise(CurrentPoseProperty, ref field, value);
     } = MotionPose.Empty;
 
+    /// <summary>
+    /// Gets the controller-owned player, or null when this controller does not consume playback progress.
+    /// </summary>
+    public MotionPlayer? Player
+    {
+        get;
+        private set => SetAndRaise(PlayerProperty, ref field, value);
+    }
+
     /// <inheritdoc />
     public event EventHandler? CurrentPoseChanged;
 
+    /// <summary>
+    /// Occurs when the controller-owned player publishes progress. The first subscription creates
+    /// <see cref="Player"/> and removing the last subscription releases it.
+    /// </summary>
+    protected event EventHandler? PlayerProgressChanged
+    {
+        add
+        {
+            Dispatcher.UIThread.VerifyAccess();
+            if (value is null)
+            {
+                return;
+            }
+
+            var wasEmpty = _playerProgressChanged is null;
+            _playerProgressChanged += value;
+            if (wasEmpty)
+            {
+                Player = new MotionPlayer(this);
+            }
+        }
+        remove
+        {
+            Dispatcher.UIThread.VerifyAccess();
+            if (value is null)
+            {
+                return;
+            }
+
+            var hadSubscribers = _playerProgressChanged is not null;
+            _playerProgressChanged -= value;
+            if (hadSubscribers && _playerProgressChanged is null)
+            {
+                Player?.Dispose();
+                Player = null;
+            }
+        }
+    }
+
     private MotionPanel? _owner;
+    private EventHandler? _playerProgressChanged;
 
     /// <summary>
     /// Gets whether this controller is currently assigned to a panel.
@@ -83,6 +143,19 @@ public abstract class MotionController : StyledElement, IMotionController
     {
         ArgumentNullException.ThrowIfNull(callback);
         return _owner?.RequestControllerAnimationFrame(this, callback) == true;
+    }
+
+    internal bool RequestPlayerAnimationFrame(
+        MotionPlayer player,
+        Action<TimeSpan> callback) =>
+        ReferenceEquals(Player, player) && RequestAnimationFrame(callback);
+
+    internal void NotifyPlayerProgressChanged(MotionPlayer player)
+    {
+        if (ReferenceEquals(Player, player))
+        {
+            _playerProgressChanged?.Invoke(player, EventArgs.Empty);
+        }
     }
 
     /// <summary>
@@ -129,12 +202,21 @@ public abstract class MotionController : StyledElement, IMotionController
         }
 
         OnDetached();
+        Player?.NotifyOwnerDetachedFromVisualTree();
         _owner = null;
     }
 
-    internal void NotifyOwnerAttachedToVisualTree() => OnOwnerAttachedToVisualTree();
+    internal void NotifyOwnerAttachedToVisualTree()
+    {
+        Player?.NotifyOwnerAttachedToVisualTree();
+        OnOwnerAttachedToVisualTree();
+    }
 
-    internal void NotifyOwnerDetachedFromVisualTree() => OnOwnerDetachedFromVisualTree();
+    internal void NotifyOwnerDetachedFromVisualTree()
+    {
+        OnOwnerDetachedFromVisualTree();
+        Player?.NotifyOwnerDetachedFromVisualTree();
+    }
 
     internal void NotifyOwnerPresented() => OnOwnerPresented();
 }

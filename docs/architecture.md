@@ -144,11 +144,15 @@ The project uses `IgnoresAccessChecksToGenerator` and a narrowly scoped `UnsafeA
 
 ## Frame Scheduling
 
-`MotionController.RequestAnimationFrame` delegates to the owning panel, which schedules through the current `TopLevel`.
+`MotionPlayer` delegates frame requests through its owning `MotionController`, which delegates to the panel and current
+`TopLevel`.
 
 The panel verifies controller identity both when scheduling and when the callback runs. A detached or replaced controller therefore cannot continue to mutate that panel.
 
-`BasicMotionController` tracks a frame generation so stale callbacks from an earlier animation are ignored after interruption or detachment.
+The player tracks a frame generation so stale callbacks from an earlier playback are ignored after restart, pause,
+detachment, or disposal. `MotionController` creates the player when the first protected `PlayerProgressChanged`
+subscriber is added and disposes it when the last subscriber is removed. `BasicMotionController` and
+`TimelineMotionController` opt in; the externally driven `SequenceMotionController` does not.
 
 ## Threading
 
