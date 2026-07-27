@@ -51,26 +51,20 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
 
     public void Dispose() => UnsubscribeSlots();
 
-    private void AddSlot(
-        MotionSlot slot,
-        int relativeZIndex,
-        Dictionary<string, MotionLayoutEntry> entries)
+    private void AddSlot(MotionSlot slot, int relativeZIndex, Dictionary<string, MotionLayoutEntry> entries)
     {
         var target = slot.Target;
         if (string.IsNullOrWhiteSpace(target))
         {
-            throw new InvalidOperationException(
-                $"Every {nameof(MotionSlot)} in state '{State.Key}' must specify a non-empty target.");
+            throw new InvalidOperationException($"Every {nameof(MotionSlot)} in state '{State.Key}' must specify a non-empty target.");
         }
 
         var properties = new Dictionary<AvaloniaProperty, object?>(slot.CaptureEndpointValues())
         {
-            [Visual.ZIndexProperty] = relativeZIndex,
+            [ZIndexProperty] = relativeZIndex,
         };
 
-        if (!entries.TryAdd(
-                target,
-                new MotionLayoutEntry(GetLayoutBounds(slot), 1, properties)))
+        if (!entries.TryAdd(target, new MotionLayoutEntry(GetLayoutBounds(slot), 1, properties)))
         {
             throw new InvalidOperationException($"State '{State.Key}' contains more than one slot for transition target '{target}'.");
         }
@@ -161,4 +155,5 @@ internal sealed record MotionLayout(Size DesiredSize, IReadOnlyDictionary<string
 internal readonly record struct MotionLayoutEntry(
     Rect Bounds,
     double Presence,
-    IReadOnlyDictionary<AvaloniaProperty, object?> Properties);
+    IReadOnlyDictionary<AvaloniaProperty, object?> Properties
+);

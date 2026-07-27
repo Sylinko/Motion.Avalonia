@@ -86,9 +86,10 @@ Describes the current live composition requested by a controller.
 | --- | --- | --- |
 | `Empty` | `static MotionPose` | Presents no state |
 | `State` | `static MotionPose State(object? key)` | Presents one state |
-| `Blend` | `static MotionPose Blend(MotionPose source, MotionPose target, double progress, Easing? easing = null)` | Blends two poses |
+| `CreateBlend` | `static MotionPose CreateBlend(MotionPose source, MotionPose target, double progress, Easing? easing = null, MotionEdge? edge = null)` | Blends two poses and optionally associates a directed edge |
 
-`Blend` requires non-null source and target poses, finite progress, and clamps progress to `[0, 1]`. A null easing argument selects `LinearEasing`.
+`CreateBlend` requires non-null source and target poses, finite progress, and clamps progress to `[0, 1]`. A null easing
+argument selects `LinearEasing`. The optional edge is available to edge-specific interpolator lookup.
 
 The concrete state, blend, and empty pose representations are internal.
 
@@ -155,13 +156,48 @@ The corresponding styled-property fields are `StateProperty`, `DurationProperty`
 
 The initial request snaps. Later animated changes start from `CurrentPose`, which preserves interruption continuity.
 
+## SequenceMotionController
+
+```csharp
+public sealed class SequenceMotionController : MotionController
+```
+
+Maps normalized external progress across ordered state stops. It provides no clock or playback commands.
+
+| Member | Type | Default | Description |
+| --- | --- | --- | --- |
+| `Progress` | `double` | `0` | Current sequence position, coerced to `[0, 1]`; must be finite |
+| `Stops` | `AvaloniaList<MotionStop>` | Empty | State stops; also the XAML content collection |
+
+The corresponding styled-property field is `ProgressProperty`.
+
+Stops are stable-sorted by `Offset`. Before or after the defined range, the nearest endpoint is held. An exact offset
+publishes a state pose; an in-between value blends adjacent states. For duplicate offsets, the last stop declared at
+that offset is the exact and right-side result.
+
+## MotionStop
+
+```csharp
+public sealed class MotionStop : AvaloniaObject
+```
+
+Defines one endpoint in a `SequenceMotionController`.
+
+| Member | Type | Default | Description |
+| --- | --- | --- | --- |
+| `State` | `object?` | `null` | State key presented at this stop |
+| `Offset` | `double` | `0` | Normalized location in `[0, 1]`; must be finite |
+| `Easing` | `Easing?` | `null` | Easing for the interval arriving at this stop; null means linear |
+
+The corresponding styled-property fields are `StateProperty`, `OffsetProperty`, and `EasingProperty`.
+
 ## MotionEdge
 
 ```csharp
 public sealed class MotionEdge : AvaloniaObject
 ```
 
-Overrides timing for one directed state-key pair.
+Identifies one directed state-key pair and can override its timing in `BasicMotionController`.
 
 | Member | Type | Description |
 | --- | --- | --- |

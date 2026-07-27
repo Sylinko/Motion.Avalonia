@@ -124,7 +124,19 @@
                 <motion:MotionPanel
                   x:Name="ShowcasePanel" ClipToBounds="True">
                   <motion:MotionPanel.Controller>
-                    <controls:ShowcaseSequenceController x:Name="ShowcaseController"/>
+                    <motion:SequenceMotionController x:Name="ShowcaseController">
+                      <motion:MotionStop
+                        State="Immersive"
+                        Offset="0"/>
+                      <motion:MotionStop
+                        State="Reveal"
+                        Offset="0.58"
+                        Easing="CubicEaseOut"/>
+                      <motion:MotionStop
+                        State="Discussion"
+                        Offset="1"
+                        Easing="CubicEaseInOut"/>
+                    </motion:SequenceMotionController>
                   </motion:MotionPanel.Controller>
 
                   <motion:MotionPanel.States>

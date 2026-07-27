@@ -7,6 +7,22 @@ namespace Motion.Avalonia;
 /// <summary>
 /// Describes one live layout state of a <see cref="MotionPanel"/>.
 /// </summary>
+/// <remarks>
+/// The template is instantiated once while the state belongs to a panel. Its bindings and
+/// responsive layout remain active even while another state is presented.
+/// </remarks>
+/// <example>
+/// <code><![CDATA[
+/// <motion:MotionState Key="Expanded">
+///   <DataTemplate>
+///     <Grid ColumnDefinitions="2*,*">
+///       <motion:MotionSlot Target="Editor"/>
+///       <motion:MotionSlot Grid.Column="1" Target="Preview"/>
+///     </Grid>
+///   </DataTemplate>
+/// </motion:MotionState>
+/// ]]></code>
+/// </example>
 public sealed class MotionState : AvaloniaObject
 {
     /// <summary>

@@ -27,7 +27,7 @@ used independently.
 | Move one control between unrelated panel layouts | [States and Slots](states-and-slots.md) |
 | Preserve text input, selection, and local state | [Core Concepts: Stable Targets](core-concepts.md#stable-targets) |
 | Use different timing from A → B and B → A | [Directed Edges](controllers-and-poses.md#directed-edges) |
-| Bind motion to a slider or scroll offset | [Progress-driven Controllers](controllers-and-poses.md#a-progress-driven-controller) |
+| Bind motion to a slider or scroll offset | [SequenceMotionController](controllers-and-poses.md#sequencemotioncontroller) |
 | Animate `CornerRadius`, `Background`, or another styled property | [Target Properties](target-properties.md) |
 | See the complete shortcut list | [Shortcut Properties](target-properties.md#shortcuts) |
 | Define a custom path or interpolation rule | [Strongly Typed Interpolators](interpolators.md#a-strongly-typed-custom-interpolator) |

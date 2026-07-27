@@ -55,7 +55,10 @@ For each `(Target, Property)` pair, the panel selects:
 
 An edge-specific match takes precedence over a general match. Multiple matches at the same level are configuration errors.
 
-Edge filtering is available only when the pose carries a `MotionEdge`, as poses produced by `BasicMotionController` do. A custom controller that uses the public `MotionPose.Blend` API creates an unassociated blend and therefore uses general interpolators.
+Edge filtering is available whenever the pose carries a `MotionEdge`. `BasicMotionController` supplies its selected
+edge automatically. A custom controller can pass its selected edge to
+`MotionPose.CreateBlend(source, target, progress, easing, edge)` and receives the same lookup behavior. Reuse the actual
+edge instance registered with the interpolator; edge matching uses object identity.
 
 ## Property-Specific Easing
 

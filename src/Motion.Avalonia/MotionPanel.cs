@@ -4,12 +4,54 @@ using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Metadata;
+using Motion.Avalonia.Extensions;
 
 namespace Motion.Avalonia;
 
 /// <summary>
 /// Projects live state templates onto stable direct children using a controller-provided pose.
 /// </summary>
+/// <remarks>
+/// Every direct child must have a unique, non-empty <c>x:Name</c>. A
+/// <see cref="MotionSlot"/> in each state template maps to that child through
+/// <see cref="MotionSlot.Target"/>. State templates remain live and are laid out again when
+/// the panel size or a binding changes; they are not bitmap snapshots.
+/// </remarks>
+/// <example>
+/// The same <c>Card</c> instance moves between two responsive layouts:
+/// <code><![CDATA[
+/// <motion:MotionPanel>
+///   <motion:MotionPanel.Controller>
+///     <motion:BasicMotionController
+///         State="{Binding CurrentState}"
+///         Duration="0:0:0.3"
+///         Easing="CubicEaseInOut"/>
+///   </motion:MotionPanel.Controller>
+///
+///   <Border x:Name="Card" Padding="16"/>
+///
+///   <motion:MotionPanel.States>
+///     <motion:MotionState Key="Centered">
+///       <DataTemplate>
+///         <Grid>
+///           <motion:MotionSlot
+///             Target="Card"
+///             MaxWidth="600"
+///             HorizontalAlignment="Center"/>
+///         </Grid>
+///       </DataTemplate>
+///     </motion:MotionState>
+///     <motion:MotionState Key="Leading">
+///       <DataTemplate>
+///         <Grid ColumnDefinitions="420,*">
+///           <motion:MotionSlot Target="Card" MaxWidth="420"/>
+///         </Grid>
+///       </DataTemplate>
+///     </motion:MotionState>
+///   </motion:MotionPanel.States>
+/// </motion:MotionPanel>
+/// ]]></code>
+/// </example>
 public sealed class MotionPanel : Control
 {
     /// <summary>
@@ -536,8 +578,7 @@ public sealed class MotionPanel : Control
         pose switch
         {
             StateMotionPose statePose => GetMeasuredSize(statePose.Key),
-            BlendMotionPose blend => Lerp(
-                EvaluateDesiredSize(blend.Source),
+            BlendMotionPose blend => EvaluateDesiredSize(blend.Source).Lerp(
                 EvaluateDesiredSize(blend.Target),
                 blend.Easing.Ease(blend.Progress)),
             _ => default,
@@ -598,9 +639,7 @@ public sealed class MotionPanel : Control
     {
         foreach (var pair in _targets)
         {
-            var values = layout.Entries.TryGetValue(pair.Key, out var entry)
-                ? entry.Properties
-                : EmptyPropertyValues;
+            var values = layout.Entries.TryGetValue(pair.Key, out var entry) ? entry.Properties : EmptyPropertyValues;
             pair.Value.Properties.Apply(values);
         }
     }
@@ -638,12 +677,12 @@ public sealed class MotionPanel : Control
             entries.Add(
                 id,
                 new MotionLayoutEntry(
-                    Lerp(sourceEntry.Bounds, targetEntry.Bounds, progress),
-                    Lerp(sourceEntry.Presence, targetEntry.Presence, progress),
+                    sourceEntry.Bounds.Lerp(targetEntry.Bounds, progress),
+                    sourceEntry.Presence.Lerp(targetEntry.Presence, progress),
                     BlendProperties(id, sourceEntry.Properties, targetEntry.Properties, blend, progress)));
         }
 
-        return new MotionLayout(Lerp(source.DesiredSize, target.DesiredSize, progress), entries);
+        return new MotionLayout(source.DesiredSize.Lerp(target.DesiredSize, progress), entries);
     }
 
     private IReadOnlyDictionary<AvaloniaProperty, object?> BlendProperties(
@@ -661,12 +700,10 @@ public sealed class MotionPanel : Control
         var result = new Dictionary<AvaloniaProperty, object?>(source.Count + destination.Count);
         foreach (var property in source.Keys.Concat(destination.Keys).Distinct())
         {
-            var oldValue = source.TryGetValue(property, out var sourceValue)
-                ? sourceValue
-                : _targets[target].Properties.GetBaseValue(property);
-            var newValue = destination.TryGetValue(property, out var destinationValue)
-                ? destinationValue
-                : _targets[target].Properties.GetBaseValue(property);
+            var oldValue = source.TryGetValue(property, out var sourceValue) ? sourceValue : _targets[target].Properties.GetBaseValue(property);
+            var newValue = destination.TryGetValue(property, out var destinationValue) ?
+                destinationValue :
+                _targets[target].Properties.GetBaseValue(property);
             var interpolator = FindInterpolator(target, property, blend.Edge);
             var progress = interpolator.Easing?.Ease(blend.Progress) ?? inheritedProgress;
 
@@ -735,21 +772,6 @@ public sealed class MotionPanel : Control
         new(
             $"{nameof(MotionPanel)} contains more than one interpolator for target '{target}', " +
             $"property '{property}'{(edge is null ? string.Empty : $" and edge '{edge.From}' to '{edge.To}'")}.");
-
-    private static double Lerp(double source, double target, double progress) =>
-        source + ((target - source) * progress);
-
-    private static Size Lerp(Size source, Size target, double progress) =>
-        new(
-            Lerp(source.Width, target.Width, progress),
-            Lerp(source.Height, target.Height, progress));
-
-    private static Rect Lerp(Rect source, Rect target, double progress) =>
-        new(
-            Lerp(source.X, target.X, progress),
-            Lerp(source.Y, target.Y, progress),
-            Lerp(source.Width, target.Width, progress),
-            Lerp(source.Height, target.Height, progress));
 
     private readonly record struct TargetEntry(
         Control Child,

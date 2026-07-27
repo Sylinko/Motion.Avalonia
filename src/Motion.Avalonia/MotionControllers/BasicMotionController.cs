@@ -8,6 +8,28 @@ namespace Motion.Avalonia;
 /// <summary>
 /// Transitions to a requested state using default timing and optional directed edge overrides.
 /// </summary>
+/// <remarks>
+/// The first requested state is presented immediately. Later changes animate unless the selected
+/// duration is zero or the selected easing is null. If a transition is interrupted, its current
+/// nested pose becomes the source of the next transition, avoiding a jump to an old endpoint.
+/// </remarks>
+/// <example>
+/// Controller defaults cover ordinary changes while a directed edge customizes one route:
+/// <code><![CDATA[
+/// <motion:BasicMotionController
+///     x:Name="Controller"
+///     State="{Binding CurrentState}"
+///     Duration="0:0:0.3"
+///     Easing="CubicEaseInOut">
+///   <motion:MotionEdge
+///     From="Compact"
+///     To="Expanded"
+///     Duration="0:0:0.55"
+///     Easing="CubicEaseOut"/>
+/// </motion:BasicMotionController>
+/// ]]></code>
+/// Set <c>Easing="{x:Null}"</c> or <c>Duration="0"</c> to snap.
+/// </example>
 public sealed class BasicMotionController : MotionController
 {
     /// <summary>

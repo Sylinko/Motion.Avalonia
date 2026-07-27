@@ -64,24 +64,25 @@ A `MotionPose` describes what the panel should present now. It contains no timer
 ```csharp
 var settled = MotionPose.State("Centered");
 
-var halfway = MotionPose.Blend(
+var halfway = MotionPose.CreateBlend(
     MotionPose.State("Centered"),
     MotionPose.State("Wide"),
     0.5,
     new CubicEaseInOut());
 ```
 
-`MotionPose.State` references one state key. `MotionPose.Blend` recursively combines two poses with normalized progress
-and easing. Because blends can contain other blends, an interrupted transition can use the exact current pose as its new
-source.
+`MotionPose.State` references one state key. `MotionPose.CreateBlend` recursively combines two poses with normalized
+progress and easing. It can also carry a `MotionEdge` selected by the controller. Because blends can contain other
+blends, an interrupted transition can use the exact current pose as its new source.
 
 ## Controllers
 
 An `IMotionController` publishes the current pose. `MotionPanel` does not know whether progress came from elapsed time,
 a scrollbar, a slider, pointer movement, a physics solver, or an external synchronization source.
 
-`BasicMotionController` provides the common time-based state workflow. Custom controllers derive from
-`MotionController`, call `SetCurrentPose`, and optionally use `RequestAnimationFrame` when they need an active clock.
+`BasicMotionController` provides the common time-based state workflow. `SequenceMotionController` maps normalized
+progress across ordered state stops. Custom controllers derive from `MotionController`, call `SetCurrentPose`, and
+optionally use `RequestAnimationFrame` when they need an active clock.
 
 ## Presence
 

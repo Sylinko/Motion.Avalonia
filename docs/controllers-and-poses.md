@@ -100,7 +100,7 @@ This presents the current live layout of the `Expanded` state.
 ### A blend
 
 ```csharp
-MotionPose.Blend(
+MotionPose.CreateBlend(
     MotionPose.State("Compact"),
     MotionPose.State("Expanded"),
     progress);
@@ -109,12 +109,27 @@ MotionPose.Blend(
 `progress` is finite and normalized to the range from `0` to `1`. The optional easing defaults to linear:
 
 ```csharp
-MotionPose.Blend(
+MotionPose.CreateBlend(
     MotionPose.State("Compact"),
     MotionPose.State("Expanded"),
     progress,
     new CubicEaseInOut());
 ```
+
+The optional `MotionEdge` argument associates the blend with a directed edge. This lets a custom controller participate
+in edge-specific interpolator lookup without going through `BasicMotionController`:
+
+```csharp
+MotionPose.CreateBlend(
+    MotionPose.State(edge.From),
+    MotionPose.State(edge.To),
+    progress,
+    easing: edge.Easing,
+    edge: edge);
+```
+
+Reuse the same edge instance that is registered with the controller or interpolator. Edge selection uses object
+identity, not only the `From` and `To` values.
 
 Poses can be nested. This is important when a transition is interrupted: `BasicMotionController` uses the currently presented pose as the next transition's source, so the target does not jump back to a previous state before changing direction.
 
@@ -131,9 +146,42 @@ Blend(
 
 The inner blend remains live. Its state layouts and property endpoints can still respond to resize and binding changes while the outer transition proceeds.
 
+## SequenceMotionController
+
+`SequenceMotionController` maps one normalized `Progress` value across an ordered collection of `MotionStop` objects. It
+is useful for sliders, scroll-linked motion, gesture scrubbing, and any other input that already owns progress:
+
+```xml
+<motion:SequenceMotionController Progress="{Binding Progress}">
+    <motion:MotionStop State="Immersive"
+                       Offset="0" />
+    <motion:MotionStop State="Reveal"
+                       Offset="0.38"
+                       Easing="CubicEaseOut" />
+    <motion:MotionStop State="Discussion"
+                       Offset="1"
+                       Easing="CubicEaseInOut" />
+</motion:SequenceMotionController>
+```
+
+`Progress` and every `Offset` use the range from `0` to `1`. Stops are evaluated in ascending offset order; declaration
+order is preserved when offsets are equal. Before the first stop and after the last stop, the controller holds the
+nearest endpoint. An empty collection publishes `MotionPose.Empty`, while one stop always presents that state.
+
+At an exact stop offset, the controller publishes `MotionPose.State`, so a settled layout continues to respond directly
+to resize and binding changes. Between two stops, it publishes a blend with local segment progress. `Easing` belongs to
+the target stop and shapes the interval arriving at that stop; `null` means linear.
+
+Duplicate offsets express an instantaneous cut. The interval on the left still approaches the first stop at that
+offset, while the exact offset and its right side use the last stop declared at that offset.
+
+The sequence controller owns no clock, duration, playback, or loop behavior. Bind any source to `Progress`; a separate
+player can advance it over time when playback is needed.
+
 ## A Progress-Driven Controller
 
-A controller can expose normalized progress instead of time. That progress can be bound to a `Slider`, scroll position, gesture recognizer, or any other source.
+Use `SequenceMotionController` for ordinary ordered state sequences. A custom controller remains useful when progress
+selects poses through a different mapping, such as a solver, graph, or procedural rule:
 
 ```csharp
 using Avalonia;
@@ -164,7 +212,7 @@ public sealed class ProgressMotionController : MotionController
     private void PublishPose()
     {
         SetCurrentPose(
-            MotionPose.Blend(
+            MotionPose.CreateBlend(
                 MotionPose.State("Compact"),
                 MotionPose.State("Expanded"),
                 Progress));
@@ -173,31 +221,6 @@ public sealed class ProgressMotionController : MotionController
 ```
 
 This controller has no `Play`, `Pause`, or `Duration` because progress is its only responsibility. A separate player can advance `Progress` over time when playback is needed.
-
-## More Than Two Stops
-
-For an ordered sequence, map a continuous value to two neighboring states:
-
-```csharp
-var scaled = Math.Clamp(progress, 0, 1) * (states.Count - 1);
-var sourceIndex = Math.Min((int)scaled, states.Count - 2);
-var localProgress = scaled - sourceIndex;
-
-SetCurrentPose(
-    MotionPose.Blend(
-        MotionPose.State(states[sourceIndex]),
-        MotionPose.State(states[sourceIndex + 1]),
-        localProgress));
-```
-
-This is useful for:
-
-- a four-state slider showcase;
-- scroll-linked storytelling;
-- scrubbers and timelines;
-- gesture-controlled transitions.
-
-The state stops, input mapping, and time source remain independent concepts. A timer-based player can drive the same progress controller without changing the panel or its state templates.
 
 ## Frame Scheduling
 
@@ -221,14 +244,16 @@ The relevant lifecycle hooks are:
 
 Use `BasicMotionController` when application state changes discretely and timing belongs to the transition.
 
-Create a progress-driven controller when an external value owns position in the motion:
+Use `SequenceMotionController` when an external value owns position in an ordered sequence:
 
 - scroll offset;
 - slider value;
 - pointer drag distance;
 - gesture progress;
-- physics solver output.
 
 Keep playback in a separate object when the same sequence should support both manual scrubbing and timed playback.
+
+Create a custom controller when pose selection is not an ordered sequence, for example when it comes from a physics
+solver or an application-specific graph.
 
 Next: [Target Properties](target-properties.md)

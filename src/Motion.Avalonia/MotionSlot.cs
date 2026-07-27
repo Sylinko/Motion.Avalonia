@@ -3,6 +3,8 @@ using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Data;
+using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Metadata;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
@@ -12,6 +14,30 @@ namespace Motion.Avalonia;
 /// <summary>
 /// Represents the live layout and property proxy for a direct child of a <see cref="MotionPanel"/>.
 /// </summary>
+/// <remarks>
+/// Layout properties such as <see cref="Layoutable.Margin"/> and alignment arrange the slot
+/// itself. The following shortcut properties are copied into the target-property endpoint:
+/// <see cref="Visual.Opacity"/>, <see cref="Visual.ClipToBounds"/>,
+/// <see cref="Visual.Clip"/>, <see cref="Visual.OpacityMask"/>,
+/// <see cref="Visual.Effect"/>, <see cref="Visual.RenderTransform"/>,
+/// <see cref="Visual.RenderTransformOrigin"/>, <see cref="Visual.ZIndex"/>,
+/// <see cref="InputElement.IsEnabled"/>, <see cref="InputElement.IsHitTestVisible"/>,
+/// <see cref="InputElement.Cursor"/>, <see cref="InputElement.Focusable"/>,
+/// <see cref="InputElement.IsTabStop"/>, and <see cref="InputElement.TabIndex"/>.
+/// Use <see cref="Setters"/> for any other styled property.
+/// </remarks>
+/// <example>
+/// A shortcut and a setter participate in the same pose evaluation:
+/// <code><![CDATA[
+/// <motion:MotionSlot
+///   x:SetterTargetType="Border"
+///   Target="Card"
+///   Opacity="0.75"
+///   MaxWidth="420">
+///   <Setter Property="CornerRadius" Value="16"/>
+/// </motion:MotionSlot>
+/// ]]></code>
+/// </example>
 public sealed class MotionSlot : Control
 {
     /// <summary>

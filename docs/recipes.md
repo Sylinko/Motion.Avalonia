@@ -43,25 +43,28 @@ Use explicit target `Opacity` in addition to presence only when the desired effe
 
 ## Four-State Slider
 
-For ordered states such as `Overview`, `Details`, `Compare`, and `Complete`, expose a controller `Progress` from `0` through `3`.
+For ordered states such as `Overview`, `Details`, `Compare`, and `Complete`, define four normalized stops:
 
-```csharp
-var sourceIndex = Math.Min((int)Progress, StateKeys.Length - 1);
-var targetIndex = Math.Min(sourceIndex + 1, StateKeys.Length - 1);
-var localProgress = Progress - sourceIndex;
-
-SetCurrentPose(
-    sourceIndex == targetIndex
-        ? MotionPose.State(StateKeys[sourceIndex])
-        : MotionPose.Blend(
-            MotionPose.State(StateKeys[sourceIndex]),
-            MotionPose.State(StateKeys[targetIndex]),
-            localProgress));
+```xml
+<motion:SequenceMotionController Progress="{Binding Progress}">
+    <motion:MotionStop State="Overview"
+                       Offset="0" />
+    <motion:MotionStop State="Details"
+                       Offset="0.333"
+                       Easing="CubicEaseInOut" />
+    <motion:MotionStop State="Compare"
+                       Offset="0.667"
+                       Easing="CubicEaseInOut" />
+    <motion:MotionStop State="Complete"
+                       Offset="1"
+                       Easing="CubicEaseInOut" />
+</motion:SequenceMotionController>
 ```
 
-Bind a `Slider.Value` to `Progress`. Previous, next, and random buttons can set or animate the same value without changing the state templates.
+Bind a `Slider.Value` with `Minimum="0"` and `Maximum="1"` to `Progress`. Previous, next, and random buttons can set the
+same value without changing the state templates.
 
-See the demo's [FourStateMotionController](../src/Motion.Avalonia.Demo/Controls/FourStateMotionController.cs) and [ControllerPosePage](../src/Motion.Avalonia.Demo/Views/ControllerPosePage.axaml).
+See the demo's [ControllerPosePage](../src/Motion.Avalonia.Demo/Views/ControllerPosePage.axaml).
 
 ## Scroll-Driven Storytelling
 
@@ -78,15 +81,28 @@ var progress =
 controller.Progress = progress;
 ```
 
-The controller can divide that range into unequal segments. For example:
+The sequence can divide that range into unequal segments:
 
 - `0.00`: immersive video;
 - `0.38`: transition layout with comments revealed;
 - `1.00`: discussion layout with a compact “Continue playing” surface.
 
+```xml
+<motion:SequenceMotionController x:Name="ShowcaseController">
+    <motion:MotionStop State="Immersive"
+                       Offset="0" />
+    <motion:MotionStop State="Reveal"
+                       Offset="0.38"
+                       Easing="CubicEaseOut" />
+    <motion:MotionStop State="Discussion"
+                       Offset="1"
+                       Easing="CubicEaseInOut" />
+</motion:SequenceMotionController>
+```
+
 The scroll bar may be hidden without changing this mapping. A slider can write to the same scroll offset for precise scrubbing.
 
-See [ShowcaseSequenceController](../src/Motion.Avalonia.Demo/Controls/ShowcaseSequenceController.cs) and [OverviewPage](../src/Motion.Avalonia.Demo/Views/OverviewPage.axaml).
+See [OverviewPage](../src/Motion.Avalonia.Demo/Views/OverviewPage.axaml).
 
 ## Animate Background and Shape
 

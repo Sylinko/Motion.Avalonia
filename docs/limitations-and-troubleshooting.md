@@ -50,7 +50,6 @@ Applications with keyboard-heavy flows should explicitly move focus when changin
 | “No direct child has that name” | Slot target cannot be resolved | Add a direct child with the matching `x:Name` |
 | Duplicate target exception | Repeated child name or repeated slot in one state | Keep child names and per-state slot targets unique |
 | Property jumps at halfway | No compatible animator | Add a typed interpolator or accept discrete behavior |
-| `CornerRadius` jumps | Avalonia has no compatible registered animator for the current property/version | Register a `MotionInterpolator<CornerRadius>` |
 | Setter value appears ignored | Property is invalid, direct, duplicated, or not registered on the target | Read the complete exception and inspect the target type |
 | Resize changes the target abruptly | The controller currently presents a state pose | A static state follows live layout immediately by design |
 | Resize has a damped motion | A custom controller continues publishing a blend | Present `MotionPose.State` when the motion should be at rest |

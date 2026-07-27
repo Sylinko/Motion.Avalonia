@@ -7,6 +7,22 @@ namespace Motion.Avalonia;
 /// <summary>
 /// Selects and evaluates the interpolation used for one target property.
 /// </summary>
+/// <remarks>
+/// Interpolators are matched by <see cref="Target"/> and <see cref="Property"/>. An
+/// edge-specific match takes precedence over a general match whose <see cref="Edges"/>
+/// collection is empty. <see cref="Easing"/> changes progress for this property only.
+/// </remarks>
+/// <example>
+/// This override keeps Avalonia's normal opacity interpolation but gives it a separate curve:
+/// <code><![CDATA[
+/// <motion:MotionPanel.Interpolators>
+///   <motion:MotionAvaloniaInterpolator
+///       Target="Card"
+///       Property="Opacity"
+///       Easing="SineEaseInOut"/>
+/// </motion:MotionPanel.Interpolators>
+/// ]]></code>
+/// </example>
 public abstract class MotionInterpolator : AvaloniaObject
 {
     /// <summary>
@@ -70,11 +86,29 @@ public abstract class MotionInterpolator : AvaloniaObject
 /// Provides a strongly typed custom interpolation algorithm.
 /// </summary>
 /// <typeparam name="T">The interpolated value type.</typeparam>
+/// <example>
+/// <code><![CDATA[
+/// public sealed class OvershootDoubleInterpolator : MotionInterpolator<double>
+/// {
+///     public override double Interpolate(double progress, double oldValue, double newValue)
+///     {
+///         var wave = Math.Sin(progress * Math.PI) * 0.08;
+///         return oldValue + ((newValue - oldValue) * (progress + wave));
+///     }
+/// }
+/// ]]></code>
+/// Register the instance in <see cref="MotionPanel.Interpolators"/> with a matching target and
+/// property.
+/// </example>
 public abstract class MotionInterpolator<T> : MotionInterpolator
 {
     /// <summary>
     /// Interpolates between two property values.
     /// </summary>
+    /// <param name="progress">The effective progress. It may be outside zero to one when an easing overshoots.</param>
+    /// <param name="oldValue">The source endpoint value.</param>
+    /// <param name="newValue">The destination endpoint value.</param>
+    /// <returns>The interpolated value.</returns>
     public abstract T Interpolate(double progress, T oldValue, T newValue);
 
     internal sealed override object? InterpolateCore(AvaloniaProperty property, double progress, object? oldValue, object? newValue)

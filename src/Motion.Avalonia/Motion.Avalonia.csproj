@@ -12,6 +12,7 @@
     <PackageProjectUrl>https://github.com/Sylinko/Motion.Avalonia</PackageProjectUrl>
     <RepositoryUrl>https://github.com/Sylinko/Motion.Avalonia</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,6 +25,7 @@
 
   <ItemGroup>
     <IgnoresAccessChecksTo Include="Avalonia.Base" />
+    <InternalsVisibleTo Include="Motion.Avalonia.Demo" />
   </ItemGroup>
 
   <ItemGroup>

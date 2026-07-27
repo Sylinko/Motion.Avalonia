@@ -15,7 +15,7 @@
           Classes="DemoTitle" Text="Time is optional. Progress is enough."/>
         <TextBlock
           Classes="DemoDescription" MaxWidth="768"
-          HorizontalAlignment="Left" Text="MotionPanel consumes a pose, not a clock. This demo-only controller exposes one continuous Progress value across four states. Dragging seeks directly; the buttons animate that same value with requestAnimationFrame."/>
+          HorizontalAlignment="Left" Text="MotionPanel consumes a pose, not a clock. SequenceMotionController maps one continuous Progress value across four declarative stops. Dragging seeks directly; the buttons animate that same slider value."/>
       </StackPanel>
 
       <controls:DemoExample
@@ -37,8 +37,9 @@
             <Slider
               x:Name="PoseSlider" Grid.Column="2"
               Margin="16,0" VerticalAlignment="Center"
-              Maximum="3" Minimum="0"
-              TickFrequency="1" ValueChanged="OnPoseSliderValueChanged"/>
+              Maximum="1" Minimum="0"
+              TickFrequency="0.3333333333333333"
+              ValueChanged="OnPoseSliderValueChanged"/>
             <Button
               Classes="Secondary" Grid.Column="3"
               Click="OnRandomClick" Content="Random"/>
@@ -80,9 +81,21 @@
             CornerRadius="8">
             <motion:MotionPanel ClipToBounds="True">
               <motion:MotionPanel.Controller>
-                <controls:FourStateMotionController
-                  x:Name="PoseController" Easing="CubicEaseInOut"
-                  Duration="0:0:0.5"/>
+                <motion:SequenceMotionController
+                  Progress="{Binding #PoseSlider.Value}">
+                  <motion:MotionStop
+                    State="Orbit"
+                    Offset="0"/>
+                  <motion:MotionStop
+                    State="Columns"
+                    Offset="0.3333333333333333"/>
+                  <motion:MotionStop
+                    State="Focus"
+                    Offset="0.6666666666666666"/>
+                  <motion:MotionStop
+                    State="Stack"
+                    Offset="1"/>
+                </motion:SequenceMotionController>
               </motion:MotionPanel.Controller>
 
               <motion:MotionPanel.States>

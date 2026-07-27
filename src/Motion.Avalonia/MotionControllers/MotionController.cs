@@ -5,6 +5,31 @@ namespace Motion.Avalonia;
 /// <summary>
 /// Provides Avalonia integration and animation-frame scheduling for motion controllers.
 /// </summary>
+/// <remarks>
+/// A controller instance can be attached to only one <see cref="MotionPanel"/> at a time.
+/// Use <see cref="SetCurrentPose"/> to publish state and
+/// <see cref="RequestAnimationFrame"/> for a panel-lifetime-aware animation loop.
+/// </remarks>
+/// <example>
+/// A progress-driven controller can publish a blend without owning a clock:
+/// <code><![CDATA[
+/// public sealed class ProgressController : MotionController
+/// {
+///     public double Progress
+///     {
+///         get;
+///         set
+///         {
+///             field = Math.Clamp(value, 0, 1);
+///             SetCurrentPose(MotionPose.CreateBlend(
+///                 MotionPose.State("Start"),
+///                 MotionPose.State("End"),
+///                 field));
+///         }
+///     }
+/// }
+/// ]]></code>
+/// </example>
 public abstract class MotionController : StyledElement, IMotionController
 {
     /// <summary>
@@ -34,6 +59,7 @@ public abstract class MotionController : StyledElement, IMotionController
     /// Publishes a new pose to the owning panel.
     /// </summary>
     /// <param name="pose">The new current pose.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="pose"/> is null.</exception>
     protected void SetCurrentPose(MotionPose pose)
     {
         ArgumentNullException.ThrowIfNull(pose);
@@ -52,6 +78,7 @@ public abstract class MotionController : StyledElement, IMotionController
     /// </summary>
     /// <param name="callback">The animation-frame callback.</param>
     /// <returns>True when a frame was scheduled; otherwise false.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="callback"/> is null.</exception>
     protected bool RequestAnimationFrame(Action<TimeSpan> callback)
     {
         ArgumentNullException.ThrowIfNull(callback);

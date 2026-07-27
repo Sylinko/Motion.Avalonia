@@ -6,6 +6,22 @@ namespace Motion.Avalonia;
 /// <summary>
 /// Overrides the timing used for one directed state change.
 /// </summary>
+/// <remarks>
+/// Edges are directional. An edge from <c>Compact</c> to <c>Expanded</c> does not
+/// affect the reverse transition. Omitted values inherit the owning controller defaults.
+/// </remarks>
+/// <example>
+/// <code><![CDATA[
+/// <motion:BasicMotionController State="{Binding State}" Duration="0:0:0.3">
+///   <motion:MotionEdge
+///     From="Compact" To="Expanded"
+///     Duration="0:0:0.5" Easing="CubicEaseOut"/>
+///   <motion:MotionEdge
+///     From="Expanded" To="Compact"
+///     Duration="0:0:0.18" Easing="CubicEaseIn"/>
+/// </motion:BasicMotionController>
+/// ]]></code>
+/// </example>
 public sealed class MotionEdge : AvaloniaObject
 {
     /// <summary>
