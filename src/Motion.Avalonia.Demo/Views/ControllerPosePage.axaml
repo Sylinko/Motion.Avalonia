@@ -1,0 +1,215 @@
+<UserControl
+  x:Class="Motion.Avalonia.Demo.Views.ControllerPosePage" xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:Motion.Avalonia.Demo.Controls"
+  xmlns:motion="using:Motion.Avalonia" xmlns:shadui="clr-namespace:ShadUI.Controls;assembly=ShadUI">
+
+  <ScrollViewer>
+    <StackPanel
+      MaxWidth="{StaticResource DemoPageMaxWidth}"
+      Margin="{StaticResource DemoPageMargin}"
+      HorizontalAlignment="Stretch" Spacing="32">
+      <StackPanel Spacing="8">
+        <TextBlock
+          Classes="DemoEyebrow" Text="CONTROLLER &amp; POSE"/>
+        <TextBlock
+          Classes="DemoTitle" Text="Time is optional. Progress is enough."/>
+        <TextBlock
+          Classes="DemoDescription" MaxWidth="768"
+          HorizontalAlignment="Left" Text="MotionPanel consumes a pose, not a clock. This demo-only controller exposes one continuous Progress value across four states. Dragging seeks directly; the buttons animate that same value with requestAnimationFrame."/>
+      </StackPanel>
+
+      <controls:DemoExample
+        Title="Four-state pose scrubber" HorizontalContentAlignment="Stretch"
+        Description="Drag between Orbit, Columns, Focus, and Stack. The chevrons animate to adjacent states; Random chooses any other state. Interrupt a button animation by grabbing the slider.">
+        <StackPanel Spacing="16">
+          <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+            <Button
+              Classes="Secondary Compact Uniform Rounded" Width="36"
+              shadui:ButtonAssist.Icon="{LucideIconContent ChevronLeft}"
+              shadui:ButtonAssist.IconSize="16" Click="OnPreviousClick"
+              ToolTip.Tip="Previous state"/>
+            <Button
+              Classes="Secondary Compact Uniform Rounded" Grid.Column="1"
+              Width="36" Margin="8,0,0,0"
+              shadui:ButtonAssist.Icon="{LucideIconContent ChevronRight}"
+              shadui:ButtonAssist.IconSize="16" Click="OnNextClick"
+              ToolTip.Tip="Next state"/>
+            <Slider
+              x:Name="PoseSlider" Grid.Column="2"
+              Margin="16,0" VerticalAlignment="Center"
+              Maximum="3" Minimum="0"
+              TickFrequency="1" ValueChanged="OnPoseSliderValueChanged"/>
+            <Button
+              Classes="Secondary" Grid.Column="3"
+              Click="OnRandomClick" Content="Random"/>
+          </Grid>
+
+          <Grid ColumnDefinitions="*,*,*,*">
+            <TextBlock
+              FontSize="11"
+              Foreground="{DynamicResource MutedColor}"
+              Text="ORBIT"/>
+            <TextBlock
+              Grid.Column="1" FontSize="11"
+              Foreground="{DynamicResource MutedColor}"
+              Text="COLUMNS" TextAlignment="Center"/>
+            <TextBlock
+              Grid.Column="2" FontSize="11"
+              Foreground="{DynamicResource MutedColor}"
+              Text="FOCUS" TextAlignment="Center"/>
+            <TextBlock
+              Grid.Column="3" FontSize="11"
+              Foreground="{DynamicResource MutedColor}"
+              Text="STACK" TextAlignment="Right"/>
+          </Grid>
+
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock
+              x:Name="PoseStateLabel" FontWeight="SemiBold"
+              Text="Orbit"/>
+            <TextBlock
+              x:Name="PoseProgressLabel" Grid.Column="1"
+              FontFamily="Cascadia Mono,Consolas"
+              Foreground="{DynamicResource MutedColor}"
+              Text="Progress 0.00"/>
+          </Grid>
+
+          <Border
+            Height="400" Padding="16"
+            Background="{DynamicResource WindowBackgroundColor}"
+            CornerRadius="8">
+            <motion:MotionPanel ClipToBounds="True">
+              <motion:MotionPanel.Controller>
+                <controls:FourStateMotionController
+                  x:Name="PoseController" Easing="CubicEaseInOut"
+                  Duration="0:0:0.5"/>
+              </motion:MotionPanel.Controller>
+
+              <motion:MotionPanel.States>
+                <motion:MotionState Key="Orbit">
+                  <motion:MotionState.Template>
+                    <DataTemplate>
+                      <UniformGrid
+                        Columns="2" Rows="2">
+                        <motion:MotionSlot
+                          Margin="8" Target="AlphaTile"/>
+                        <motion:MotionSlot
+                          Margin="8" Target="BetaTile"/>
+                        <motion:MotionSlot
+                          Margin="8" Target="GammaTile"/>
+                        <motion:MotionSlot
+                          Margin="8" Target="DeltaTile"/>
+                      </UniformGrid>
+                    </DataTemplate>
+                  </motion:MotionState.Template>
+                </motion:MotionState>
+                <motion:MotionState Key="Columns">
+                  <motion:MotionState.Template>
+                    <DataTemplate>
+                      <UniformGrid Columns="4">
+                        <motion:MotionSlot
+                          Margin="8" Target="AlphaTile"/>
+                        <motion:MotionSlot
+                          Margin="8" Target="BetaTile"/>
+                        <motion:MotionSlot
+                          Margin="8" Target="GammaTile"/>
+                        <motion:MotionSlot
+                          Margin="8" Target="DeltaTile"/>
+                      </UniformGrid>
+                    </DataTemplate>
+                  </motion:MotionState.Template>
+                </motion:MotionState>
+                <motion:MotionState Key="Focus">
+                  <motion:MotionState.Template>
+                    <DataTemplate>
+                      <Grid
+                        ColumnDefinitions="2*,*" ColumnSpacing="8">
+                        <motion:MotionSlot
+                          Margin="8" Target="AlphaTile"/>
+                        <Grid
+                          Grid.Column="1" RowDefinitions="*,*,*">
+                          <motion:MotionSlot
+                            Margin="8" Target="BetaTile"/>
+                          <motion:MotionSlot
+                            Grid.Row="1" Margin="8"
+                            Target="GammaTile"/>
+                          <motion:MotionSlot
+                            Grid.Row="2" Margin="8"
+                            Target="DeltaTile"/>
+                        </Grid>
+                      </Grid>
+                    </DataTemplate>
+                  </motion:MotionState.Template>
+                </motion:MotionState>
+                <motion:MotionState Key="Stack">
+                  <motion:MotionState.Template>
+                    <DataTemplate>
+                      <Grid RowDefinitions="*,*,*,*">
+                        <motion:MotionSlot
+                          Margin="8" Target="AlphaTile"/>
+                        <motion:MotionSlot
+                          Grid.Row="1" Margin="8"
+                          Target="BetaTile"/>
+                        <motion:MotionSlot
+                          Grid.Row="2" Margin="8"
+                          Target="GammaTile"/>
+                        <motion:MotionSlot
+                          Grid.Row="3" Margin="8"
+                          Target="DeltaTile"/>
+                      </Grid>
+                    </DataTemplate>
+                  </motion:MotionState.Template>
+                </motion:MotionState>
+              </motion:MotionPanel.States>
+
+              <Border
+                x:Name="AlphaTile" Padding="16"
+                Background="#FF32577A" CornerRadius="12">
+                <StackPanel Spacing="4">
+                  <TextBlock
+                    FontSize="20" FontWeight="SemiBold"
+                    Text="Alpha"/>
+                  <TextBlock
+                    Text="Stable control, changing bounds." TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+              <Border
+                x:Name="BetaTile" Padding="16"
+                Background="#FF62406F" CornerRadius="12">
+                <StackPanel Spacing="4">
+                  <TextBlock
+                    FontSize="20" FontWeight="SemiBold"
+                    Text="Beta"/>
+                  <TextBlock
+                    Text="Driven by a continuous pose." TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+              <Border
+                x:Name="GammaTile" Padding="16"
+                Background="#FF48664B" CornerRadius="12">
+                <StackPanel Spacing="4">
+                  <TextBlock
+                    FontSize="20" FontWeight="SemiBold"
+                    Text="Gamma"/>
+                  <TextBlock
+                    Text="Seekable in either direction." TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+              <Border
+                x:Name="DeltaTile" Padding="16"
+                Background="#FF78502F" CornerRadius="12">
+                <StackPanel Spacing="4">
+                  <TextBlock
+                    FontSize="20" FontWeight="SemiBold"
+                    Text="Delta"/>
+                  <TextBlock
+                    Text="No state belongs to the panel." TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+            </motion:MotionPanel>
+          </Border>
+        </StackPanel>
+      </controls:DemoExample>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

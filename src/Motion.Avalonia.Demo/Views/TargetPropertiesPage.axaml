@@ -1,0 +1,138 @@
+<UserControl
+  x:Class="Motion.Avalonia.Demo.Views.TargetPropertiesPage" xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:Motion.Avalonia.Demo.Controls"
+  xmlns:motion="using:Motion.Avalonia">
+
+  <ScrollViewer>
+    <StackPanel
+      MaxWidth="{StaticResource DemoPageMaxWidth}"
+      Margin="{StaticResource DemoPageMargin}"
+      HorizontalAlignment="Stretch" Spacing="32">
+      <StackPanel Spacing="8">
+        <TextBlock
+          Classes="DemoEyebrow" Text="MOTION SLOT SETTERS"/>
+        <TextBlock
+          Classes="DemoTitle" Text="The target remains the target."/>
+        <TextBlock
+          Classes="DemoDescription" MaxWidth="768"
+          HorizontalAlignment="Left" Text="MotionSlot can describe selected endpoint properties as well as bounds and opacity. Values are applied at animation priority while the real control—and all of its local state—remains intact."/>
+      </StackPanel>
+
+      <controls:DemoExample
+        Title="Visual properties and persistent identity" HorizontalContentAlignment="Stretch"
+        Description="Enter a project name, change the category, then switch modes. Background and border colors transition with the layout, while the TextBox and ComboBox keep their values because the controls are never recreated.">
+        <StackPanel Spacing="16">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="2">
+              <TextBlock
+                x:Name="FormModeLabel" FontWeight="SemiBold"
+                Text="Editing"/>
+              <TextBlock
+                FontSize="11"
+                Foreground="{DynamicResource MutedColor}"
+                Text="State properties override without replacing base values"/>
+            </StackPanel>
+            <Button
+              Classes="Primary" Grid.Column="1"
+              Click="OnFormModeButtonClick" Content="Review project"/>
+          </Grid>
+
+          <Border
+            Height="392" Padding="16"
+            Background="{DynamicResource WindowBackgroundColor}"
+            CornerRadius="8">
+            <motion:MotionPanel ClipToBounds="True">
+              <motion:MotionPanel.Controller>
+                <motion:BasicMotionController
+                  x:Name="FormController" Easing="CubicEaseInOut"
+                  State="Editing" Duration="0:0:0.5"/>
+              </motion:MotionPanel.Controller>
+
+              <motion:MotionPanel.States>
+                <motion:MotionState Key="Editing">
+                  <motion:MotionState.Template>
+                    <DataTemplate>
+                      <Grid>
+                        <motion:MotionSlot
+                          MaxWidth="624" HorizontalAlignment="Center"
+                          x:SetterTargetType="Border" Target="ProjectForm">
+                          <Setter Property="Background" Value="#FF203B56"/>
+                          <Setter Property="BorderBrush" Value="#FF315E86"/>
+                        </motion:MotionSlot>
+                        <motion:MotionSlot
+                          MaxWidth="624" HorizontalAlignment="Center"
+                          Opacity="0" Target="ProjectReview"/>
+                      </Grid>
+                    </DataTemplate>
+                  </motion:MotionState.Template>
+                </motion:MotionState>
+                <motion:MotionState Key="Review">
+                  <motion:MotionState.Template>
+                    <DataTemplate>
+                      <Grid
+                        ColumnDefinitions="1.25*,*" ColumnSpacing="16">
+                        <motion:MotionSlot
+                          x:SetterTargetType="Border" Target="ProjectForm">
+                          <Setter Property="Background" Value="#FF3F294F"/>
+                          <Setter Property="BorderBrush" Value="#FF754B8D"/>
+                        </motion:MotionSlot>
+                        <motion:MotionSlot
+                          Grid.Column="1" Target="ProjectReview"/>
+                      </Grid>
+                    </DataTemplate>
+                  </motion:MotionState.Template>
+                </motion:MotionState>
+              </motion:MotionPanel.States>
+
+              <Border
+                x:Name="ProjectForm" Padding="24"
+                Background="{DynamicResource CardBackgroundColor}"
+                BorderBrush="{DynamicResource BorderColor}"
+                BorderThickness="1" CornerRadius="12">
+                <Grid
+                  RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12">
+                  <TextBlock
+                    FontSize="20" FontWeight="SemiBold"
+                    Text="Project details"/>
+                  <TextBox
+                    x:Name="ProjectNameTextBox" Grid.Row="1"
+                    PlaceholderText="Project name" Text="Motion playground"/>
+                  <ComboBox
+                    Grid.Row="2" SelectedIndex="1">
+                    <ComboBoxItem Content="Application"/>
+                    <ComboBoxItem Content="UI library"/>
+                    <ComboBoxItem Content="Prototype"/>
+                  </ComboBox>
+                  <CheckBox
+                    Grid.Row="3" Content="Keep controls alive across layouts"
+                    IsChecked="True"/>
+                </Grid>
+              </Border>
+
+              <Border
+                x:Name="ProjectReview" Padding="24"
+                Background="{DynamicResource SecondaryColor}"
+                CornerRadius="12">
+                <StackPanel Spacing="12">
+                  <TextBlock
+                    FontSize="20" FontWeight="SemiBold"
+                    Text="Ready to ship"/>
+                  <TextBlock
+                    Text="The form on the left is the exact same instance. Its value, selection, validation state, and event subscriptions all survive the layout change." TextWrapping="Wrap"/>
+                  <Border
+                    Padding="12"
+                    Background="{DynamicResource CardBackgroundColor}"
+                    CornerRadius="8">
+                    <TextBlock
+                      FontFamily="Cascadia Mono,Consolas" Text="identity == stable"
+                      TextWrapping="Wrap"/>
+                  </Border>
+                </StackPanel>
+              </Border>
+            </motion:MotionPanel>
+          </Border>
+        </StackPanel>
+      </controls:DemoExample>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

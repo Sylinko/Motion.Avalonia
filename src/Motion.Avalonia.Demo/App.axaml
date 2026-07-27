@@ -1,13 +1,9 @@
-<Application xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="Motion.Avalonia.Demo.App"
-             xmlns:local="using:Motion.Avalonia.Demo"
-             RequestedThemeVariant="Default">
-    <Application.DataTemplates>
-        <local:ViewLocator />
-    </Application.DataTemplates>
-
-    <Application.Styles>
-        <FluentTheme />
-    </Application.Styles>
+<Application
+  x:Class="Motion.Avalonia.Demo.App" xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:shadui="clr-namespace:ShadUI;assembly=ShadUI"
+  RequestedThemeVariant="Default">
+  <Application.Styles>
+    <shadui:ShadTheme/>
+    <StyleInclude Source="avares://Motion.Avalonia.Demo/Styles/DemoStyles.axaml"/>
+  </Application.Styles>
 </Application>

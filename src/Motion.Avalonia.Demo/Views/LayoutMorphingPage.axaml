@@ -1,0 +1,126 @@
+<UserControl
+  x:Class="Motion.Avalonia.Demo.Views.LayoutMorphingPage" xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:Motion.Avalonia.Demo.Controls"
+  xmlns:motion="using:Motion.Avalonia">
+
+  <ScrollViewer>
+    <StackPanel
+      MaxWidth="{StaticResource DemoPageMaxWidth}"
+      Margin="{StaticResource DemoPageMargin}"
+      HorizontalAlignment="Stretch" Spacing="32">
+      <StackPanel Spacing="8">
+        <TextBlock
+          Classes="DemoEyebrow" Text="MOTION PANEL"/>
+        <TextBlock
+          Classes="DemoTitle" Text="Real layout at every frame."/>
+        <TextBlock
+          Classes="DemoDescription" MaxWidth="768"
+          HorizontalAlignment="Left" Text="State templates remain live layout trees. Their results are blended into real bounds, so text reflows naturally and resizing the host changes the destination immediately."/>
+      </StackPanel>
+
+      <controls:DemoExample
+        Title="Natural reflow and responsive destinations" HorizontalContentAlignment="Stretch"
+        Description="Change both the state and the available width. The article and metrics controls move between a centered stack and a wide grid while their content is measured and arranged at every intermediate size.">
+        <StackPanel Spacing="16">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <Button
+              x:Name="LayoutModeButton" Classes="Primary"
+              Click="OnLayoutModeButtonClick" Content="Use wide layout"/>
+            <Slider
+              x:Name="ViewportWidthSlider" Grid.Column="1"
+              MinWidth="180" Margin="16,0"
+              VerticalAlignment="Center" Maximum="1000"
+              Minimum="560" ValueChanged="OnViewportWidthChanged"
+              Value="900"/>
+            <TextBlock
+              x:Name="ViewportWidthLabel" Grid.Column="2"
+              MinWidth="72" VerticalAlignment="Center"
+              Text="900 px" TextAlignment="Right"/>
+          </Grid>
+
+          <Border
+            x:Name="ResponsiveViewport" Width="900"
+            Padding="16" HorizontalAlignment="Center"
+            Background="{DynamicResource WindowBackgroundColor}"
+            CornerRadius="8">
+            <motion:MotionPanel
+              x:Name="ResponsivePanel" Height="360"
+              ClipToBounds="True">
+              <motion:MotionPanel.Controller>
+                <motion:BasicMotionController
+                  x:Name="ResponsiveController" Easing="CubicEaseInOut"
+                  State="Stacked" Duration="0:0:0.5"/>
+              </motion:MotionPanel.Controller>
+
+              <motion:MotionPanel.States>
+                <motion:MotionState Key="Stacked">
+                  <motion:MotionState.Template>
+                    <DataTemplate>
+                      <StackPanel
+                        MaxWidth="472" HorizontalAlignment="Center"
+                        Spacing="16">
+                        <motion:MotionSlot Target="ArticleCard"/>
+                        <motion:MotionSlot Target="MetricsCard"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </motion:MotionState.Template>
+                </motion:MotionState>
+                <motion:MotionState Key="Wide">
+                  <motion:MotionState.Template>
+                    <DataTemplate>
+                      <Grid
+                        ColumnDefinitions="2*,*" ColumnSpacing="16">
+                        <motion:MotionSlot Target="ArticleCard"/>
+                        <motion:MotionSlot
+                          Grid.Column="1" Target="MetricsCard"/>
+                      </Grid>
+                    </DataTemplate>
+                  </motion:MotionState.Template>
+                </motion:MotionState>
+              </motion:MotionPanel.States>
+
+              <Border
+                x:Name="ArticleCard" Padding="24"
+                Background="{DynamicResource CardBackgroundColor}"
+                BorderBrush="{DynamicResource BorderColor}"
+                BorderThickness="1" CornerRadius="12">
+                <StackPanel Spacing="12">
+                  <TextBlock
+                    FontSize="20" FontWeight="SemiBold"
+                    Text="A layout is more than a rectangle"/>
+                  <TextBlock
+                    LineHeight="20" Text="As this card changes width, the paragraph wraps into a different number of lines. MotionPanel gives the real control its intermediate bounds, so typography and child layout remain crisp instead of being visually scaled."
+                    TextWrapping="Wrap"/>
+                  <StackPanel
+                    Orientation="Horizontal" Spacing="8">
+                    <Button
+                      Classes="Primary" Content="Continue"/>
+                    <Button
+                      Classes="Secondary" Content="Learn more"/>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <Border
+                x:Name="MetricsCard" Padding="24"
+                Background="{DynamicResource SecondaryColor}"
+                CornerRadius="12">
+                <StackPanel Spacing="16">
+                  <TextBlock
+                    FontSize="14" FontWeight="SemiBold"
+                    Text="LIVE MEASURE"/>
+                  <TextBlock
+                    FontSize="38" FontWeight="SemiBold"
+                    Text="60 FPS"/>
+                  <TextBlock
+                    Foreground="{DynamicResource MutedColor}"
+                    Text="No bitmap snapshots&#10;No fake scaling&#10;No fixed offsets"/>
+                </StackPanel>
+              </Border>
+            </motion:MotionPanel>
+          </Border>
+        </StackPanel>
+      </controls:DemoExample>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

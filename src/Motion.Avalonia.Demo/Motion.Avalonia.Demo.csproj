@@ -15,10 +15,10 @@
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
-    <PackageReference Include="Avalonia.Themes.Fluent" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\3rd\shad-ui\src\ShadUI\ShadUI.csproj" />
     <ProjectReference Include="..\Motion.Avalonia\Motion.Avalonia.csproj" />
   </ItemGroup>
 </Project>

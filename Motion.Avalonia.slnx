@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/3rd/">
+    <Project Path="3rd/shad-ui/src/ShadUI/ShadUI.csproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path="Directory.Build.props" />

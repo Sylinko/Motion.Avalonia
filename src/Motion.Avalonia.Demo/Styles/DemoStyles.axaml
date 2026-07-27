@@ -1,0 +1,60 @@
+<Styles
+  xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:controls="using:Motion.Avalonia.Demo.Controls">
+
+  <Styles.Resources>
+    <x:Double x:Key="DemoPageMaxWidth">1120</x:Double>
+    <Thickness x:Key="DemoPageMargin">32,28,32,48</Thickness>
+  </Styles.Resources>
+
+  <Style Selector="TextBlock.DemoEyebrow">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryColor}"/>
+  </Style>
+
+  <Style Selector="TextBlock.DemoTitle">
+    <Setter Property="FontSize" Value="32"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource ForegroundColor}"/>
+  </Style>
+
+  <Style Selector="TextBlock.DemoDescription">
+    <Setter Property="FontSize" Value="15"/>
+    <Setter Property="LineHeight" Value="23"/>
+    <Setter Property="Foreground" Value="{DynamicResource MutedColor}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+
+  <Style Selector="controls|DemoExample">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <StackPanel Spacing="16">
+          <StackPanel Spacing="4">
+            <TextBlock
+              FontSize="18" FontWeight="SemiBold"
+              Foreground="{DynamicResource ForegroundColor}"
+              Text="{TemplateBinding Title}"/>
+            <TextBlock
+              FontSize="13"
+              Foreground="{DynamicResource MutedColor}"
+              LineHeight="20"
+              Text="{TemplateBinding Description}"
+              TextWrapping="Wrap"/>
+          </StackPanel>
+          <Border
+            Padding="24"
+            Background="{DynamicResource CardBackgroundColor}"
+            BorderBrush="{DynamicResource BorderColor}"
+            BorderThickness="1" CornerRadius="12">
+            <ContentPresenter
+              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+              Content="{TemplateBinding Content}"
+              ContentTemplate="{TemplateBinding ContentTemplate}"/>
+          </Border>
+        </StackPanel>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+</Styles>

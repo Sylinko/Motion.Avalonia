@@ -1,128 +1,76 @@
 <Window
   x:Class="Motion.Avalonia.Demo.Views.MainWindow" xmlns="https://github.com/avaloniaui"
-  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:motion="using:Motion.Avalonia"
-  Title="Motion.Avalonia" Width="1100"
-  Height="720" MinWidth="760"
-  MinHeight="520" Icon="/Assets/avalonia-logo.ico">
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:shadui="clr-namespace:ShadUI;assembly=ShadUI"
+  xmlns:views="using:Motion.Avalonia.Demo.Views" Title="Motion.Avalonia"
+  Width="1180" Height="800"
+  MinWidth="860" MinHeight="620"
+  Icon="/Assets/avalonia-logo.ico" WindowStartupLocation="CenterScreen">
 
   <Grid
-    Margin="24" RowDefinitions="Auto,*"
-    RowSpacing="18">
-    <StackPanel
-      Orientation="Horizontal" Spacing="12">
-      <Button
-        x:Name="ModeButton" Click="OnModeButtonClick"
-        Content="Switch to advanced"/>
-      <TextBlock
-        VerticalAlignment="Center"
-        Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-        Text="Resize the window to verify that state templates remain live."/>
-    </StackPanel>
+    Background="{DynamicResource WindowBackgroundColor}"
+    ColumnDefinitions="Auto,*">
+    <shadui:NavigationBar
+      x:Name="Navigation" Grid.Column="0"
+      Margin="12,12,0,12">
+      <shadui:NavigationBarItem
+        x:Name="OverviewNavigationItem" Content="Overview"
+        Icon="LayoutDashboard" IsChecked="True"
+        Route="overview" ToolTip="Overview"/>
+      <shadui:NavigationBarItem
+        x:Name="LayoutNavigationItem" Content="Layout morphing"
+        Icon="AppWindow" Route="layout"
+        ToolTip="Layout morphing"/>
+      <shadui:NavigationBarItem
+        x:Name="BasicControllerNavigationItem" Content="Basic controller"
+        Icon="SlidersHorizontal" Route="basic-controller"
+        ToolTip="Basic controller"/>
+      <shadui:NavigationBarItem
+        x:Name="PropertiesNavigationItem" Content="Target properties"
+        Icon="Palette" Route="properties"
+        ToolTip="Target properties"/>
+      <shadui:NavigationBarItem
+        x:Name="PoseNavigationItem" Content="Controller &amp; pose"
+        Icon="Shapes" Route="pose"
+        ToolTip="Controller and pose"/>
+    </shadui:NavigationBar>
 
-    <Border
-      Grid.Row="1" Padding="18"
-      Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-      BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-      BorderThickness="1" CornerRadius="12">
-      <motion:MotionPanel
-        x:Name="EditorPanel" ClipToBounds="True"
-        State="Quick" StateTransitionDuration="0:0:0.45"
-        StateTransitionEasing="CubicEaseInOut">
-        <motion:MotionPanel.States>
-          <motion:MotionState Key="Quick">
-            <motion:MotionState.Template>
-              <DataTemplate>
-                <Grid>
-                  <motion:MotionSlot
-                    MaxWidth="600" HorizontalAlignment="Stretch"
-                    Target="QuickEditor"/>
-                  <motion:MotionSlot
-                    MaxWidth="600" HorizontalAlignment="Stretch"
-                    x:SetterTargetType="Border" Opacity="0"
-                    Target="AdvancedEditor">
-                    <Setter Property="Background" Value="#FF3C284D"/>
-                  </motion:MotionSlot>
-                </Grid>
-              </DataTemplate>
-            </motion:MotionState.Template>
-          </motion:MotionState>
-
-          <motion:MotionState Key="Advanced">
-            <motion:MotionState.Template>
-              <DataTemplate>
-                <DockPanel HorizontalSpacing="24">
-                  <Grid
-                    DockPanel.Dock="Left" MaxWidth="420">
-                    <motion:MotionSlot
-                      Opacity="0" Target="QuickEditor"/>
-                    <motion:MotionSlot
-                      x:SetterTargetType="Border" Target="AdvancedEditor">
-                      <Setter Property="Background" Value="#FF243D59"/>
-                    </motion:MotionSlot>
-                  </Grid>
-                  <motion:MotionSlot Target="Preview"/>
-                </DockPanel>
-              </DataTemplate>
-            </motion:MotionState.Template>
-          </motion:MotionState>
-        </motion:MotionPanel.States>
-
-        <Border
-          x:Name="QuickEditor" Padding="22"
-          Background="{DynamicResource AccentControlBackgroundColorDefaultBrush}"
-          CornerRadius="10">
-          <StackPanel Spacing="14">
+    <Grid
+      Grid.Column="1" RowDefinitions="Auto,*">
+      <Border
+        Padding="24,16"
+        BorderBrush="{DynamicResource BorderColor}"
+        BorderThickness="0,0,0,1">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel
+            Orientation="Horizontal" Spacing="8">
+            <PathIcon
+              Width="20" Height="20"
+              VerticalAlignment="Center"
+              Data="{x:Static shadui:Icons.Logo}"/>
             <TextBlock
-              FontSize="24" FontWeight="SemiBold"
-              Text="Quick editor"/>
-            <TextBlock
-              Text="A concise editor that is centered and constrained by MaxWidth 600." TextWrapping="Wrap"/>
-            <TextBox PlaceholderText="What should the assistant do?"/>
-            <TextBox
-              MinHeight="160" AcceptsReturn="True"
-              PlaceholderText="Additional requirements" TextWrapping="Wrap"/>
+              VerticalAlignment="Center" FontSize="16"
+              FontWeight="SemiBold" Text="Motion.Avalonia"/>
           </StackPanel>
-        </Border>
+          <Border
+            Grid.Column="1" Padding="12,4"
+            Background="{DynamicResource SecondaryColor}"
+            CornerRadius="12">
+            <TextBlock
+              FontSize="12" FontWeight="SemiBold"
+              Text="LAYOUT MOTION LAB"/>
+          </Border>
+        </Grid>
+      </Border>
 
-        <Border
-          x:Name="AdvancedEditor" Padding="22"
-          Background="{DynamicResource ControlAltFillColorSecondaryBrush}"
-          CornerRadius="10">
-          <Grid
-            RowDefinitions="Auto,Auto,*" RowSpacing="14">
-            <TextBlock
-              FontSize="24" FontWeight="SemiBold"
-              Text="Advanced editor"/>
-            <TextBox
-              Grid.Row="1" PlaceholderText="Prompt name"/>
-            <TextBox
-              Grid.Row="2" MinHeight="260"
-              AcceptsReturn="True" PlaceholderText="System prompt"
-              TextWrapping="Wrap"/>
-          </Grid>
-        </Border>
-
-        <Border
-          x:Name="Preview" Padding="22"
-          Background="{DynamicResource ControlAltFillColorTertiaryBrush}"
-          CornerRadius="10">
-          <StackPanel Spacing="14">
-            <TextBlock
-              FontSize="24" FontWeight="SemiBold"
-              Text="Live preview"/>
-            <TextBlock
-              Text="The preview fades without changing the layout contract of the editor." TextWrapping="Wrap"/>
-            <Border
-              Padding="18"
-              Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
-              CornerRadius="8">
-              <TextBlock
-                FontFamily="Cascadia Mono,Consolas" Text="You are a concise and thoughtful assistant..."
-                TextWrapping="Wrap"/>
-            </Border>
-          </StackPanel>
-        </Border>
-      </motion:MotionPanel>
-    </Border>
+      <Carousel
+        x:Name="Pages" Grid.Row="1"
+        SelectedIndex="0">
+        <views:OverviewPage/>
+        <views:LayoutMorphingPage/>
+        <views:BasicControllerPage/>
+        <views:TargetPropertiesPage/>
+        <views:ControllerPosePage/>
+      </Carousel>
+    </Grid>
   </Grid>
 </Window>
