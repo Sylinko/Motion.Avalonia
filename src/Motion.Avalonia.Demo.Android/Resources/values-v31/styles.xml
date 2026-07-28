@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <style name="MotionTheme"/>
+
+  <style name="MotionTheme.NoActionBar" parent="@style/Theme.AppCompat.NoActionBar">
+    <item name="android:windowActionBar">false</item>
+    <item name="android:windowBackground">@null</item>
+    <item name="android:windowNoTitle">true</item>
+    <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+    <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+    <item name="postSplashScreenTheme">@style/MotionTheme.Main</item>
+  </style>
+
+  <style name="MotionTheme.Main" parent="MotionTheme.NoActionBar">
+    <item name="android:windowIsTranslucent">true</item>
+  </style>
+</resources>

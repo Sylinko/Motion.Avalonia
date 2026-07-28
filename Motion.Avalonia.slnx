@@ -12,6 +12,10 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Motion.Avalonia/Motion.Avalonia.csproj" />
+    <Project Path="src/Motion.Avalonia.Demo.Android/Motion.Avalonia.Demo.Android.csproj" />
+    <Project Path="src/Motion.Avalonia.Demo.Browser/Motion.Avalonia.Demo.Browser.csproj" />
+    <Project Path="src/Motion.Avalonia.Demo.Desktop/Motion.Avalonia.Demo.Desktop.csproj" />
+    <Project Path="src/Motion.Avalonia.Demo.iOS/Motion.Avalonia.Demo.iOS.csproj" />
     <Project Path="src/Motion.Avalonia.Demo/Motion.Avalonia.Demo.csproj" />
   </Folder>
   <Folder Name="/tests/">

@@ -1,6 +1,6 @@
 using Avalonia;
 
-namespace Motion.Avalonia.Demo;
+namespace Motion.Avalonia.Demo.Desktop;
 
 internal static class Program
 {

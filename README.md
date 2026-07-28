@@ -180,8 +180,24 @@ animation-state-machine components.
 ## Projects
 
 - `Motion.Avalonia` — reusable controls, controllers, players, poses, and interpolators
-- `Motion.Avalonia.Demo` — interactive desktop showcase
+- `Motion.Avalonia.Demo` — shared cross-platform showcase UI
+- `Motion.Avalonia.Demo.Desktop` — Windows, macOS, and Linux host
+- `Motion.Avalonia.Demo.Android` — Android host
+- `Motion.Avalonia.Demo.iOS` — iPhone and iPad host
+- `Motion.Avalonia.Demo.Browser` — WebAssembly host
 - `Motion.Avalonia.Tests` — automated behavior and lifecycle tests
+
+Run the desktop showcase with:
+
+```shell
+dotnet run --project src/Motion.Avalonia.Demo.Desktop
+```
+
+Run the WebAssembly showcase with:
+
+```shell
+dotnet run --project src/Motion.Avalonia.Demo.Browser
+```
 
 ## Contributing
 

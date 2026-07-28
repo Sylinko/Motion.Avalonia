@@ -12,9 +12,14 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        switch (ApplicationLifetime)
         {
-            desktop.MainWindow = new MainWindow();
+            case IClassicDesktopStyleApplicationLifetime desktop:
+                desktop.MainWindow = new MainWindow();
+                break;
+            case ISingleViewApplicationLifetime singleView:
+                singleView.MainView = new MainView();
+                break;
         }
 
         base.OnFrameworkInitializationCompleted();
