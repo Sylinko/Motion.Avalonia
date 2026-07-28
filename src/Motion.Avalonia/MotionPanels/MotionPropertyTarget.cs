@@ -1,5 +1,4 @@
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Data;
 
 namespace Motion.Avalonia;
@@ -7,7 +6,9 @@ namespace Motion.Avalonia;
 /// <summary>
 /// Applies pose-evaluated property values without replacing a target's base values.
 /// </summary>
-internal sealed class MotionPanelPropertyTarget(Control target, MotionPanelItemContainer container) : IDisposable
+internal sealed class MotionPropertyTarget(
+    StyledElement target,
+    MotionPanelItemContainer? layoutContainer) : IDisposable
 {
     private readonly Dictionary<AvaloniaProperty, MotionPropertyOutput> _outputs = [];
 
@@ -49,10 +50,11 @@ internal sealed class MotionPanelPropertyTarget(Control target, MotionPanelItemC
             throw new InvalidOperationException($"{nameof(MotionPanel)} cannot animate direct property '{property}'.");
         }
 
-        var destination = property == Visual.ZIndexProperty ? container : target;
+        var destination = property == Visual.ZIndexProperty && layoutContainer is not null ? layoutContainer : target;
         if (!AvaloniaPropertyRegistry.Instance.IsRegistered(destination, property))
         {
-            throw new InvalidOperationException($"Property '{property}' is not registered on motion target '{target.Name}'.");
+            throw new InvalidOperationException(
+                $"Property '{property}' is not registered on motion target '{target.Name ?? target.GetType().Name}'.");
         }
 
         result = new MotionPropertyOutput(destination, property);

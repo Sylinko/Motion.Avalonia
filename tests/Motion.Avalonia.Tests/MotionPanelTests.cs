@@ -608,6 +608,113 @@ public sealed class MotionPanelTests
         Assert.That(exception!.Message, Does.Contain("both directly and with a Setter"));
     }
 
+    [Test]
+    public void TargetStyles_WhenNestedTargetIsSelected_BlendsTheNestedProperty()
+    {
+        var details = new Border { Name = "details" };
+        var child = new Border { Child = details };
+        var panel = CreatePanel(child);
+        GetBasicController(panel).Duration = TimeSpan.FromSeconds(1);
+        GetBasicController(panel).Easing = new LinearEasing();
+        panel.States.Add(CreateState(
+            "hidden",
+            () => CreateStyledSlot(
+                new Style(selector => selector
+                    .OfType<Border>()
+                    .Name("editor")
+                    .Descendant()
+                    .OfType<Border>()
+                    .Name("details")),
+                new Setter(Visual.OpacityProperty, 0.2))));
+        panel.States.Add(CreateState(
+            "visible",
+            () => CreateStyledSlot(
+                new Style(selector => selector
+                    .OfType<Border>()
+                    .Name("editor")
+                    .Descendant()
+                    .OfType<Border>()
+                    .Name("details")),
+                new Setter(Visual.OpacityProperty, 1d))));
+        Arrange(panel, "hidden", new Size(400, 200));
+
+        Arrange(panel, "visible", new Size(400, 200));
+        AdvanceAnimation(panel, TimeSpan.Zero, new Size(400, 200));
+        AdvanceAnimation(panel, TimeSpan.FromMilliseconds(500), new Size(400, 200));
+
+        Assert.That(details.Opacity, Is.EqualTo(0.6).Within(0.001));
+    }
+
+    [Test]
+    public void TargetStyles_WhenClassMatchChanges_UpdatesTheSettledEndpoint()
+    {
+        var details = new Border { Opacity = 0.25 };
+        details.Classes.Add("expanded");
+        var child = new Border { Child = details };
+        var panel = CreatePanel(child);
+        panel.States.Add(CreateState(
+            "active",
+            () => CreateStyledSlot(
+                new Style(selector => selector.OfType<Border>().Class("expanded")),
+                new Setter(Visual.OpacityProperty, 0.8))));
+        Arrange(panel, "active", new Size(400, 200));
+        Assert.That(details.Opacity, Is.EqualTo(0.8));
+
+        details.Classes.Remove("expanded");
+        Assert.That(details.Opacity, Is.EqualTo(0.25));
+
+        details.Classes.Add("expanded");
+
+        Assert.That(details.Opacity, Is.EqualTo(0.8));
+    }
+
+    [Test]
+    public void TargetStyles_WhenSetterUsesSelfBinding_ObservesTheActualTarget()
+    {
+        var details = new Border { Name = "details", Tag = 0.35 };
+        var child = new Border { Child = details };
+        var panel = CreatePanel(child);
+        panel.States.Add(CreateState(
+            "active",
+            () => CreateStyledSlot(
+                new Style(selector => selector.OfType<Border>().Name("details")),
+                new Setter(
+                    Visual.OpacityProperty,
+                    new Binding(nameof(Control.Tag))
+                    {
+                        RelativeSource = new RelativeSource(RelativeSourceMode.Self),
+                    }))));
+        Arrange(panel, "active", new Size(400, 200));
+        Assert.That(details.Opacity, Is.EqualTo(0.35));
+
+        details.Tag = 0.7;
+
+        Assert.That(details.Opacity, Is.EqualTo(0.7));
+    }
+
+    [Test]
+    public void TargetStyles_WhenSetterUsesTemplateBinding_ObservesTheActualTemplatedParent()
+    {
+        var templatedParent = new Border { Tag = 0.4 };
+        var details = new Border { Name = "details" };
+        SetTemplatedParent(details, templatedParent);
+        var child = new Border { Child = details };
+        var panel = CreatePanel(child);
+        panel.States.Add(CreateState(
+            "active",
+            () => CreateStyledSlot(
+                new Style(selector => selector.OfType<Border>().Name("details")),
+                new Setter(
+                    Visual.OpacityProperty,
+                    new TemplateBinding(Control.TagProperty)))));
+        Arrange(panel, "active", new Size(400, 200));
+        Assert.That(details.Opacity, Is.EqualTo(0.4));
+
+        templatedParent.Tag = 0.75;
+
+        Assert.That(details.Opacity, Is.EqualTo(0.75));
+    }
+
     private static MotionPanel CreatePanel(params Control[] children)
     {
         var panel = new MotionPanel
@@ -671,6 +778,14 @@ public sealed class MotionPanelTests
         return slot;
     }
 
+    private static MotionSlot CreateStyledSlot(Style style, Setter setter)
+    {
+        style.Setters.Add(setter);
+        var slot = CreateSlot("editor", 100, HorizontalAlignment.Left);
+        slot.TargetStyles.Add(style);
+        return slot;
+    }
+
     private static void Arrange(MotionPanel panel, object state, Size size)
     {
         GetBasicController(panel).State = state;
@@ -709,6 +824,11 @@ public sealed class MotionPanelTests
 
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_frameGeneration")]
     private static extern ref int GetFrameGeneration(MotionPlayer player);
+
+    [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "set_TemplatedParent")]
+    private static extern void SetTemplatedParent(
+        StyledElement element,
+        AvaloniaObject? templatedParent);
 
     private sealed class TestTemplate(Func<Control> build) : IDataTemplate
     {

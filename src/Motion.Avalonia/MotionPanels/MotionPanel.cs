@@ -61,7 +61,10 @@ public sealed class MotionPanel : Control
         AvaloniaProperty.Register<MotionPanel, IMotionController?>(nameof(Controller));
 
     private static readonly MotionLayoutSnapshot EmptyLayout =
-        new(default, new Dictionary<string, MotionLayoutEntry>(StringComparer.Ordinal));
+        new(
+            default,
+            new Dictionary<string, MotionLayoutEntry>(StringComparer.Ordinal),
+            new Dictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>>());
 
     private static readonly IReadOnlyDictionary<AvaloniaProperty, object?> EmptyPropertyValues =
         new Dictionary<AvaloniaProperty, object?>();
@@ -102,7 +105,7 @@ public sealed class MotionPanel : Control
     private readonly Dictionary<MotionState, MotionPanelHost> _scenes = [];
     private readonly Dictionary<string, TargetEntry> _targets = new(StringComparer.Ordinal);
     private readonly Dictionary<Control, MotionPanelItemContainer> _containers = [];
-    private readonly Dictionary<Control, MotionPanelPropertyTarget> _propertyTargets = [];
+    private readonly Dictionary<StyledElement, MotionPropertyTarget> _propertyTargets = [];
     private readonly Dictionary<InterpolatorLookup, MotionInterpolator> _interpolatorCache = [];
     private readonly Dictionary<MotionState, Size> _measuredSizes = [];
     private readonly Dictionary<MotionState, MotionLayoutSnapshot> _arrangedLayouts = [];
@@ -136,6 +139,18 @@ public sealed class MotionPanel : Control
 
         target.Child.Measure(availableSize);
         return target.Child.DesiredSize;
+    }
+
+    internal Control ResolveTarget(string id)
+    {
+        RebuildTargetMap();
+
+        if (!_targets.TryGetValue(id, out var target))
+        {
+            throw new InvalidOperationException($"Motion state references target '{id}', but no direct child has that name.");
+        }
+
+        return target.Child;
     }
 
     internal void NotifyStateEndpointChanged(MotionState state, MotionPanelHost host)
@@ -302,7 +317,6 @@ public sealed class MotionPanel : Control
 
             var container = new MotionPanelItemContainer(child);
             _containers.Add(child, container);
-            _propertyTargets.Add(child, new MotionPanelPropertyTarget(child, container));
             child.PropertyChanged += OnChildPropertyChanged;
             LogicalChildren.Insert(index, child);
             VisualChildren.Insert(index, container);
@@ -322,13 +336,10 @@ public sealed class MotionPanel : Control
                 container.DetachChild();
             }
 
-            if (_propertyTargets.Remove(child, out var propertyTarget))
-            {
-                propertyTarget.Dispose();
-            }
-
             LogicalChildren.Remove(child);
         }
+
+        ClearPropertyTargets();
     }
 
     private void ResetChildren()
@@ -339,11 +350,10 @@ public sealed class MotionPanel : Control
             VisualChildren.Remove(pair.Value);
             pair.Value.DetachChild();
             LogicalChildren.Remove(pair.Key);
-            _propertyTargets[pair.Key].Dispose();
         }
 
         _containers.Clear();
-        _propertyTargets.Clear();
+        ClearPropertyTargets();
         AddChildren(0, Children);
     }
 
@@ -457,7 +467,7 @@ public sealed class MotionPanel : Control
                 throw new InvalidOperationException($"Every direct child of {nameof(MotionPanel)} must have a non-empty x:Name.");
             }
 
-            if (!_targets.TryAdd(id, new TargetEntry(child, _containers[child], _propertyTargets[child])))
+            if (!_targets.TryAdd(id, new TargetEntry(child, _containers[child])))
             {
                 throw new InvalidOperationException($"{nameof(MotionPanel)} contains more than one direct child named '{id}'.");
             }
@@ -627,10 +637,17 @@ public sealed class MotionPanel : Control
 
     private void ApplyPropertyValues(MotionLayoutSnapshot layout)
     {
-        foreach (var pair in _targets)
+        foreach (var pair in layout.PropertyValues)
         {
-            var values = layout.Entries.TryGetValue(pair.Key, out var entry) ? entry.Properties : EmptyPropertyValues;
-            pair.Value.Properties.Apply(values);
+            GetOrCreatePropertyTarget(pair.Key).Apply(pair.Value);
+        }
+
+        foreach (var pair in _propertyTargets
+                     .Where(pair => !layout.PropertyValues.ContainsKey(pair.Key))
+                     .ToArray())
+        {
+            pair.Value.Dispose();
+            _propertyTargets.Remove(pair.Key);
         }
     }
 
@@ -685,10 +702,10 @@ public sealed class MotionPanel : Control
                         sourceEntry.Presence,
                         targetEntry.Presence,
                         blend,
-                        progress),
-                    BlendProperties(id, sourceEntry.Properties, targetEntry.Properties, blend, progress)));
+                        progress)));
         }
 
+        var propertyValues = BlendPropertyValues(source.PropertyValues, target.PropertyValues, blend, progress);
         return new MotionLayoutSnapshot(
             InterpolateValue(
                 null,
@@ -697,11 +714,35 @@ public sealed class MotionPanel : Control
                 target.DesiredSize,
                 blend,
                 progress),
-            entries);
+            entries,
+            propertyValues);
+    }
+
+    private IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>> BlendPropertyValues(
+        IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>> source,
+        IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>> destination,
+        BlendMotionPose blend,
+        double inheritedProgress)
+    {
+        var result =
+            new Dictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>>(source.Count + destination.Count);
+
+        foreach (var target in source.Keys.Concat(destination.Keys).Distinct())
+        {
+            var sourceValues = source.TryGetValue(target, out var oldValues) ? oldValues : EmptyPropertyValues;
+            var destinationValues = destination.TryGetValue(target, out var newValues) ? newValues : EmptyPropertyValues;
+            var values = BlendProperties(target, sourceValues, destinationValues, blend, inheritedProgress);
+            if (values.Count > 0)
+            {
+                result.Add(target, values);
+            }
+        }
+
+        return result;
     }
 
     private IReadOnlyDictionary<AvaloniaProperty, object?> BlendProperties(
-        string target,
+        StyledElement target,
         IReadOnlyDictionary<AvaloniaProperty, object?> source,
         IReadOnlyDictionary<AvaloniaProperty, object?> destination,
         BlendMotionPose blend,
@@ -713,16 +754,19 @@ public sealed class MotionPanel : Control
         }
 
         var result = new Dictionary<AvaloniaProperty, object?>(source.Count + destination.Count);
+        var propertyTarget = GetOrCreatePropertyTarget(target);
         foreach (var property in source.Keys.Concat(destination.Keys).Distinct())
         {
-            var oldValue = source.TryGetValue(property, out var sourceValue) ? sourceValue : _targets[target].Properties.GetBaseValue(property);
+            var oldValue = source.TryGetValue(property, out var sourceValue) ?
+                sourceValue :
+                propertyTarget.GetBaseValue(property);
             var newValue = destination.TryGetValue(property, out var destinationValue) ?
                 destinationValue :
-                _targets[target].Properties.GetBaseValue(property);
+                propertyTarget.GetBaseValue(property);
             result.Add(
                 property,
                 InterpolateValue(
-                    target,
+                    target.Name,
                     property,
                     oldValue,
                     newValue,
@@ -795,6 +839,34 @@ public sealed class MotionPanel : Control
         return result;
     }
 
+    private MotionPropertyTarget GetOrCreatePropertyTarget(StyledElement target)
+    {
+        if (_propertyTargets.TryGetValue(target, out var result))
+        {
+            return result;
+        }
+
+        MotionPanelItemContainer? container = null;
+        if (target is Control control)
+        {
+            _containers.TryGetValue(control, out container);
+        }
+
+        result = new MotionPropertyTarget(target, container);
+        _propertyTargets.Add(target, result);
+        return result;
+    }
+
+    private void ClearPropertyTargets()
+    {
+        foreach (var target in _propertyTargets.Values)
+        {
+            target.Dispose();
+        }
+
+        _propertyTargets.Clear();
+    }
+
     private static void ValidateInterpolator(MotionInterpolator interpolator)
     {
         if (interpolator.Property is not { } property)
@@ -831,9 +903,7 @@ public sealed class MotionPanel : Control
 
     private readonly record struct TargetEntry(
         Control Child,
-        MotionPanelItemContainer Container,
-        MotionPanelPropertyTarget Properties
-    );
+        MotionPanelItemContainer Container);
 
     private readonly record struct InterpolatorLookup(
         string? Target,

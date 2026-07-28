@@ -163,6 +163,60 @@ public sealed class TimelineMotionControllerTests
     }
 
     [Test]
+    public void PlayerTicks_WhenLooping_WrapElapsedTimeAndKeepPlaying()
+    {
+        var controller = new TimelineMotionController { Loop = true };
+        controller.KeyFrames.Add(new MotionKeyFrame
+        {
+            State = "start",
+            KeyTime = TimeSpan.Zero,
+        });
+        controller.KeyFrames.Add(new MotionKeyFrame
+        {
+            State = "end",
+            KeyTime = TimeSpan.FromSeconds(4),
+        });
+        var player = controller.Player;
+
+        controller.Time = TimeSpan.FromSeconds(3.5);
+        player.Play();
+        Advance(player, TimeSpan.Zero);
+        Advance(player, TimeSpan.FromSeconds(1));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(controller.Time, Is.EqualTo(TimeSpan.FromSeconds(0.5)));
+            Assert.That(player.Time, Is.EqualTo(TimeSpan.FromSeconds(1)));
+            Assert.That(player.State, Is.EqualTo(MotionPlayerState.Playing));
+        });
+    }
+
+    [Test]
+    public void Player_WhenPlayedFromTimelineEnd_RestartsTimeline()
+    {
+        var controller = new TimelineMotionController();
+        controller.KeyFrames.Add(new MotionKeyFrame
+        {
+            State = "start",
+            KeyTime = TimeSpan.Zero,
+        });
+        controller.KeyFrames.Add(new MotionKeyFrame
+        {
+            State = "end",
+            KeyTime = TimeSpan.FromSeconds(4),
+        });
+        controller.Time = controller.Duration;
+
+        controller.Player.Play();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(controller.Time, Is.EqualTo(TimeSpan.Zero));
+            Assert.That(controller.Player.State, Is.EqualTo(MotionPlayerState.Playing));
+        });
+    }
+
+    [Test]
     public void KeyTime_WhenNegative_IsRejected()
     {
         Assert.Throws<ArgumentException>(

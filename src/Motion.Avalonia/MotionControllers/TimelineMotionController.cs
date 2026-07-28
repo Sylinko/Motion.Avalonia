@@ -14,11 +14,12 @@ namespace Motion.Avalonia;
 /// derived from the latest keyframe. At an exact key time the controller publishes a state pose;
 /// between keyframes it publishes a blend using the destination keyframe's easing. Equal key
 /// times create an instantaneous cut, with the last declared keyframe winning at and after that
-/// time.
+/// time. When <see cref="Loop"/> is enabled, playback wraps at the timeline duration without
+/// stopping the player.
 /// </remarks>
 /// <example>
 /// <code><![CDATA[
-/// <motion:TimelineMotionController x:Name="Timeline" Time="{Binding Position}">
+/// <motion:TimelineMotionController x:Name="Timeline" Loop="True" Time="{Binding Position}">
 ///   <motion:MotionKeyFrame State="Intro" KeyTime="0:0:0"/>
 ///   <motion:MotionKeyFrame State="Details" KeyTime="0:0:0.8" Easing="CubicEaseOut"/>
 ///   <motion:MotionKeyFrame State="Complete" KeyTime="0:0:2"/>
@@ -36,6 +37,12 @@ public sealed class TimelineMotionController : PlayerDrivenMotionController
         AvaloniaProperty.Register<TimelineMotionController, TimeSpan>(
             nameof(Time),
             validate: static value => value >= TimeSpan.Zero);
+
+    /// <summary>
+    /// Defines the <see cref="Loop"/> property.
+    /// </summary>
+    public static readonly StyledProperty<bool> LoopProperty =
+        AvaloniaProperty.Register<TimelineMotionController, bool>(nameof(Loop));
 
     /// <summary>
     /// Defines the <see cref="Duration"/> property.
@@ -58,6 +65,15 @@ public sealed class TimelineMotionController : PlayerDrivenMotionController
     {
         get => GetValue(TimeProperty);
         set => SetValue(TimeProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether playback wraps to the beginning after reaching <see cref="Duration"/>.
+    /// </summary>
+    public bool Loop
+    {
+        get => GetValue(LoopProperty);
+        set => SetValue(LoopProperty, value);
     }
 
     /// <summary>
@@ -84,6 +100,7 @@ public sealed class TimelineMotionController : PlayerDrivenMotionController
     public TimelineMotionController()
     {
         KeyFrames.CollectionChanged += OnKeyFramesChanged;
+        Player.PropertyChanged += OnPlayerPropertyChanged;
         PublishPose();
     }
 
@@ -92,23 +109,41 @@ public sealed class TimelineMotionController : PlayerDrivenMotionController
     /// <inheritdoc />
     protected override void OnPlayerTick(TimeSpan time, TimeSpan deltaTime)
     {
-        if (Duration <= TimeSpan.Zero || Time >= Duration)
+        if (Duration <= TimeSpan.Zero)
         {
             Player.Stop();
             return;
         }
 
-        var remaining = Duration - Time;
-        if (deltaTime >= remaining)
+        var nextTime = Time + deltaTime;
+        if (nextTime < Duration)
         {
-            SetCurrentValue(TimeProperty, Duration);
-            Player.Stop();
+            if (deltaTime > TimeSpan.Zero)
+            {
+                SetCurrentValue(TimeProperty, nextTime);
+            }
+
             return;
         }
 
-        if (deltaTime > TimeSpan.Zero)
+        if (Loop)
         {
-            SetCurrentValue(TimeProperty, Time + deltaTime);
+            SetCurrentValue(TimeProperty, TimeSpan.FromTicks(nextTime.Ticks % Duration.Ticks));
+            return;
+        }
+
+        SetCurrentValue(TimeProperty, Duration);
+        Player.Stop();
+    }
+
+    private void OnPlayerPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == MotionPlayer.StateProperty &&
+            Player.State == MotionPlayerState.Playing &&
+            Duration > TimeSpan.Zero &&
+            Time >= Duration)
+        {
+            SetCurrentValue(TimeProperty, TimeSpan.Zero);
         }
     }
 
