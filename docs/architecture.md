@@ -115,12 +115,17 @@ A state pose returns its latest captured layout.
 
 A blend pose recursively evaluates its source and target, applies its easing, then interpolates:
 
-- desired panel size;
-- target rectangles;
-- presence;
+- desired panel size through `MotionLayout.DesiredSizeProperty`;
+- target position through `MotionLayout.PositionProperty`;
+- target size through `MotionLayout.SizeProperty`;
+- presence through `MotionLayout.PresenceProperty`;
 - target-property endpoints.
 
 Because source and target are themselves poses, interruption does not require a bitmap or a frozen property snapshot. A currently presented blend can become the source of another blend.
+
+The four layout properties are typed interpolation keys. They do not replace state-template layout inputs such as
+margin, alignment, grid row, or attached panel properties. Those inputs first resolve into live position and size
+endpoints; the resolved values then enter the same interpolator pipeline as target properties.
 
 ## Property Outputs
 
@@ -132,7 +137,7 @@ For every active property output, the panel also observes non-animation changes 
 
 ## Interpolator Resolution
 
-For each target property in a blend, lookup is:
+For each layout channel or target property in a blend, lookup is:
 
 1. matching edge-specific panel interpolator;
 2. matching general panel interpolator;
@@ -140,19 +145,33 @@ For each target property in a blend, lookup is:
 
 The default implementation queries Avalonia's internal animator registration, creates a typed adapter, and caches it by property and endpoint runtime types. Brush, effect, and transform properties have specialized dispatch because their concrete value types determine the correct animator.
 
+The panel also caches resolved `(Target, Property, Edge)` matches. The cache is cleared when the interpolator
+collection, an interpolator property, or its edge collection changes, avoiding repeated collection scans on animation
+frames.
+
 The project uses `IgnoresAccessChecksToGenerator` and a narrowly scoped `UnsafeAccessor` to reuse Avalonia's internal animator lookup. This removes the earlier reflection-style property interpolation path while preserving Avalonia's own type-aware behavior.
 
 ## Frame Scheduling
 
-`MotionPlayer` delegates frame requests through its owning `MotionController`, which delegates to the panel and current
-`TopLevel`.
+`MotionPlayer.Attach(Visual)` establishes one exclusive attachment lease. The player subscribes to that visual's
+attach/detach events, resolves and caches its `TopLevel` when rooted, and requests animation frames directly from the
+cache. Normal per-frame scheduling is therefore `O(1)` rather than walking the visual-parent chain.
 
-The panel verifies controller identity both when scheduling and when the callback runs. A detached or replaced controller therefore cannot continue to mutate that panel.
+Disposing the lease removes both event subscriptions, clears the visual and `TopLevel`, and invalidates pending frame
+callbacks. Visual-tree detachment performs the scheduling cleanup without ending the lease, allowing the same visual
+to reattach and resume playback.
 
-The player tracks a frame generation so stale callbacks from an earlier playback are ignored after restart, pause,
-detachment, or disposal. `MotionController` creates the player when the first protected `PlayerProgressChanged`
-subscriber is added and disposes it when the last subscriber is removed. `BasicMotionController` and
-`TimelineMotionController` opt in; the externally driven `SequenceMotionController` does not.
+The player tracks a frame generation so stale callbacks from an earlier scheduling run are ignored after play, pause,
+reset, stop, visual-tree detachment, or lease disposal. Its first callback after a new scheduling baseline publishes a
+zero delta; later callbacks advance absolute `Time` and publish both `Time` and `deltaTime`.
+
+`MotionPlayer` does not own duration, normalized progress, easing, or completion. `BasicMotionController` maps the
+clock's absolute time onto its active edge duration. `TimelineMotionController` adds each elapsed delta to its own
+scrubbable `Time` property and stops the player at the latest keyframe.
+
+`PlayerDrivenMotionController` owns one stable player and holds its attachment lease for the complete controller-panel
+association. `BasicMotionController` and `TimelineMotionController` derive from it; the externally driven
+`SequenceMotionController` derives directly from `MotionController`.
 
 ## Threading
 

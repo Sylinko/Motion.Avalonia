@@ -12,8 +12,8 @@ namespace Motion.Avalonia;
 /// The first requested state is presented immediately. Later changes animate unless the selected
 /// duration is zero or the selected easing is null. If a transition is interrupted, its current
 /// nested pose becomes the source of the next transition, avoiding a jump to an old endpoint.
-/// The inherited <see cref="MotionController.Player"/> provides pause, resume, stop, and seek
-/// controls for the active transition.
+/// The inherited <see cref="PlayerDrivenMotionController.Player"/> provides pause, play, reset,
+/// and stop controls for the active transition.
 /// </remarks>
 /// <example>
 /// Controller defaults cover ordinary changes while a directed edge customizes one route:
@@ -32,7 +32,7 @@ namespace Motion.Avalonia;
 /// ]]></code>
 /// Set <c>Easing="{x:Null}"</c> or <c>Duration="0"</c> to snap.
 /// </example>
-public sealed class BasicMotionController : MotionController
+public sealed class BasicMotionController : PlayerDrivenMotionController
 {
     /// <summary>
     /// Defines the <see cref="State"/> property.
@@ -97,6 +97,7 @@ public sealed class BasicMotionController : MotionController
 
     private MotionPose _source = MotionPose.Empty;
     private MotionPose _target = MotionPose.Empty;
+    private TimeSpan _activeDuration;
     private Easing? _activeEasing;
     private MotionEdge? _activeEdge;
     private bool _hasPresented;
@@ -107,7 +108,6 @@ public sealed class BasicMotionController : MotionController
     /// </summary>
     public BasicMotionController()
     {
-        PlayerProgressChanged += OnPlayerProgressChanged;
         SetCurrentPose(MotionPose.State(State));
     }
 
@@ -151,10 +151,12 @@ public sealed class BasicMotionController : MotionController
 
         _source = CurrentPose;
         _target = MotionPose.State(newState);
+        _activeDuration = duration;
         _activeEasing = easing;
         _activeEdge = edge;
         _isTransitioning = true;
-        Player!.Play(duration);
+        Player.Reset();
+        Player.Play();
     }
 
     private MotionEdge? FindEdge(object? from, object? to)
@@ -191,20 +193,22 @@ public sealed class BasicMotionController : MotionController
         }
     }
 
-    private void OnPlayerProgressChanged(object? sender, EventArgs e)
+    /// <inheritdoc />
+    protected override void OnPlayerTick(TimeSpan time, TimeSpan deltaTime)
     {
-        if (!_isTransitioning || _activeEasing is null || Player is not { } player)
+        if (!_isTransitioning || _activeEasing is null)
         {
             return;
         }
 
-        if (player.Progress >= 1)
+        if (time >= _activeDuration)
         {
             CompleteTransition();
             return;
         }
 
-        SetCurrentPose(MotionPose.CreateBlend(_source, _target, player.Progress, _activeEasing, _activeEdge));
+        var progress = time.Ticks / (double)_activeDuration.Ticks;
+        SetCurrentPose(MotionPose.CreateBlend(_source, _target, progress, _activeEasing, _activeEdge));
     }
 
     private void CompleteTransition()
@@ -217,9 +221,10 @@ public sealed class BasicMotionController : MotionController
     private void StopTransition()
     {
         _isTransitioning = false;
-        Player?.Stop();
+        Player.Stop();
         _source = MotionPose.Empty;
         _target = MotionPose.Empty;
+        _activeDuration = TimeSpan.Zero;
         _activeEasing = null;
         _activeEdge = null;
     }

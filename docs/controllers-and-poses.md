@@ -24,28 +24,47 @@ For most custom controllers, derive from `MotionController` instead of implement
 - Avalonia property-system integration;
 - safe attachment and detachment from a single `MotionPanel`;
 - `SetCurrentPose` for publishing a pose;
-- a controller-owned `Player` for controllers that consume playback progress;
-- `PlayerProgressChanged` for opting into that player;
-- `RequestAnimationFrame` for frame-aligned animation;
 - lifecycle hooks for the panel and visual tree.
 
-## Controller-Owned Playback
+Derive from `PlayerDrivenMotionController` instead when the controller maps time-based playback onto poses. It adds one
+stable, non-null `Player` and the `OnPlayerTick` hook.
 
-`MotionController.Player` is null until a derived controller subscribes to the protected
-`PlayerProgressChanged` event. The first subscription creates one stable `MotionPlayer`; removing the last subscription
-stops and releases it. Event subscription and every player operation are UI-thread-affine.
+## Player-Driven Playback
 
-`MotionPlayer` is public so applications can use advanced transport controls without taking over ownership:
+`PlayerDrivenMotionController` attaches its player to the owning panel for the complete controller-panel association
+and releases that attachment when the controller is removed or replaced. A temporary visual-tree detachment suspends
+frame requests without replacing the player or ending the association.
 
 ```csharp
-controller.Player?.Pause();
-controller.Player?.Resume();
-controller.Player?.Seek(0.5);
+controller.Player.Play();
+controller.Player.Pause();
+controller.Player.Play();
+controller.Player.Reset();
+controller.Player.Stop();
 ```
 
-`Play(duration)` always starts at progress zero. `Pause` and `Resume` preserve position, `Stop` leaves the current value,
-and natural completion leaves progress at one. The player publishes linear progress; easing remains the responsibility
-of edges, stops, poses, and interpolators.
+`MotionPlayer` is deliberately a clock rather than a finite animation. It publishes absolute `Time` and a per-frame
+`deltaTime`; it has no `Duration`, normalized `Progress`, or natural completion. `Pause` preserves `Time`, and `Play`
+starts or continues from that time. `Reset` sets `Time` to zero without changing the current state. `Stop` is the
+convenient stop-state equivalent of `Pause` followed by `Reset`: it enters `Stopped` and resets `Time` to zero.
+
+Duration, progress mapping, completion, easing, and looping belong to the controller or other consumer that interprets
+the clock.
+
+`MotionPlayer` can also be used independently. `Attach` returns the explicit lifetime lease for its visual-tree event
+subscriptions and cached `TopLevel`:
+
+```csharp
+var player = new MotionPlayer();
+using var attachment = player.Attach(control);
+
+player.Tick += (_, time, deltaTime) =>
+    UpdateFromClock(time, deltaTime);
+player.Play();
+```
+
+Dispose the lease on the UI thread before attaching the same player to another visual. Calling `Attach` while a lease
+is active throws. Disposing a lease stops frame scheduling but preserves player time and state.
 
 ## BasicMotionController
 
@@ -222,23 +241,24 @@ when authored timing matters independently of the eventual playback speed:
 </motion:TimelineMotionController>
 ```
 
-`Duration` is read-only and equals the latest `KeyTime`. Setting `Time` seeks the controller and its player. Values
-outside the authored range hold the nearest endpoint. Start frame-aligned playback with:
+`Duration` is read-only and equals the latest `KeyTime`. Setting `Time` directly scrubs the controller without
+rewriting the player's independent clock. Values outside the authored range hold the nearest endpoint. Start or
+continue frame-aligned playback with:
 
 ```csharp
-Timeline.Player?.Play(Timeline.Duration);
+Timeline.Player.Play();
 ```
 
-The duration passed to `Play` controls how long the player takes to traverse normalized playback progress. Passing
-`Timeline.Duration` plays at the authored rate; a different positive duration changes the playback rate without
-rewriting key times.
+Each player tick adds its `deltaTime` to `Timeline.Time`. The controller clamps at `Duration`, stops the player, and
+therefore resets the player's own `Time` to zero. Pausing preserves both clocks, while changing `Timeline.Time` during
+playback changes the evaluated position without disrupting frame scheduling.
 
 Keyframes are stable-sorted by `KeyTime`. At an exact key time the controller publishes a state pose. Between
 keyframes it publishes a blend whose local progress is shaped by the destination keyframe's `Easing`. Duplicate key
 times form an instantaneous cut, with the last declared keyframe winning at and after that time.
 
-Changing the keyframe collection or a `KeyTime` while playback is active stops the player, preserves the current
-absolute time, and seeks against the newly derived duration. Changing only `State` or `Easing`
+Changing the keyframe collection or a `KeyTime` while playback is active stops and resets the player while preserving
+the timeline's current absolute `Time`. Changing only `State` or `Easing`
 reevaluates the current pose without stopping playback.
 
 ## A Progress-Driven Controller
@@ -283,17 +303,46 @@ public sealed class ProgressMotionController : MotionController
 }
 ```
 
-This controller has no `Play`, `Pause`, or `Duration` because progress is its only responsibility. A different custom
-controller can subscribe to `PlayerProgressChanged` when time-based playback is part of its contract.
+This controller has no `Play`, `Pause`, or `Duration` because progress is its only responsibility. Derive a time-based
+custom controller from `PlayerDrivenMotionController` instead:
+
+```csharp
+public sealed class TimedMotionController : PlayerDrivenMotionController
+{
+    private static readonly TimeSpan Duration = TimeSpan.FromMilliseconds(300);
+
+    public void Start()
+    {
+        Player.Reset();
+        Player.Play();
+    }
+
+    protected override void OnPlayerTick(TimeSpan time, TimeSpan deltaTime)
+    {
+        var progress = Math.Clamp(time / Duration, 0, 1);
+        SetCurrentPose(
+            MotionPose.CreateBlend(
+                MotionPose.State("Compact"),
+                MotionPose.State("Expanded"),
+                progress));
+
+        if (progress >= 1)
+        {
+            Player.Stop();
+        }
+    }
+}
+```
 
 ## Frame Scheduling
 
-Most time-based custom controllers should subscribe to `PlayerProgressChanged` and translate `Player.Progress` into a
-pose. The base class creates the player on the first subscription and schedules it through the owning panel's
-`TopLevel`.
+Most time-based custom controllers should derive from `PlayerDrivenMotionController` and translate `OnPlayerTick`
+values into a pose. `MotionPlayer` resolves and caches the attached visual's `TopLevel` when the visual enters the
+tree, then requests frames directly from that cache. It does not walk the visual-parent chain on every frame or route
+frame requests through `MotionPanel`.
 
-The protected `RequestAnimationFrame` method remains available for controllers whose progression cannot be represented
-by linear player time. Do not keep an unrelated background timer that mutates UI state.
+The first tick after play, reset, attachment, or reattachment uses a zero `deltaTime` to establish a fresh timestamp
+baseline. This excludes paused and detached time and makes controller integration deterministic.
 
 The relevant lifecycle hooks are:
 
@@ -305,8 +354,9 @@ The relevant lifecycle hooks are:
 | `OnOwnerDetachedFromVisualTree` | The panel left a visual tree |
 | `OnOwnerPresented` | The panel completed its first presentation |
 
-`MotionPlayer` uses these hooks so active playback follows render frames and a detached panel does not retain a frame
-loop. `BasicMotionController` additionally completes its active transition when the panel leaves the visual tree.
+`BasicMotionController` completes its active transition when the panel leaves the visual tree. `MotionPlayer` observes
+the attached visual directly: detachment invalidates pending callbacks and clears the cached `TopLevel`; reattachment
+refreshes the cache and resumes active playback.
 
 ## Choosing a Controller
 

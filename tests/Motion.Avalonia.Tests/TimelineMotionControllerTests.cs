@@ -72,7 +72,7 @@ public sealed class TimelineMotionControllerTests
     }
 
     [Test]
-    public void PlayerAndTime_WhenEitherChanges_StaySynchronized()
+    public void Time_WhenChanged_DoesNotRewritePlayerClock()
     {
         var controller = new TimelineMotionController();
         controller.KeyFrames.Add(new MotionKeyFrame
@@ -87,14 +87,12 @@ public sealed class TimelineMotionControllerTests
         });
 
         controller.Time = TimeSpan.FromSeconds(1);
-        var progressAfterTimeChange = controller.Player!.Progress;
-
-        controller.Player.Seek(0.75);
 
         Assert.Multiple(() =>
         {
-            Assert.That(progressAfterTimeChange, Is.EqualTo(0.25));
-            Assert.That(controller.Time, Is.EqualTo(TimeSpan.FromSeconds(3)));
+            Assert.That(controller.Time, Is.EqualTo(TimeSpan.FromSeconds(1)));
+            Assert.That(controller.Player.Time, Is.EqualTo(TimeSpan.Zero));
+            Assert.That(controller.Player.State, Is.EqualTo(MotionPlayerState.Stopped));
         });
     }
 
@@ -110,7 +108,7 @@ public sealed class TimelineMotionControllerTests
         controller.KeyFrames.Add(new MotionKeyFrame { State = "start", KeyTime = TimeSpan.Zero });
         var end = new MotionKeyFrame { State = "end", KeyTime = TimeSpan.FromSeconds(4) };
         controller.KeyFrames.Add(end);
-        controller.Player!.Play(controller.Duration);
+        controller.Player.Play();
         controller.Time = TimeSpan.FromSeconds(2);
 
         var middle = new MotionKeyFrame { State = "middle", KeyTime = TimeSpan.FromSeconds(2) };
@@ -126,13 +124,14 @@ public sealed class TimelineMotionControllerTests
             Assert.That(afterAdd, Is.EqualTo(0.5).Within(0.001));
             Assert.That(controller.Duration, Is.EqualTo(TimeSpan.FromSeconds(8)));
             Assert.That(controller.Player.State, Is.EqualTo(MotionPlayerState.Stopped));
-            Assert.That(controller.Player.Progress, Is.EqualTo(0.25));
+            Assert.That(controller.Player.Time, Is.EqualTo(TimeSpan.Zero));
+            Assert.That(controller.Time, Is.EqualTo(TimeSpan.FromSeconds(2)));
             Assert.That(child.Opacity, Is.EqualTo(0.5).Within(0.001));
         });
     }
 
     [Test]
-    public void Player_WhenAdvanced_MapsProgressToAbsoluteTime()
+    public void PlayerTicks_WhenAdvanced_AddElapsedTimeAndStopAtDuration()
     {
         var controller = new TimelineMotionController();
         controller.KeyFrames.Add(new MotionKeyFrame
@@ -145,16 +144,21 @@ public sealed class TimelineMotionControllerTests
             State = "end",
             KeyTime = TimeSpan.FromSeconds(4),
         });
-        var player = controller.Player!;
+        var player = controller.Player;
 
-        player.Play(controller.Duration);
+        controller.Time = TimeSpan.FromSeconds(1);
+        player.Play();
         Advance(player, TimeSpan.Zero);
         Advance(player, TimeSpan.FromSeconds(1));
+        var timeAfterOneSecond = controller.Time;
+        Advance(player, TimeSpan.FromSeconds(5));
 
         Assert.Multiple(() =>
         {
-            Assert.That(controller.Time, Is.EqualTo(TimeSpan.FromSeconds(1)));
-            Assert.That(player.Progress, Is.EqualTo(0.25));
+            Assert.That(timeAfterOneSecond, Is.EqualTo(TimeSpan.FromSeconds(2)));
+            Assert.That(controller.Time, Is.EqualTo(TimeSpan.FromSeconds(4)));
+            Assert.That(player.Time, Is.EqualTo(TimeSpan.Zero));
+            Assert.That(player.State, Is.EqualTo(MotionPlayerState.Stopped));
         });
     }
 

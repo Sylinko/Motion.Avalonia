@@ -1,95 +1,202 @@
-using Avalonia.Animation.Easings;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
-using Motion.Avalonia.Extensions;
-using ShadUI;
+using Avalonia.Threading;
 
 namespace Motion.Avalonia.Demo.Views;
 
 public partial class ControllerPosePage : UserControl
 {
-    private static readonly string[] StateNames = ["Orbit", "Columns", "Focus", "Stack"];
-    private static readonly TimeSpan AnimationDuration = TimeSpan.FromMilliseconds(500);
-    private static readonly Easing AnimationEasing = new CubicEaseInOut();
+    private static readonly string[] SequenceStateNames = ["Orbit", "Columns", "Focus", "Stack"];
 
-    private bool _isAnimating;
+    private static readonly TimelineStop[] TimelineStops =
+    [
+        new("Seed", TimeSpan.Zero),
+        new("Constellation", TimeSpan.FromSeconds(1.4)),
+        new("Stream", TimeSpan.FromSeconds(3.2)),
+        new("Focus", TimeSpan.FromSeconds(5.2)),
+        new("Seed", TimeSpan.FromSeconds(7)),
+    ];
+
+    private readonly MotionPlayer _timelinePlayer;
+    private MotionPlayerState _lastTimelinePlayerState;
+    private bool _isSynchronizingTimelineSlider;
+    private bool _loopRestartQueued;
 
     public ControllerPosePage()
     {
         InitializeComponent();
-        UpdateProgress(PoseSlider.Value);
-    }
 
-    private void OnPreviousClick(object? sender, RoutedEventArgs e) =>
-        AnimateToState(GetCurrentStateIndex() - 1).Detach();
+        _timelinePlayer = TimelineController.Player;
+        _lastTimelinePlayerState = _timelinePlayer.State;
 
-    private void OnNextClick(object? sender, RoutedEventArgs e) =>
-        AnimateToState(GetCurrentStateIndex() + 1).Detach();
+        TimelineController.PropertyChanged += OnTimelineControllerPropertyChanged;
+        _timelinePlayer.PropertyChanged += OnTimelinePlayerPropertyChanged;
 
-    private void OnRandomClick(object? sender, RoutedEventArgs e)
-    {
-        var current = GetCurrentStateIndex();
-        var target = Random.Shared.Next(StateNames.Length - 1);
-        if (target >= current)
-        {
-            target++;
-        }
-
-        AnimateToState(target).Detach();
+        UpdateSequenceProgress(PoseSlider.Value);
+        SynchronizeTimelineUi();
+        UpdateTimelinePlayerControls();
     }
 
     private void OnPoseSliderValueChanged(object? sender, RangeBaseValueChangedEventArgs e) =>
-        UpdateProgress(e.NewValue);
+        UpdateSequenceProgress(e.NewValue);
 
-    private void UpdateProgress(double progress)
+    private void OnTimelineSliderValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (_isSynchronizingTimelineSlider)
+        {
+            return;
+        }
+
+        TimelineController.SetCurrentValue(
+            TimelineMotionController.TimeProperty,
+            TimeSpan.FromSeconds(e.NewValue));
+    }
+
+    private void OnTimelinePlayClick(object? sender, RoutedEventArgs e)
+    {
+        var duration = TimelineController.Duration;
+        if (duration <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        if (TimelineController.Time >= duration)
+        {
+            TimelineController.SetCurrentValue(
+                TimelineMotionController.TimeProperty,
+                TimeSpan.Zero);
+        }
+
+        _timelinePlayer.Play();
+    }
+
+    private void OnTimelinePauseClick(object? sender, RoutedEventArgs e) =>
+        _timelinePlayer.Pause();
+
+    private void OnTimelineControllerPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == TimelineMotionController.TimeProperty ||
+            e.Property == TimelineMotionController.DurationProperty)
+        {
+            SynchronizeTimelineUi();
+        }
+    }
+
+    private void OnTimelinePlayerPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property != MotionPlayer.StateProperty)
+        {
+            return;
+        }
+
+        var state = _timelinePlayer.State;
+        var completed =
+            _lastTimelinePlayerState == MotionPlayerState.Playing &&
+            state == MotionPlayerState.Stopped &&
+            TimelineController.Duration > TimeSpan.Zero &&
+            TimelineController.Time >= TimelineController.Duration;
+        _lastTimelinePlayerState = state;
+        UpdateTimelinePlayerControls();
+
+        if (completed && TimelineLoopCheckBox.IsChecked == true)
+        {
+            QueueLoopRestart();
+        }
+    }
+
+    private void UpdateSequenceProgress(double progress)
     {
         PoseProgressLabel.Text = $"Progress {progress:0.00}";
-        PoseStateLabel.Text = StateNames[GetStateIndex(progress)];
+        PoseStateLabel.Text = SequenceStateNames[GetSequenceStateIndex(progress)];
     }
 
-    private int GetCurrentStateIndex() => GetStateIndex(PoseSlider.Value);
+    private static int GetSequenceStateIndex(double progress) =>
+        Math.Clamp(
+            (int)Math.Round(progress * (SequenceStateNames.Length - 1)),
+            0,
+            SequenceStateNames.Length - 1);
 
-    private static int GetStateIndex(double progress) =>
-        Math.Clamp((int)Math.Round(progress * (StateNames.Length - 1)), 0, StateNames.Length - 1);
-
-    private Task AnimateToState(int stateIndex)
+    private void SynchronizeTimelineUi()
     {
-        if (_isAnimating)
-        {
-            return Task.CompletedTask;
-        }
+        var duration = TimelineController.Duration;
+        var time = TimelineController.Time > duration ? duration : TimelineController.Time;
 
-        var targetIndex = Math.Clamp(stateIndex, 0, StateNames.Length - 1);
-        var target = targetIndex / (double)(StateNames.Length - 1);
-        if (PoseSlider.Value.IsCloseTo(target))
-        {
-            return Task.CompletedTask;
-        }
-
-        return AnimateSliderTo(target);
-    }
-
-    private async Task AnimateSliderTo(double target)
-    {
-        _isAnimating = true;
-        PoseSlider.IsEnabled = false;
-
+        _isSynchronizingTimelineSlider = true;
         try
         {
-            await PoseSlider
-                .Animate(RangeBase.ValueProperty)
-                .From(PoseSlider.Value)
-                .To(target)
-                .WithDuration(AnimationDuration)
-                .WithEasing(AnimationEasing)
-                .RunAsync();
-            PoseSlider.SetCurrentValue(RangeBase.ValueProperty, target);
+            TimelineSlider.Maximum = Math.Max(duration.TotalSeconds, 0);
+            TimelineSlider.Value = Math.Clamp(
+                time.TotalSeconds,
+                TimelineSlider.Minimum,
+                TimelineSlider.Maximum);
         }
         finally
         {
-            PoseSlider.IsEnabled = true;
-            _isAnimating = false;
+            _isSynchronizingTimelineSlider = false;
         }
+
+        TimelineTimeLabel.Text = $"{FormatTime(time)} / {FormatTime(duration)}";
+        TimelineStateLabel.Text = GetTimelineStateLabel(time);
     }
+
+    private void UpdateTimelinePlayerControls()
+    {
+        var isPlaying = _timelinePlayer.State == MotionPlayerState.Playing;
+        TimelinePlayButton.IsVisible = !isPlaying;
+        TimelinePauseButton.IsVisible = isPlaying;
+    }
+
+    private void QueueLoopRestart()
+    {
+        if (_loopRestartQueued)
+        {
+            return;
+        }
+
+        _loopRestartQueued = true;
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                _loopRestartQueued = false;
+                if (TimelineLoopCheckBox.IsChecked != true ||
+                    _timelinePlayer.State != MotionPlayerState.Stopped ||
+                    TimelineController.Duration <= TimeSpan.Zero ||
+                    TimelineController.Time < TimelineController.Duration)
+                {
+                    return;
+                }
+
+                TimelineController.SetCurrentValue(
+                    TimelineMotionController.TimeProperty,
+                    TimeSpan.Zero);
+                _timelinePlayer.Play();
+            },
+            DispatcherPriority.Background);
+    }
+
+    private static string GetTimelineStateLabel(TimeSpan time)
+    {
+        for (var i = 1; i < TimelineStops.Length; i++)
+        {
+            var destination = TimelineStops[i];
+            if (time == destination.Time)
+            {
+                return destination.State;
+            }
+
+            if (time < destination.Time)
+            {
+                return $"{TimelineStops[i - 1].State} → {destination.State}";
+            }
+        }
+
+        return TimelineStops[^1].State;
+    }
+
+    private static string FormatTime(TimeSpan time) =>
+        time.ToString(@"mm\:ss\.f");
+
+    private readonly record struct TimelineStop(string State, TimeSpan Time);
 }

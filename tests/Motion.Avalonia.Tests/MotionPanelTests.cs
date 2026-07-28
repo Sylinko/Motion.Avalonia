@@ -679,7 +679,7 @@ public sealed class MotionPanelTests
 
     private static void AdvanceAnimation(MotionPanel panel, TimeSpan timestamp, Size size)
     {
-        var player = GetBasicController(panel).Player!;
+        var player = GetBasicController(panel).Player;
         InvokeAnimationFrame(player, timestamp, GetFrameGeneration(player));
         RunLayoutToConvergence(panel, size);
     }

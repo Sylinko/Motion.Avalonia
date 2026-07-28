@@ -44,6 +44,7 @@ Motion.Avalonia separates those concerns. `MotionState` describes endpoints, `Mo
 - Built-in normalized state sequences
 - Absolute-time keyframe timelines with controller-owned playback
 - Layout and styled-property interpolation on one timeline
+- Custom position paths through the same strongly typed interpolation pipeline
 - Directed `MotionEdge` timing overrides
 - Strongly typed custom interpolators
 - Reuse of Avalonia's built-in `Animator<T>` implementations

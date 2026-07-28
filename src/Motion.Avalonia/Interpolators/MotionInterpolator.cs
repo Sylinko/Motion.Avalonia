@@ -5,12 +5,13 @@ using Avalonia.Collections;
 namespace Motion.Avalonia;
 
 /// <summary>
-/// Selects and evaluates the interpolation used for one target property.
+/// Selects and evaluates the interpolation used for one motion value.
 /// </summary>
 /// <remarks>
-/// Interpolators are matched by <see cref="Target"/> and <see cref="Property"/>. An
-/// edge-specific match takes precedence over a general match whose <see cref="Edges"/>
-/// collection is empty. <see cref="Easing"/> changes progress for this property only.
+/// Interpolators are matched by <see cref="Target"/> and <see cref="Property"/>. The property
+/// may identify an ordinary target property or a built-in <see cref="MotionLayout"/> channel.
+/// An edge-specific match takes precedence over a general match whose <see cref="Edges"/>
+/// collection is empty. <see cref="Easing"/> changes progress for this value only.
 /// </remarks>
 /// <example>
 /// This override keeps Avalonia's normal opacity interpolation but gives it a separate curve:
@@ -46,6 +47,10 @@ public abstract class MotionInterpolator : AvaloniaObject
     /// <summary>
     /// Gets or sets the name of the target control.
     /// </summary>
+    /// <remarks>
+    /// Omit the target only when <see cref="Property"/> is
+    /// <see cref="MotionLayout.DesiredSizeProperty"/>, which belongs to the panel.
+    /// </remarks>
     public string? Target
     {
         get => GetValue(TargetProperty);
@@ -53,7 +58,7 @@ public abstract class MotionInterpolator : AvaloniaObject
     }
 
     /// <summary>
-    /// Gets or sets the target property.
+    /// Gets or sets the target property or built-in layout channel.
     /// </summary>
     public AvaloniaProperty? Property
     {
@@ -103,7 +108,7 @@ public abstract class MotionInterpolator : AvaloniaObject
 public abstract class MotionInterpolator<T> : MotionInterpolator
 {
     /// <summary>
-    /// Interpolates between two property values.
+/// Interpolates between two motion values.
     /// </summary>
     /// <param name="progress">The effective progress. It may be outside zero to one when an easing overshoots.</param>
     /// <param name="oldValue">The source endpoint value.</param>

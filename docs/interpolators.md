@@ -1,12 +1,13 @@
 # Interpolators
 
-An easing answers, “How far through the transition are we?” An interpolator answers, “What property value exists at that progress?”
+An easing answers, “How far through the transition are we?” An interpolator answers, “What motion value exists at that progress?”
 
-Keeping those responsibilities separate allows one motion pose to use a general timing curve while selected target properties use a different curve or interpolation algorithm.
+Keeping those responsibilities separate allows one motion pose to use a general timing curve while selected layout
+channels or target properties use a different curve or interpolation algorithm.
 
 ## Default Behavior
 
-If no override matches a target property, `MotionPanel` uses `MotionAvaloniaInterpolator`.
+If no override matches a layout channel or target property, `MotionPanel` uses `MotionAvaloniaInterpolator`.
 
 It reuses Avalonia's registered `Animator<T>` for the property whenever possible. This provides the same strongly typed interpolation behavior as Avalonia animations without requiring Motion.Avalonia to maintain a parallel table for every supported value type.
 
@@ -27,7 +28,7 @@ Animator resolution is cached by property and endpoint runtime types.
 
 ## Panel-Level Overrides
 
-`MotionPanel.Interpolators` is a lookup collection. Each entry must identify:
+`MotionPanel.Interpolators` is a lookup collection. Each target-scoped entry must identify:
 
 - `Target`: the stable `x:Name` of a direct child;
 - `Property`: the Avalonia property to interpolate;
@@ -45,9 +46,47 @@ Animator resolution is cached by property and endpoint runtime types.
 
 The explicit `MotionAvaloniaInterpolator` still uses Avalonia's default value interpolation. Here it only overrides the easing for `Card.Opacity`.
 
+## Built-in Layout Channels
+
+Layout results use the same resolver as target properties. `MotionLayout` exposes strongly typed Avalonia properties
+that identify the four built-in channels:
+
+| Property | Type | Scope | Meaning |
+| --- | --- | --- | --- |
+| `MotionLayout.DesiredSizeProperty` | `Size` | Panel | Desired size returned during measure |
+| `MotionLayout.PositionProperty` | `Point` | Target | Absolute position resolved from the live state template |
+| `MotionLayout.SizeProperty` | `Size` | Target | Resolved target layout size |
+| `MotionLayout.PresenceProperty` | `double` | Target | Enter/leave weight before final clamping |
+
+Use the attached-property form when selecting a layout channel in AXAML:
+
+```xml
+<motion:MotionPanel.Interpolators>
+    <local:SpringPointInterpolator
+        Target="Card"
+        Property="(motion:MotionLayout.Position)" />
+
+    <motion:MotionAvaloniaInterpolator
+        Target="Card"
+        Property="(motion:MotionLayout.Size)"
+        Easing="CubicEaseOut" />
+</motion:MotionPanel.Interpolators>
+```
+
+`Position`, `Size`, and `Presence` require `Target`. `DesiredSize` belongs to the panel and therefore omits it:
+
+```xml
+<local:OvershootSizeInterpolator
+    Property="(motion:MotionLayout.DesiredSize)" />
+```
+
+These properties are interpolation keys, not state endpoints. State templates continue to calculate position and size
+through ordinary Avalonia layout, and target presence continues to come from whether a state contains the target.
+Do not put `MotionLayout` properties in a `MotionSlot.Setter`.
+
 ## Lookup Order
 
-For each `(Target, Property)` pair, the panel selects:
+For each `(Target, Property)` pair—or the panel-wide `DesiredSize` property—the panel selects:
 
 1. an override whose `Edges` collection contains the active `MotionEdge`;
 2. a general panel override with an empty `Edges` collection;
@@ -111,9 +150,30 @@ Register it for one target and property:
 </motion:MotionPanel.Interpolators>
 ```
 
-The generic base checks both endpoint types and reports a descriptive error if the selected property does not produce `T`.
+The generic base checks both endpoint types and reports a descriptive error if the selected property or layout channel
+does not produce `T`.
 
 The example is intentionally small. A production interpolator should define how it handles overshoot, clamping, null endpoints, and values outside its natural domain.
+
+## Cubic Bézier Position Paths
+
+`CubicBezierMotionInterpolator` is a strongly typed `MotionInterpolator<Point>`. Register it for
+`MotionLayout.PositionProperty` to replace linear position interpolation with one cubic Bézier segment:
+
+```xml
+<motion:CubicBezierMotionInterpolator
+    Target="Satellite"
+    Property="(motion:MotionLayout.Position)"
+    SourceControlOffset="120,-80"
+    TargetControlOffset="-96,64" />
+```
+
+The source and destination layout positions are the curve endpoints. `SourceControlOffset` locates the first control
+point relative to the live source position; `TargetControlOffset` locates the second relative to the live destination.
+Only position follows the curve. Target size, presence, and ordinary properties retain their own interpolators.
+
+One instance intentionally describes one cubic segment with exactly two control offsets. A future multi-segment spline
+can build on the same `Point` channel without changing the panel's interpolation architecture.
 
 ## Restricting an Override to Edges
 

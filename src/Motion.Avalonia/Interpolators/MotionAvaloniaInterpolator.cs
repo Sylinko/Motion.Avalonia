@@ -9,7 +9,7 @@ using Avalonia.Media.Transformation;
 namespace Motion.Avalonia;
 
 /// <summary>
-/// Interpolates property values using Avalonia's registered animators.
+/// Interpolates motion values using Avalonia's registered animators.
 /// </summary>
 /// <remarks>
 /// <see cref="MotionPanel"/> uses a shared instance as its fallback. Add an explicit instance

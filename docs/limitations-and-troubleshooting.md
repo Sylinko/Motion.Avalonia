@@ -69,14 +69,14 @@ If a deliberate entrance animation is required, present a real initial state fir
 
 For a custom time-based controller:
 
-1. Derive from `MotionController`.
-2. Subscribe to protected `PlayerProgressChanged`.
-3. Translate `Player.Progress` into a pose.
+1. Derive from `PlayerDrivenMotionController`.
+2. Override `OnPlayerTick`.
+3. Translate the absolute `time` or elapsed `deltaTime` into a pose.
 4. Call `SetCurrentPose` with the new pose.
 5. Start playback only after the controller is owned by a presented panel.
 
-For procedural clocks that cannot use linear player progress, protected `RequestAnimationFrame` remains available and
-returns `false` when the controller is not attached to a panel with a current `TopLevel`.
+`MotionPlayer` is an unbounded clock. A custom controller must define any duration, progress mapping, and completion
+behavior it requires.
 
 Changing ordinary fields without publishing a pose does not notify the panel.
 
@@ -101,7 +101,9 @@ For one target and property, the panel permits:
 
 An edge-specific override and a general fallback may coexist. Two general entries, or two entries that both contain the same active edge, are ambiguous and throw.
 
-Every interpolator in `MotionPanel.Interpolators` must set both `Target` and `Property`, even when it is not selected by the current pose.
+Every interpolator in `MotionPanel.Interpolators` must set `Property`, even when it is not selected by the current
+pose. Ordinary target properties and the target-scoped `MotionLayout` channels also require `Target`.
+`MotionLayout.DesiredSizeProperty` is panel-wide and requires `Target` to be omitted.
 
 ## `IsVisible` Versus Presence
 

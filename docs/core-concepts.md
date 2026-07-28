@@ -82,8 +82,9 @@ a scrollbar, a slider, pointer movement, a physics solver, or an external synchr
 
 `BasicMotionController` provides the common time-based state workflow. `SequenceMotionController` is a pure sampler
 that maps externally owned normalized progress across ordered state stops. `TimelineMotionController` maps absolute
-time across authored keyframes and opts into a controller-owned `MotionPlayer`. Custom controllers derive from
-`MotionController`, call `SetCurrentPose`, and subscribe to `PlayerProgressChanged` only when they need a player.
+time across authored keyframes and derives from `PlayerDrivenMotionController`. Custom externally driven controllers
+derive from `MotionController` and call `SetCurrentPose`; custom time-based controllers derive from
+`PlayerDrivenMotionController` and override `OnPlayerTick`.
 
 ## Presence
 
@@ -128,7 +129,9 @@ value = Interpolate(progress, source, target)
 ```
 
 The default `MotionAvaloniaInterpolator` reuses Avalonia's built-in `Animator<T>` implementations where possible.
-Panel-level interpolators can override one target/property pair, optionally only for selected directed edges.
+Panel-level interpolators can override one target/property pair, optionally only for selected directed edges. The
+typed `MotionLayout` properties bring panel desired size, target position, target size, and target presence through the
+same lookup path.
 
 Easing and interpolation are different operations:
 

@@ -17,7 +17,7 @@ Projects live state templates onto stable direct child controls.
 | `Children` | `Controls` | Stable logical targets; also the XAML content collection |
 | `States` | `AvaloniaList<MotionState>` | Persistent state definitions |
 | `Controller` | `IMotionController?` | Current pose producer |
-| `Interpolators` | `AvaloniaList<MotionInterpolator>` | Target-property interpolation overrides |
+| `Interpolators` | `AvaloniaList<MotionInterpolator>` | Layout-channel and target-property interpolation overrides |
 | `ControllerProperty` | `StyledProperty<IMotionController?>` | Avalonia property backing `Controller` |
 
 Every child must have a unique non-empty `x:Name`.
@@ -112,17 +112,15 @@ The minimal pose-producer contract.
 public abstract class MotionController : StyledElement, IMotionController
 ```
 
-Base class for controllers that need Avalonia integration and frame scheduling.
+Base class for controllers that need Avalonia integration.
 
 ### Public members
 
 | Member | Type | Description |
 | --- | --- | --- |
 | `CurrentPose` | `MotionPose` | Current read-only pose |
-| `Player` | `MotionPlayer?` | Controller-owned playback transport when the controller consumes progress |
 | `CurrentPoseChanged` | `event EventHandler?` | Pose-change notification |
 | `CurrentPoseProperty` | `DirectProperty<MotionController, MotionPose>` | Avalonia property for `CurrentPose` |
-| `PlayerProperty` | `DirectProperty<MotionController, MotionPlayer?>` | Avalonia property for `Player` |
 
 ### Protected members
 
@@ -130,8 +128,6 @@ Base class for controllers that need Avalonia integration and frame scheduling.
 | --- | --- |
 | `IsAttached` | Whether this controller currently owns a panel attachment |
 | `SetCurrentPose(MotionPose)` | Publishes a non-null pose |
-| `PlayerProgressChanged` | First subscription creates `Player`; removing the last releases it |
-| `RequestAnimationFrame(Action<TimeSpan>)` | Schedules through the owning panel's `TopLevel`; returns whether scheduling succeeded |
 | `OnAttached()` | Called after assignment to a panel |
 | `OnDetached()` | Called before removal from a panel |
 | `OnOwnerAttachedToVisualTree()` | Called when the panel enters a visual tree |
@@ -140,29 +136,59 @@ Base class for controllers that need Avalonia integration and frame scheduling.
 
 A controller instance can be attached to only one panel at a time.
 
+## PlayerDrivenMotionController
+
+```csharp
+public abstract class PlayerDrivenMotionController : MotionController
+```
+
+Base class for controllers that translate frame-aligned clock ticks into poses.
+
+| Member | Type | Description |
+| --- | --- | --- |
+| `Player` | `MotionPlayer` | Stable, non-null controller-owned clock |
+| `OnPlayerTick(TimeSpan, TimeSpan)` | Protected virtual method | Receives absolute time and elapsed time for each tick |
+
+The player is attached to the owning panel for the controller-panel association and released when that association
+ends. Temporary visual-tree detachment suspends frame requests without replacing the player.
+
 ## MotionPlayer
 
 ```csharp
 public sealed class MotionPlayer : AvaloniaObject
 ```
 
-Provides a controller-owned, frame-aligned playback transport. Applications obtain it from `MotionController.Player`;
-its constructor is internal.
+Provides a reusable, frame-aligned clock. It can be constructed independently or obtained from
+`PlayerDrivenMotionController.Player`.
 
 | Member | Type | Description |
 | --- | --- | --- |
-| `Duration` | `TimeSpan` | Duration of the current or most recent playback |
-| `Position` | `TimeSpan` | Current playback position |
-| `Progress` | `double` | Linear normalized progress |
+| `Time` | `TimeSpan` | Absolute elapsed clock time |
 | `State` | `MotionPlayerState` | `Stopped`, `Playing`, or `Paused` |
-| `Play(TimeSpan)` | Method | Restarts from zero using a positive duration |
-| `Pause()` | Method | Pauses without changing position |
-| `Resume()` | Method | Resumes paused playback |
-| `Stop()` | Method | Stops at the current position |
-| `Seek(double)` | Method | Seeks to finite progress clamped to `[0, 1]` |
+| `Tick` | `event MotionTickEventHandler?` | Publishes absolute time and per-frame elapsed time |
+| `Attach(Visual)` | `IDisposable` | Attaches to a visual and returns the exclusive lifetime lease |
+| `Play()` | Method | Starts or continues from the current time |
+| `Pause()` | Method | Pauses without changing time |
+| `Reset()` | Method | Resets time without changing state |
+| `Stop()` | Method | Enters `Stopped` and resets time to zero |
 
-The corresponding direct-property fields are `DurationProperty`, `PositionProperty`, `ProgressProperty`, and
-`StateProperty`.
+The corresponding direct-property fields are `TimeProperty` and `StateProperty`.
+
+Only one attachment lease may be active. Dispose it on the UI thread before attaching the player to another visual.
+The player caches the visual's `TopLevel` while rooted and invalidates outstanding frame callbacks when detached or
+when the lease ends.
+
+## MotionTickEventHandler
+
+```csharp
+public delegate void MotionTickEventHandler(
+    MotionPlayer sender,
+    TimeSpan time,
+    TimeSpan deltaTime);
+```
+
+The first tick after play, reset, attachment, or reattachment has a zero `deltaTime` and establishes a new frame-clock
+baseline.
 
 ## MotionPlayerState
 
@@ -175,7 +201,7 @@ Reports whether a player is `Stopped`, `Playing`, or `Paused`.
 ## BasicMotionController
 
 ```csharp
-public sealed class BasicMotionController : MotionController
+public sealed class BasicMotionController : PlayerDrivenMotionController
 ```
 
 Animates discrete state requests with default timing and directed edge overrides.
@@ -197,7 +223,8 @@ The initial request snaps. Later animated changes start from `CurrentPose`, whic
 public sealed class SequenceMotionController : MotionController
 ```
 
-Maps externally owned normalized progress across ordered state stops. It does not create an inherited `Player`.
+Maps externally owned normalized progress across ordered state stops. It intentionally does not derive from
+`PlayerDrivenMotionController`.
 
 | Member | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -229,7 +256,7 @@ The corresponding styled-property fields are `StateProperty`, `OffsetProperty`, 
 ## TimelineMotionController
 
 ```csharp
-public sealed class TimelineMotionController : MotionController
+public sealed class TimelineMotionController : PlayerDrivenMotionController
 ```
 
 Maps absolute time across ordered state keyframes and opts into controller-owned playback.
@@ -246,8 +273,8 @@ Keyframes are stable-sorted by `KeyTime`. Before or after the defined range, the
 time publishes a state pose; an in-between value blends adjacent states. Duplicate key times use the last keyframe
 declared at that time for the exact and right-side result.
 
-`Player.Progress` maps linearly onto `[TimeSpan.Zero, Duration]`. Setting `Time` seeks the player, while player progress
-updates `Time`.
+Each player tick adds its elapsed delta to `Time`. The controller stops the player when `Time` reaches `Duration`.
+Setting `Time` directly scrubs the timeline without rewriting the player's independent clock.
 
 ## MotionKeyFrame
 
@@ -290,18 +317,37 @@ The corresponding styled-property fields are `FromProperty`, `ToProperty`, `Dura
 public abstract class MotionInterpolator : AvaloniaObject
 ```
 
-Selects an interpolation policy for one target property.
+Selects an interpolation policy for one layout channel or target property.
 
 | Member | Type | Description |
 | --- | --- | --- |
-| `Target` | `string?` | Stable target name |
-| `Property` | `AvaloniaProperty?` | Target property |
+| `Target` | `string?` | Stable target name; omitted only for panel desired size |
+| `Property` | `AvaloniaProperty?` | Target property or built-in layout channel |
 | `Easing` | `Easing?` | Override; null inherits pose easing |
 | `Edges` | `AvaloniaList<MotionEdge>` | Active directed edges; empty matches every edge |
 
 The corresponding styled-property fields are `TargetProperty`, `PropertyProperty`, and `EasingProperty`.
 
-Panel collection entries must set both `Target` and `Property`.
+Every panel collection entry must set `Property`. Target-scoped layout channels and ordinary target properties also
+require `Target`; `MotionLayout.DesiredSizeProperty` is panel-wide and requires it to be omitted.
+
+## MotionLayout
+
+```csharp
+public static class MotionLayout
+```
+
+Owns strongly typed attached properties that identify the built-in layout interpolation channels. These properties are
+selectors for `MotionInterpolator.Property`, not values to define in a `MotionSlot.Setter`. `DesiredSizeProperty` is
+registered for the precise `MotionPanel` host; the target channels are registered for the internal item-container
+host.
+
+| Field | Value type | Scope | Description |
+| --- | --- | --- | --- |
+| `DesiredSizeProperty` | `Size` | Panel | Desired size returned during measure |
+| `PositionProperty` | `Point` | Target | Resolved absolute layout position |
+| `SizeProperty` | `Size` | Target | Resolved layout size |
+| `PresenceProperty` | `double` | Target | Enter/leave weight before final clamping |
 
 ## MotionInterpolator\<T\>
 
@@ -309,7 +355,7 @@ Panel collection entries must set both `Target` and `Property`.
 public abstract class MotionInterpolator<T> : MotionInterpolator
 ```
 
-Strongly typed base for custom property interpolation.
+Strongly typed base for custom motion-value interpolation.
 
 ```csharp
 public abstract T Interpolate(
@@ -320,6 +366,23 @@ public abstract T Interpolate(
 
 The base validates source and destination endpoint types before calling the override.
 
+## CubicBezierMotionInterpolator
+
+```csharp
+public sealed class CubicBezierMotionInterpolator : MotionInterpolator<Point>
+```
+
+Interpolates `Point` values along one cubic Bézier segment.
+
+| Member | Type | Default | Description |
+| --- | --- | --- | --- |
+| `SourceControlOffset` | `Vector` | Zero | Offset from the source endpoint to the first control point |
+| `TargetControlOffset` | `Vector` | Zero | Offset from the destination endpoint to the second control point |
+
+The corresponding styled-property fields are `SourceControlOffsetProperty` and `TargetControlOffsetProperty`. Both
+vectors must contain finite components. Register the interpolator for `MotionLayout.PositionProperty` to create a
+curved layout path without changing size interpolation.
+
 ## MotionAvaloniaInterpolator
 
 ```csharp
@@ -328,7 +391,8 @@ public sealed class MotionAvaloniaInterpolator : MotionInterpolator
 
 Uses Avalonia's registered `Animator<T>` implementations plus specialized brush, effect, and transform dispatch.
 
-Create an instance in `MotionPanel.Interpolators` when default value interpolation is desired but target/property selection, edge filtering, or property-specific easing must be explicit.
+Create an instance in `MotionPanel.Interpolators` when default value interpolation is desired but target/property
+selection, edge filtering, or value-specific easing must be explicit.
 
 When no panel override matches, `MotionPanel` uses an internal shared instance automatically.
 

@@ -2,7 +2,6 @@ using System.Collections.Specialized;
 using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Metadata;
-using Motion.Avalonia.Extensions;
 
 namespace Motion.Avalonia;
 
@@ -11,7 +10,7 @@ namespace Motion.Avalonia;
 /// </summary>
 /// <remarks>
 /// Set <see cref="Time"/> directly for scrubbing or use the controller-owned
-/// <see cref="MotionController.Player"/> for frame-aligned playback. <see cref="Duration"/> is
+/// <see cref="PlayerDrivenMotionController.Player"/> for frame-aligned playback. <see cref="Duration"/> is
 /// derived from the latest keyframe. At an exact key time the controller publishes a state pose;
 /// between keyframes it publishes a blend using the destination keyframe's easing. Equal key
 /// times create an instantaneous cut, with the last declared keyframe winning at and after that
@@ -25,9 +24,10 @@ namespace Motion.Avalonia;
 ///   <motion:MotionKeyFrame State="Complete" KeyTime="0:0:2"/>
 /// </motion:TimelineMotionController>
 /// ]]></code>
-/// Start authored playback with <c>Timeline.Player?.Play(Timeline.Duration)</c>.
+/// Start authored playback with <c>Timeline.Player.Play()</c>. The player's frame deltas advance
+/// <see cref="Time"/> until the timeline reaches <see cref="Duration"/>.
 /// </example>
-public sealed class TimelineMotionController : MotionController
+public sealed class TimelineMotionController : PlayerDrivenMotionController
 {
     /// <summary>
     /// Defines the <see cref="Time"/> property.
@@ -77,47 +77,38 @@ public sealed class TimelineMotionController : MotionController
 
     private readonly HashSet<MotionKeyFrame> _attachedKeyFrames = [];
     private readonly List<MotionKeyFrame> _orderedKeyFrames = [];
-    private bool _updatingPlayerFromTime;
-    private bool _updatingTimeFromPlayer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TimelineMotionController"/> class.
     /// </summary>
     public TimelineMotionController()
     {
-        PlayerProgressChanged += OnPlayerProgressChanged;
         KeyFrames.CollectionChanged += OnKeyFramesChanged;
         PublishPose();
     }
 
+    private void OnTimeChanged() => PublishPose();
+
     /// <inheritdoc />
-    protected override void OnAttached() => SynchronizePlayerToTime();
-
-    private void OnTimeChanged()
+    protected override void OnPlayerTick(TimeSpan time, TimeSpan deltaTime)
     {
-        if (!_updatingTimeFromPlayer)
+        if (Duration <= TimeSpan.Zero || Time >= Duration)
         {
-            SynchronizePlayerToTime();
-        }
-
-        PublishPose();
-    }
-
-    private void OnPlayerProgressChanged(object? sender, EventArgs e)
-    {
-        if (_updatingPlayerFromTime || Player is not { } player)
-        {
+            Player.Stop();
             return;
         }
 
-        _updatingTimeFromPlayer = true;
-        try
+        var remaining = Duration - Time;
+        if (deltaTime >= remaining)
         {
-            SetCurrentValue(TimeProperty, GetTime(player.Progress));
+            SetCurrentValue(TimeProperty, Duration);
+            Player.Stop();
+            return;
         }
-        finally
+
+        if (deltaTime > TimeSpan.Zero)
         {
-            _updatingTimeFromPlayer = false;
+            SetCurrentValue(TimeProperty, Time + deltaTime);
         }
     }
 
@@ -175,65 +166,8 @@ public sealed class TimelineMotionController : MotionController
 
     private void OnTimelineStructureChanged()
     {
-        Player?.Stop();
-        if (IsAttached)
-        {
-            SynchronizePlayerToTime();
-        }
-
+        Player.Stop();
         PublishPose();
-    }
-
-    private void SynchronizePlayerToTime()
-    {
-        if (Player is not { } player)
-        {
-            return;
-        }
-
-        var progress = GetProgress(Time);
-        if (!player.Progress.IsCloseTo(progress, 1e-10))
-        {
-            _updatingPlayerFromTime = true;
-            try
-            {
-                player.Seek(progress);
-            }
-            finally
-            {
-                _updatingPlayerFromTime = false;
-            }
-        }
-    }
-
-    private double GetProgress(TimeSpan time)
-    {
-        if (Duration <= TimeSpan.Zero || time <= TimeSpan.Zero)
-        {
-            return 0;
-        }
-
-        if (time >= Duration)
-        {
-            return 1;
-        }
-
-        return time.Ticks / (double)Duration.Ticks;
-    }
-
-    private TimeSpan GetTime(double progress)
-    {
-        if (Duration <= TimeSpan.Zero || progress <= 0)
-        {
-            return TimeSpan.Zero;
-        }
-
-        if (progress >= 1)
-        {
-            return Duration;
-        }
-
-        return TimeSpan.FromTicks((long)(Duration.Ticks * progress));
     }
 
     private void PublishPose() =>

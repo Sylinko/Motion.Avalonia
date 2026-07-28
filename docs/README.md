@@ -31,7 +31,8 @@ used independently.
 | Author motion at absolute times and play it | [TimelineMotionController](controllers-and-poses.md#timelinemotioncontroller) |
 | Animate `CornerRadius`, `Background`, or another styled property | [Target Properties](target-properties.md) |
 | See the complete shortcut list | [Shortcut Properties](target-properties.md#shortcuts) |
-| Define a custom path or interpolation rule | [Strongly Typed Interpolators](interpolators.md#a-strongly-typed-custom-interpolator) |
+| Move a target along a Bézier path | [Cubic Bézier Position Paths](interpolators.md#cubic-bézier-position-paths) |
+| Define a custom interpolation rule | [Strongly Typed Interpolators](interpolators.md#a-strongly-typed-custom-interpolator) |
 | Understand interruption behavior | [Nested Poses and Interruption](controllers-and-poses.md#nested-poses-and-interruption) |
 | Understand allocations and per-frame work | [Architecture](architecture.md) |
 | Investigate a configuration exception | [Limitations and Troubleshooting](limitations-and-troubleshooting.md) |

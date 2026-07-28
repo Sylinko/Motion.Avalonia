@@ -32,7 +32,7 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
     public Size MeasureTarget(string? target, Size availableSize) =>
         _owner.MeasureTarget(target, availableSize);
 
-    public MotionLayout CaptureLayout()
+    public MotionLayoutSnapshot CaptureLayout()
     {
         var orderedSlots = new List<MotionSlot>(_owner.TargetCount);
         if (Child is not null)
@@ -46,7 +46,7 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
             AddSlot(orderedSlots[i], i, entries);
         }
 
-        return new MotionLayout(DesiredSize, entries);
+        return new MotionLayoutSnapshot(DesiredSize, entries);
     }
 
     public void Dispose() => UnsubscribeSlots();
@@ -150,7 +150,7 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
     private readonly record struct OrderedVisual(Visual Visual, int Index);
 }
 
-internal sealed record MotionLayout(Size DesiredSize, IReadOnlyDictionary<string, MotionLayoutEntry> Entries);
+internal sealed record MotionLayoutSnapshot(Size DesiredSize, IReadOnlyDictionary<string, MotionLayoutEntry> Entries);
 
 internal readonly record struct MotionLayoutEntry(
     Rect Bounds,

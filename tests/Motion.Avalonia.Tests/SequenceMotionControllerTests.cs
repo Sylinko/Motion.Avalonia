@@ -123,13 +123,13 @@ public sealed class SequenceMotionControllerTests
     }
 
     [Test]
-    public void SequenceController_DoesNotCreateAPlayer()
+    public void SequenceController_WhenCreated_DoesNotOptIntoPlayerDrivenBase()
     {
         var controller = new SequenceMotionController();
 
         controller.Progress = 0.25;
 
-        Assert.That(controller.Player, Is.Null);
+        Assert.That(controller, Is.Not.InstanceOf<PlayerDrivenMotionController>());
     }
 
     [Test]

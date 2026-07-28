@@ -12,7 +12,7 @@ namespace Motion.Avalonia;
 /// <remarks>
 /// This controller has no playback commands of its own. Bind <see cref="Progress"/> to a slider,
 /// scroll position, gesture, or other external progress source. It intentionally does not opt
-/// into <see cref="MotionController.Player"/>. At an exact stop it publishes a state pose;
+/// into <see cref="PlayerDrivenMotionController"/>. At an exact stop it publishes a state pose;
 /// between stops it publishes a blend using the destination stop's easing. Equal offsets create
 /// an instantaneous cut, with the last declared stop winning at and after that offset.
 /// </remarks>

@@ -1,7 +1,39 @@
 <UserControl
   x:Class="Motion.Avalonia.Demo.Views.ControllerPosePage" xmlns="https://github.com/avaloniaui"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:Motion.Avalonia.Demo.Controls"
-  xmlns:motion="using:Motion.Avalonia" xmlns:shadui="clr-namespace:ShadUI.Controls;assembly=ShadUI">
+  xmlns:lucide="clr-namespace:Lucide.Avalonia;assembly=Lucide.Avalonia" xmlns:motion="using:Motion.Avalonia"
+  xmlns:shadui="clr-namespace:ShadUI.Controls;assembly=ShadUI">
+  <UserControl.Styles>
+    <Style Selector="Border.TimelineTile">
+      <Setter Property="Padding" Value="16"/>
+      <Setter Property="Background" Value="#FF172033"/>
+      <Setter Property="BorderBrush" Value="#FF33415F"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="BoxShadow" Value="0 12 32 0 #3D000000"/>
+      <Setter Property="CornerRadius" Value="16"/>
+    </Style>
+
+    <Style Selector="Border.TimelineSignal">
+      <Setter Property="Padding" Value="12"/>
+      <Setter Property="Background" Value="#FF151D2D"/>
+      <Setter Property="BorderBrush" Value="#FF34415A"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="BoxShadow" Value="0 8 24 0 #33000000"/>
+      <Setter Property="CornerRadius" Value="12"/>
+    </Style>
+
+    <Style Selector="TextBlock.TimelineKicker">
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="#FF91A4C5"/>
+    </Style>
+
+    <Style Selector="TextBlock.TimelineBody">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="#FF9CAAC2"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+  </UserControl.Styles>
 
   <ScrollViewer>
     <StackPanel
@@ -12,38 +44,21 @@
         <TextBlock
           Classes="DemoEyebrow" Text="CONTROLLER &amp; POSE"/>
         <TextBlock
-          Classes="DemoTitle" Text="Time is optional. Progress is enough."/>
+          Classes="DemoTitle" Text="Sample progress or author time."/>
         <TextBlock
           Classes="DemoDescription" MaxWidth="768"
-          HorizontalAlignment="Left" Text="MotionPanel consumes a pose, not a clock. SequenceMotionController maps one continuous Progress value across four declarative stops. Dragging seeks directly; the buttons animate that same slider value."/>
+          HorizontalAlignment="Left" Text="MotionPanel consumes poses rather than owning a clock. SequenceMotionController samples externally supplied progress, while TimelineMotionController maps authored times and exposes a frame-aligned player."/>
       </StackPanel>
 
       <controls:DemoExample
-        Title="Four-state pose scrubber" HorizontalContentAlignment="Stretch"
-        Description="Drag between Orbit, Columns, Focus, and Stack. The chevrons animate to adjacent states; Random chooses any other state. Interrupt a button animation by grabbing the slider.">
+        Title="Externally driven state sequence" HorizontalContentAlignment="Stretch"
+        Description="SequenceMotionController has no player. Drag the Slider to supply Progress directly and sample the four declarative stops in either direction.">
         <StackPanel Spacing="16">
-          <Grid ColumnDefinitions="Auto,Auto,*,Auto">
-            <Button
-              Classes="Secondary Compact Uniform Rounded" Width="36"
-              shadui:ButtonAssist.Icon="{LucideIconContent ChevronLeft}"
-              shadui:ButtonAssist.IconSize="16" Click="OnPreviousClick"
-              ToolTip.Tip="Previous state"/>
-            <Button
-              Classes="Secondary Compact Uniform Rounded" Grid.Column="1"
-              Width="36" Margin="8,0,0,0"
-              shadui:ButtonAssist.Icon="{LucideIconContent ChevronRight}"
-              shadui:ButtonAssist.IconSize="16" Click="OnNextClick"
-              ToolTip.Tip="Next state"/>
-            <Slider
-              x:Name="PoseSlider" Grid.Column="2"
-              Margin="16,0" VerticalAlignment="Center"
-              Maximum="1" Minimum="0"
-              TickFrequency="0.3333333333333333"
-              ValueChanged="OnPoseSliderValueChanged"/>
-            <Button
-              Classes="Secondary" Grid.Column="3"
-              Click="OnRandomClick" Content="Random"/>
-          </Grid>
+          <Slider
+            x:Name="PoseSlider" LargeChange="0.1"
+            Maximum="1" Minimum="0"
+            SmallChange="0.01" TickFrequency="0.3333333333333333"
+            ValueChanged="OnPoseSliderValueChanged"/>
 
           <Grid ColumnDefinitions="*,*,*,*">
             <TextBlock
@@ -81,20 +96,15 @@
             CornerRadius="8">
             <motion:MotionPanel ClipToBounds="True">
               <motion:MotionPanel.Controller>
-                <motion:SequenceMotionController
-                  Progress="{Binding #PoseSlider.Value}">
+                <motion:SequenceMotionController Progress="{Binding #PoseSlider.Value}">
                   <motion:MotionStop
-                    State="Orbit"
-                    Offset="0"/>
+                    State="Orbit" Offset="0"/>
                   <motion:MotionStop
-                    State="Columns"
-                    Offset="0.3333333333333333"/>
+                    State="Columns" Offset="0.3333333333333333"/>
                   <motion:MotionStop
-                    State="Focus"
-                    Offset="0.6666666666666666"/>
+                    State="Focus" Offset="0.6666666666666666"/>
                   <motion:MotionStop
-                    State="Stack"
-                    Offset="1"/>
+                    State="Stack" Offset="1"/>
                 </motion:SequenceMotionController>
               </motion:MotionPanel.Controller>
 
@@ -216,7 +226,488 @@
                     FontSize="20" FontWeight="SemiBold"
                     Text="Delta"/>
                   <TextBlock
-                    Text="No state belongs to the panel." TextWrapping="Wrap"/>
+                    Text="No clock belongs to the panel." TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+            </motion:MotionPanel>
+          </Border>
+        </StackPanel>
+      </controls:DemoExample>
+
+      <controls:DemoExample
+        Title="Authored timeline and player transport" HorizontalContentAlignment="Stretch"
+        Description="TimelineMotionController evaluates absolute KeyTime values. Scrub at any moment, pause and resume the controller-owned player, or enable Loop to replay this closed layout sequence.">
+        <StackPanel Spacing="16">
+          <Grid
+            ColumnDefinitions="40,*,Auto,Auto" ColumnSpacing="12">
+            <Grid
+              Width="40" Height="40">
+              <Button
+                x:Name="TimelinePlayButton" Classes="Primary Compact Uniform Rounded"
+                shadui:ButtonAssist.Icon="{LucideIconContent Play}"
+                shadui:ButtonAssist.IconSize="16" Click="OnTimelinePlayClick"
+                ToolTip.Tip="Play or resume"/>
+              <Button
+                x:Name="TimelinePauseButton" Classes="Primary Compact Uniform Rounded"
+                shadui:ButtonAssist.Icon="{LucideIconContent Pause}"
+                shadui:ButtonAssist.IconSize="16" Click="OnTimelinePauseClick"
+                IsVisible="False" ToolTip.Tip="Pause"/>
+            </Grid>
+            <Slider
+              x:Name="TimelineSlider" Grid.Column="1"
+              VerticalAlignment="Center" LargeChange="0.5"
+              Maximum="7" Minimum="0"
+              SmallChange="0.1" TickFrequency="1"
+              ValueChanged="OnTimelineSliderValueChanged"/>
+            <TextBlock
+              x:Name="TimelineTimeLabel" Grid.Column="2"
+              MinWidth="96" VerticalAlignment="Center"
+              FontFamily="Cascadia Mono,Consolas"
+              Foreground="{DynamicResource MutedColor}"
+              Text="00:00.0 / 00:07.0"/>
+            <CheckBox
+              x:Name="TimelineLoopCheckBox" Grid.Column="3"
+              VerticalAlignment="Center" Content="Loop"/>
+          </Grid>
+
+          <Grid ColumnDefinitions="*,*,*,*,*">
+            <TextBlock
+              FontSize="11"
+              Foreground="{DynamicResource MutedColor}"
+              Text="SEED · 0.0"/>
+            <TextBlock
+              Grid.Column="1" FontSize="11"
+              Foreground="{DynamicResource MutedColor}"
+              Text="CONSTELLATION · 1.4" TextAlignment="Center"/>
+            <TextBlock
+              Grid.Column="2" FontSize="11"
+              Foreground="{DynamicResource MutedColor}"
+              Text="STREAM · 3.2" TextAlignment="Center"/>
+            <TextBlock
+              Grid.Column="3" FontSize="11"
+              Foreground="{DynamicResource MutedColor}"
+              Text="FOCUS · 5.2" TextAlignment="Center"/>
+            <TextBlock
+              Grid.Column="4" FontSize="11"
+              Foreground="{DynamicResource MutedColor}"
+              Text="SEED · 7.0" TextAlignment="Right"/>
+          </Grid>
+
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock
+              x:Name="TimelineStateLabel" FontWeight="SemiBold"
+              Text="Seed"/>
+            <TextBlock
+              Grid.Column="1"
+              Foreground="{DynamicResource MutedColor}"
+              Text="Destination keyframes own easing"/>
+          </Grid>
+
+          <Border
+            Height="472" Padding="16"
+            Background="#FF080D18" BorderBrush="#FF27334A"
+            BorderThickness="1" ClipToBounds="True"
+            CornerRadius="12">
+            <motion:MotionPanel
+              x:Name="TimelinePanel" ClipToBounds="True">
+              <motion:MotionPanel.Controller>
+                <motion:TimelineMotionController x:Name="TimelineController">
+                  <motion:MotionKeyFrame
+                    KeyTime="0:0:0" State="Seed"/>
+                  <motion:MotionKeyFrame
+                    Easing="CubicEaseOut" KeyTime="0:0:1.4"
+                    State="Constellation"/>
+                  <motion:MotionKeyFrame
+                    Easing="CubicEaseInOut" KeyTime="0:0:3.2"
+                    State="Stream"/>
+                  <motion:MotionKeyFrame
+                    Easing="CubicEaseInOut" KeyTime="0:0:5.2"
+                    State="Focus"/>
+                  <motion:MotionKeyFrame
+                    Easing="CubicEaseInOut" KeyTime="0:0:7"
+                    State="Seed"/>
+                </motion:TimelineMotionController>
+              </motion:MotionPanel.Controller>
+
+              <motion:MotionPanel.States>
+                <motion:MotionState Key="Seed">
+                  <motion:MotionState.Template>
+                    <DataTemplate>
+                      <Grid>
+                        <motion:MotionSlot
+                          Width="280" Height="280"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Opacity="0.32" RenderTransform="scale(0.72) rotate(0deg)"
+                          RenderTransformOrigin="50%,50%" Target="TimelineHalo"
+                          ZIndex="0"/>
+                        <motion:MotionSlot
+                          Width="168" Height="96"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Opacity="0.12" RenderTransform="scale(0.72) rotate(-10deg)"
+                          RenderTransformOrigin="50%,50%" Target="SignalAlpha"
+                          ZIndex="1"/>
+                        <motion:MotionSlot
+                          Width="168" Height="96"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Opacity="0.08" RenderTransform="scale(0.64) rotate(8deg)"
+                          RenderTransformOrigin="50%,50%" Target="SignalBeta"
+                          ZIndex="1"/>
+                        <motion:MotionSlot
+                          Width="168" Height="96"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Opacity="0.9" RenderTransform="scale(0.56) rotate(-6deg)"
+                          RenderTransformOrigin="50%,50%" Target="SignalGamma"
+                          ZIndex="2"/>
+                        <motion:MotionSlot
+                          Width="168" Height="96"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Opacity="0" RenderTransform="scale(0.56) rotate(-6deg)"
+                          RenderTransformOrigin="50%,50%" Target="SignalGammaDetails"
+                          ZIndex="3"/>
+                        <motion:MotionSlot
+                          Width="288" Height="160"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          x:SetterTargetType="Border" Opacity="0.9"
+                          RenderTransform="scale(0.92) rotate(0deg)" RenderTransformOrigin="50%,50%"
+                          Target="TimelineCore" ZIndex="4">
+                          <Setter Property="Background" Value="#FF1D2A46"/>
+                          <Setter Property="BorderBrush" Value="#FF5277B7"/>
+                          <Setter Property="CornerRadius" Value="28"/>
+                        </motion:MotionSlot>
+                        <motion:MotionSlot
+                          Margin="0,0,0,16" HorizontalAlignment="Center"
+                          VerticalAlignment="Bottom" Opacity="0.72"
+                          Target="TimelineStatus" ZIndex="5"/>
+                      </Grid>
+                    </DataTemplate>
+                  </motion:MotionState.Template>
+                </motion:MotionState>
+
+                <motion:MotionState Key="Constellation">
+                  <motion:MotionState.Template>
+                    <DataTemplate>
+                      <Grid
+                        ColumnDefinitions="*,1.1*,*" RowDefinitions="*,1.1*,*">
+                        <motion:MotionSlot
+                          Grid.RowSpan="3" Grid.ColumnSpan="3"
+                          Margin="56" Opacity="0.72"
+                          RenderTransform="scale(1) rotate(90deg)" RenderTransformOrigin="50%,50%"
+                          Target="TimelineHalo" ZIndex="0"/>
+                        <motion:MotionSlot
+                          Width="168" Height="96"
+                          Margin="8" HorizontalAlignment="Left"
+                          VerticalAlignment="Top" RenderTransform="scale(1) rotate(-4deg)"
+                          RenderTransformOrigin="50%,50%" Target="SignalAlpha"
+                          ZIndex="1"/>
+                        <motion:MotionSlot
+                          Grid.Column="2" Width="168"
+                          Height="96" Margin="8"
+                          HorizontalAlignment="Right" VerticalAlignment="Top"
+                          RenderTransform="scale(1) rotate(5deg)" RenderTransformOrigin="50%,50%"
+                          Target="SignalBeta" ZIndex="1"/>
+                        <motion:MotionSlot
+                          Grid.Row="2" Grid.Column="1"
+                          Width="168" Height="96"
+                          Margin="8" HorizontalAlignment="Center"
+                          VerticalAlignment="Bottom" Opacity="0.9"
+                          RenderTransform="scale(1) rotate(-2deg)" RenderTransformOrigin="50%,50%"
+                          Target="SignalGamma" ZIndex="2"/>
+                        <motion:MotionSlot
+                          Grid.Row="2" Grid.Column="1"
+                          Width="168" Height="96"
+                          Margin="8" HorizontalAlignment="Center"
+                          VerticalAlignment="Bottom" Opacity="0"
+                          RenderTransform="scale(1) rotate(-2deg)" RenderTransformOrigin="50%,50%"
+                          Target="SignalGammaDetails" ZIndex="3"/>
+                        <motion:MotionSlot
+                          Grid.Row="1" Grid.Column="1"
+                          Margin="8" x:SetterTargetType="Border"
+                          Opacity="0.9" RenderTransform="scale(1) rotate(0deg)"
+                          RenderTransformOrigin="50%,50%" Target="TimelineCore"
+                          ZIndex="4">
+                          <Setter Property="Background" Value="#FF202E50"/>
+                          <Setter Property="BorderBrush" Value="#FF6B8ED0"/>
+                          <Setter Property="CornerRadius" Value="20"/>
+                        </motion:MotionSlot>
+                        <motion:MotionSlot
+                          Grid.Row="2" Grid.Column="2"
+                          Margin="8" HorizontalAlignment="Right"
+                          VerticalAlignment="Bottom" Target="TimelineStatus"
+                          ZIndex="5"/>
+                      </Grid>
+                    </DataTemplate>
+                  </motion:MotionState.Template>
+                </motion:MotionState>
+
+                <motion:MotionState Key="Stream">
+                  <motion:MotionState.Template>
+                    <DataTemplate>
+                      <Grid
+                        ColumnDefinitions="1.45*,*" ColumnSpacing="12"
+                        RowDefinitions="*,Auto" RowSpacing="12">
+                        <motion:MotionSlot
+                          Grid.RowSpan="2" Margin="24"
+                          Opacity="0.48" RenderTransform="scale(1.08) rotate(180deg)"
+                          RenderTransformOrigin="50%,50%" Target="TimelineHalo"
+                          ZIndex="0"/>
+                        <motion:MotionSlot
+                          Margin="16" x:SetterTargetType="Border"
+                          Opacity="0.9" RenderTransform="scale(1) rotate(-2deg)"
+                          RenderTransformOrigin="50%,50%" Target="TimelineCore"
+                          ZIndex="4">
+                          <Setter Property="Background" Value="#FF273251"/>
+                          <Setter Property="BorderBrush" Value="#FF7891C6"/>
+                          <Setter Property="CornerRadius" Value="16"/>
+                        </motion:MotionSlot>
+                        <Grid
+                          Grid.Column="1" Margin="4"
+                          VerticalAlignment="Center" RowDefinitions="96,96,96"
+                          RowSpacing="12" ZIndex="1">
+                          <motion:MotionSlot
+                            Height="96" RenderTransform="scale(1) rotate(0deg)"
+                            RenderTransformOrigin="50%,50%" Target="SignalAlpha"
+                            ZIndex="1"/>
+                          <motion:MotionSlot
+                            Grid.Row="1" Height="96"
+                            RenderTransform="scale(1) rotate(0deg)" RenderTransformOrigin="50%,50%"
+                            Target="SignalBeta" ZIndex="1"/>
+                          <motion:MotionSlot
+                            Grid.Row="2" Height="96"
+                            Opacity="0.9" RenderTransform="scale(1) rotate(0deg)"
+                            RenderTransformOrigin="50%,50%" Target="SignalGamma"
+                            ZIndex="2"/>
+                          <motion:MotionSlot
+                            Grid.Row="2" Height="96"
+                            Opacity="0" RenderTransform="scale(1) rotate(0deg)"
+                            RenderTransformOrigin="50%,50%" Target="SignalGammaDetails"
+                            ZIndex="3"/>
+                        </Grid>
+                        <motion:MotionSlot
+                          Grid.Row="1" Grid.ColumnSpan="2"
+                          HorizontalAlignment="Left" Target="TimelineStatus"
+                          ZIndex="5"/>
+                      </Grid>
+                    </DataTemplate>
+                  </motion:MotionState.Template>
+                </motion:MotionState>
+
+                <motion:MotionState Key="Focus">
+                  <motion:MotionState.Template>
+                    <DataTemplate>
+                      <Grid
+                        ColumnDefinitions="0.8*,1.6*" ColumnSpacing="12"
+                        RowDefinitions="*,*,*,Auto" RowSpacing="12">
+                        <motion:MotionSlot
+                          Grid.RowSpan="3" Grid.Column="1"
+                          Margin="32" Opacity="0.64"
+                          RenderTransform="scale(1.12) rotate(270deg)" RenderTransformOrigin="50%,50%"
+                          Target="TimelineHalo" ZIndex="0"/>
+                        <motion:MotionSlot
+                          Margin="4" x:SetterTargetType="Border"
+                          Opacity="0.9" RenderTransform="scale(0.96) rotate(-2deg)"
+                          RenderTransformOrigin="50%,50%" Target="TimelineCore"
+                          ZIndex="4">
+                          <Setter Property="Background" Value="#FF242C44"/>
+                          <Setter Property="BorderBrush" Value="#FF566783"/>
+                          <Setter Property="CornerRadius" Value="12"/>
+                        </motion:MotionSlot>
+                        <motion:MotionSlot
+                          Grid.Row="1" Margin="4"
+                          Opacity="0.82" RenderTransform="scale(0.96) rotate(0deg)"
+                          RenderTransformOrigin="50%,50%" Target="SignalAlpha"
+                          ZIndex="1"/>
+                        <motion:MotionSlot
+                          Grid.Row="2" Margin="4"
+                          Opacity="0.64" RenderTransform="scale(0.92) rotate(0deg)"
+                          RenderTransformOrigin="50%,50%" Target="SignalBeta"
+                          ZIndex="1"/>
+                        <motion:MotionSlot
+                          Grid.RowSpan="3" Grid.Column="1"
+                          Margin="16" x:SetterTargetType="Border"
+                          Opacity="0.9" RenderTransform="scale(1.04) rotate(2deg)"
+                          RenderTransformOrigin="50%,50%" Target="SignalGamma"
+                          ZIndex="2">
+                          <Setter Property="Background" Value="#FF3B2852"/>
+                          <Setter Property="BorderBrush" Value="#FF9D6DCF"/>
+                          <Setter Property="CornerRadius" Value="24"/>
+                        </motion:MotionSlot>
+                        <motion:MotionSlot
+                          Grid.RowSpan="3" Grid.Column="1"
+                          Margin="16" Opacity="0.9"
+                          RenderTransform="scale(1.04) rotate(2deg)" RenderTransformOrigin="50%,50%"
+                          Target="SignalGammaDetails" ZIndex="3"/>
+                        <motion:MotionSlot
+                          Grid.Row="3" Grid.ColumnSpan="2"
+                          HorizontalAlignment="Right" Target="TimelineStatus"
+                          ZIndex="5"/>
+                      </Grid>
+                    </DataTemplate>
+                  </motion:MotionState.Template>
+                </motion:MotionState>
+              </motion:MotionPanel.States>
+
+              <Border
+                x:Name="TimelineHalo" Background="#0F79A7FF"
+                BorderBrush="#667CA8FF" BorderThickness="1"
+                CornerRadius="999">
+                <Border
+                  Margin="24" BorderBrush="#337CA8FF"
+                  BorderThickness="1" CornerRadius="999"/>
+              </Border>
+
+              <Border
+                x:Name="TimelineCore" Classes="TimelineTile">
+                <Grid
+                  ColumnDefinitions="Auto,*" ColumnSpacing="12"
+                  RowDefinitions="Auto,*,Auto" RowSpacing="8">
+                  <Border
+                    Width="40" Height="40"
+                    Background="#FF35598E" CornerRadius="12">
+                    <lucide:LucideIcon
+                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                      Foreground="White" Kind="Sparkles"
+                      Size="20" StrokeWidth="1.8"/>
+                  </Border>
+                  <StackPanel
+                    Grid.Column="1" VerticalAlignment="Center"
+                    Spacing="2">
+                    <TextBlock
+                      Classes="TimelineKicker" Text="MOTION CORE"/>
+                    <TextBlock
+                      FontSize="20" FontWeight="SemiBold"
+                      Foreground="White" Text="Constellation"/>
+                  </StackPanel>
+                  <TextBlock
+                    Classes="TimelineBody" Grid.Row="1"
+                    Grid.ColumnSpan="2" Text="One stable visual identity, authored across absolute key times."/>
+                  <Grid
+                    Grid.Row="2" Grid.ColumnSpan="2"
+                    ColumnDefinitions="*,Auto">
+                    <Border
+                      Height="4" VerticalAlignment="Center"
+                      Background="#FF34415B" CornerRadius="2">
+                      <Border
+                        Width="112" HorizontalAlignment="Left"
+                        Background="#FF7CA8FF" CornerRadius="2"/>
+                    </Border>
+                    <TextBlock
+                      Classes="TimelineKicker" Grid.Column="1"
+                      Margin="12,0,0,0" Text="FRAME SYNC"/>
+                  </Grid>
+                </Grid>
+              </Border>
+
+              <Border
+                x:Name="SignalAlpha" Classes="TimelineSignal">
+                <Grid
+                  ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                  <lucide:LucideIcon
+                    VerticalAlignment="Center" Foreground="#FF6FB7FF"
+                    Kind="Radio" Size="20"
+                    StrokeWidth="1.8"/>
+                  <StackPanel
+                    Grid.Column="1" Spacing="2">
+                    <TextBlock
+                      Classes="TimelineKicker" Text="SIGNAL A"/>
+                    <TextBlock
+                      FontWeight="SemiBold" Foreground="White"
+                      Text="Position"/>
+                  </StackPanel>
+                </Grid>
+              </Border>
+
+              <Border
+                x:Name="SignalBeta" Classes="TimelineSignal">
+                <Grid
+                  ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                  <lucide:LucideIcon
+                    VerticalAlignment="Center" Foreground="#FF7FE0B6"
+                    Kind="Activity" Size="20"
+                    StrokeWidth="1.8"/>
+                  <StackPanel
+                    Grid.Column="1" Spacing="2">
+                    <TextBlock
+                      Classes="TimelineKicker" Text="SIGNAL B"/>
+                    <TextBlock
+                      FontWeight="SemiBold" Foreground="White"
+                      Text="Transform"/>
+                  </StackPanel>
+                </Grid>
+              </Border>
+
+              <Border
+                x:Name="SignalGamma" Classes="TimelineSignal">
+                <Grid
+                  ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                  <lucide:LucideIcon
+                    VerticalAlignment="Center" Foreground="#FFD797FF"
+                    Kind="Zap" Size="20"
+                    StrokeWidth="1.8"/>
+                  <StackPanel
+                    Grid.Column="1" Spacing="2">
+                    <TextBlock
+                      Classes="TimelineKicker" Text="SIGNAL C"/>
+                    <TextBlock
+                      FontWeight="SemiBold" Foreground="White"
+                      Text="Property"/>
+                  </StackPanel>
+                </Grid>
+              </Border>
+
+              <Border
+                x:Name="SignalGammaDetails" Padding="32,104,32,32"
+                Background="Transparent" ClipToBounds="True"
+                IsHitTestVisible="False">
+                <StackPanel
+                  VerticalAlignment="Bottom" Spacing="12">
+                  <TextBlock
+                    MaxWidth="440" FontSize="28"
+                    FontWeight="SemiBold" Foreground="White"
+                    Text="One pose. Every property." TextWrapping="Wrap"/>
+                  <TextBlock
+                    MaxWidth="440" FontSize="14"
+                    Foreground="#FFD8C9E8" LineHeight="22"
+                    Text="Layout bounds, opacity, brushes, corners, and transforms are sampled through one interpolation pipeline while the real control keeps its identity." TextWrapping="Wrap"/>
+                  <StackPanel
+                    Orientation="Horizontal" Spacing="8">
+                    <Border
+                      Padding="8,4" Background="#267F52A8"
+                      CornerRadius="8">
+                      <TextBlock
+                        Classes="TimelineKicker" Foreground="#FFE5C8FF"
+                        Text="LAYOUT"/>
+                    </Border>
+                    <Border
+                      Padding="8,4" Background="#267F52A8"
+                      CornerRadius="8">
+                      <TextBlock
+                        Classes="TimelineKicker" Foreground="#FFE5C8FF"
+                        Text="TRANSFORM"/>
+                    </Border>
+                    <Border
+                      Padding="8,4" Background="#267F52A8"
+                      CornerRadius="8">
+                      <TextBlock
+                        Classes="TimelineKicker" Foreground="#FFE5C8FF"
+                        Text="STYLE"/>
+                    </Border>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <Border
+                x:Name="TimelineStatus" Padding="12,8"
+                Background="#D9141C2B" BorderBrush="#FF34415A"
+                BorderThickness="1" CornerRadius="16">
+                <StackPanel
+                  Orientation="Horizontal" Spacing="8">
+                  <Border
+                    Width="8" Height="8"
+                    VerticalAlignment="Center" Background="#FF7FE0B6"
+                    CornerRadius="4"/>
+                  <TextBlock
+                    Classes="TimelineKicker" VerticalAlignment="Center"
+                    Text="LIVE LAYOUT · NO SNAPSHOTS"/>
                 </StackPanel>
               </Border>
             </motion:MotionPanel>

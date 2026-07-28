@@ -175,6 +175,13 @@ public sealed class MotionSlot : Control
         {
             var property = setter.Property ?? throw new InvalidOperationException($"{nameof(MotionSlot)} contains a Setter without a Property.");
 
+            if (MotionLayout.IsLayoutProperty(property))
+            {
+                throw new InvalidOperationException(
+                    $"{nameof(MotionLayout)} property '{property.Name}' identifies an evaluated layout channel " +
+                    $"and cannot be defined by a {nameof(Setter)}.");
+            }
+
             if (property.IsDirect)
             {
                 throw new InvalidOperationException($"{nameof(MotionSlot)} cannot animate direct property '{property}'.");

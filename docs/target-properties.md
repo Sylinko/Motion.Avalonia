@@ -1,6 +1,7 @@
 # Target Properties
 
-Layout morphing already animates each target's position, width, height, and presence. A state can also provide endpoint values for Avalonia properties on the real target control.
+Layout morphing animates each target's position, size, and presence through the built-in `MotionLayout` channels. A
+state can also provide endpoint values for Avalonia properties on the real target control.
 
 There are two equivalent authoring forms:
 
@@ -8,6 +9,9 @@ There are two equivalent authoring forms:
 - a `Setter` for any supported styled property.
 
 Both forms enter the same property-evaluation and interpolation pipeline.
+
+Position, size, and presence are resolved outputs rather than setter values. Customize their interpolation through
+`MotionPanel.Interpolators`; see [Built-in Layout Channels](interpolators.md#built-in-layout-channels).
 
 ## Shortcuts
 
