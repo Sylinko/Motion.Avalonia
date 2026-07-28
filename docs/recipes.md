@@ -21,7 +21,7 @@ To make a target enter or leave, include its slot in one state and omit it from 
 <motion:MotionState Key="Closed">
     <DataTemplate>
         <Grid>
-            <motion:MotionSlot Target="Content" />
+            <motion:MotionSlot x:Name="Content" />
         </Grid>
     </DataTemplate>
 </motion:MotionState>
@@ -29,8 +29,8 @@ To make a target enter or leave, include its slot in one state and omit it from 
 <motion:MotionState Key="Open">
     <DataTemplate>
         <Grid ColumnDefinitions="*,320">
-            <motion:MotionSlot Target="Content" />
-            <motion:MotionSlot Target="Inspector"
+            <motion:MotionSlot x:Name="Content" />
+            <motion:MotionSlot x:Name="Inspector"
                                Grid.Column="1" />
         </Grid>
     </DataTemplate>
@@ -109,7 +109,7 @@ See [OverviewPage](../src/Motion.Avalonia.Demo/Views/OverviewPage.axaml).
 Use setters when the state changes styled properties:
 
 ```xml
-<motion:MotionSlot Target="Card"
+<motion:MotionSlot x:Name="Card"
                    Opacity="0.8">
     <Setter Property="Background"
             Value="#FF203B56" />
@@ -135,15 +135,15 @@ Express paint order in each state template using normal visual-tree order and `Z
 ```xml
 <!-- State A -->
 <Grid>
-    <motion:MotionSlot Target="Image" />
-    <motion:MotionSlot Target="Caption"
+    <motion:MotionSlot x:Name="Image" />
+    <motion:MotionSlot x:Name="Caption"
                        ZIndex="1" />
 </Grid>
 
 <!-- State B -->
 <Grid>
-    <motion:MotionSlot Target="Caption" />
-    <motion:MotionSlot Target="Image"
+    <motion:MotionSlot x:Name="Caption" />
+    <motion:MotionSlot x:Name="Image"
                        ZIndex="1" />
 </Grid>
 ```
@@ -158,7 +158,7 @@ Use layout constraints rather than coordinates:
 
 ```xml
 <Grid ColumnDefinitions="*,Auto,*">
-    <motion:MotionSlot Target="Card"
+    <motion:MotionSlot x:Name="Card"
                        Grid.Column="1"
                        Width="320"
                        MaxWidth="600" />

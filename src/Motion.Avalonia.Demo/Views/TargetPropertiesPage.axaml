@@ -54,14 +54,14 @@
                     <DataTemplate>
                       <Grid>
                         <motion:MotionSlot
-                          MaxWidth="624" HorizontalAlignment="Center"
-                          x:SetterTargetType="Border" Target="ProjectForm">
+                          x:Name="ProjectForm" MaxWidth="624"
+                          HorizontalAlignment="Center" x:SetterTargetType="Border">
                           <Setter Property="Background" Value="#FF203B56"/>
                           <Setter Property="BorderBrush" Value="#FF315E86"/>
                         </motion:MotionSlot>
                         <motion:MotionSlot
-                          MaxWidth="624" HorizontalAlignment="Center"
-                          Opacity="0" Target="ProjectReview"/>
+                          x:Name="ProjectReview" MaxWidth="624"
+                          HorizontalAlignment="Center" Opacity="0"/>
                       </Grid>
                     </DataTemplate>
                   </motion:MotionState.Template>
@@ -72,12 +72,12 @@
                       <Grid
                         ColumnDefinitions="1.25*,*" ColumnSpacing="16">
                         <motion:MotionSlot
-                          x:SetterTargetType="Border" Target="ProjectForm">
+                          x:Name="ProjectForm" x:SetterTargetType="Border">
                           <Setter Property="Background" Value="#FF3F294F"/>
                           <Setter Property="BorderBrush" Value="#FF754B8D"/>
                         </motion:MotionSlot>
                         <motion:MotionSlot
-                          Grid.Column="1" Target="ProjectReview"/>
+                          x:Name="ProjectReview" Grid.Column="1"/>
                       </Grid>
                     </DataTemplate>
                   </motion:MotionState.Template>

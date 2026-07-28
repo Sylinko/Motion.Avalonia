@@ -12,7 +12,7 @@ Targets in different ancestors, clipping regions, pages, windows, or top levels 
 
 ### Targets need stable unique names
 
-Each direct child must have a non-empty, unique `x:Name`. `MotionSlot.Target` uses that exact case-sensitive name.
+Each direct child must have a non-empty, unique `x:Name`. Its `MotionSlot` uses the same exact, case-sensitive `x:Name`.
 
 Names are the identity contract. Do not replace a target control merely to represent another state.
 
@@ -46,9 +46,9 @@ Applications with keyboard-heavy flows should explicitly move focus when changin
 | --- | --- | --- |
 | State changes immediately | Zero duration, null easing, or first presentation | Check controller timing; initial presentation intentionally snaps |
 | Nothing is visible | Controller pose refers to no matching state | Compare `State` or pose keys with `MotionState.Key` |
-| A target is missing | State intentionally or accidentally omits its slot | Check `MotionSlot.Target` spelling and template branch |
-| “No direct child has that name” | Slot target cannot be resolved | Add a direct child with the matching `x:Name` |
-| Duplicate target exception | Repeated child name or repeated slot in one state | Keep child names and per-state slot targets unique |
+| A target is missing | State intentionally or accidentally omits its slot | Check the slot's `x:Name` and template branch |
+| “No direct child has that name” | Slot target cannot be resolved | Add a direct child with the same `x:Name` |
+| Duplicate target exception | Repeated child name or repeated slot name in one state | Keep child and per-state slot names unique |
 | Property jumps at halfway | No compatible animator | Add a typed interpolator or accept discrete behavior |
 | Setter value appears ignored | Property is invalid, direct, duplicated, or not registered on the target | Read the complete exception and inspect the target type |
 | Resize changes the target abruptly | The controller currently presents a state pose | A static state follows live layout immediately by design |

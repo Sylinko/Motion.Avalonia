@@ -237,7 +237,7 @@ public sealed class LayoutInterpolationTests
         HorizontalAlignment horizontalAlignment) =>
         new()
         {
-            Target = target,
+            Name = target,
             Width = width,
             Height = 40,
             HorizontalAlignment = horizontalAlignment,

@@ -747,7 +747,7 @@ public sealed class MotionPanelTests
         HorizontalAlignment horizontalAlignment) =>
         new()
         {
-            Target = target,
+            Name = target,
             Width = width,
             Height = 40,
             HorizontalAlignment = horizontalAlignment,

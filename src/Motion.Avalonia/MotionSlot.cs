@@ -6,7 +6,6 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Metadata;
 using Avalonia.Styling;
-using Avalonia.VisualTree;
 
 namespace Motion.Avalonia;
 
@@ -14,6 +13,9 @@ namespace Motion.Avalonia;
 /// Represents the live layout and property proxy for a direct child of a <see cref="MotionPanel"/>.
 /// </summary>
 /// <remarks>
+/// The slot's <see cref="StyledElement.Name"/> is its stable identity and must match the
+/// <c>x:Name</c> of the represented direct child.
+///
 /// Layout properties such as <see cref="Layoutable.Margin"/> and alignment arrange the slot
 /// itself. The following shortcut properties are copied into the target-property endpoint:
 /// <see cref="Visual.Opacity"/>, <see cref="Visual.ClipToBounds"/>,
@@ -29,8 +31,8 @@ namespace Motion.Avalonia;
 /// A shortcut and a setter participate in the same pose evaluation:
 /// <code><![CDATA[
 /// <motion:MotionSlot
+///   x:Name="Card"
 ///   x:SetterTargetType="Border"
-///   Target="Card"
 ///   Opacity="0.75"
 ///   MaxWidth="420">
 ///   <Setter Property="CornerRadius" Value="16"/>
@@ -39,21 +41,6 @@ namespace Motion.Avalonia;
 /// </example>
 public sealed class MotionSlot : Control
 {
-    /// <summary>
-    /// Defines the <see cref="Target"/> property.
-    /// </summary>
-    public static readonly StyledProperty<string?> TargetProperty =
-        AvaloniaProperty.Register<MotionSlot, string?>(nameof(Target));
-
-    /// <summary>
-    /// Gets or sets the name of the represented direct child.
-    /// </summary>
-    public string? Target
-    {
-        get => GetValue(TargetProperty);
-        set => SetValue(TargetProperty, value);
-    }
-
     /// <summary>
     /// Gets the additional target property values represented by this layout state.
     /// </summary>
@@ -96,13 +83,9 @@ public sealed class MotionSlot : Control
 
     private static readonly HashSet<AvaloniaProperty> ShortcutPropertySet = [.. ShortcutProperties];
 
+    private MotionPanelHost? _host;
     private MotionStyleScope? _styleScope;
     private StyledElement? _styleTarget;
-
-    static MotionSlot()
-    {
-        AffectsMeasure<MotionSlot>(TargetProperty);
-    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MotionSlot"/> class.
@@ -115,19 +98,31 @@ public sealed class MotionSlot : Control
 
     internal IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>> CaptureEndpointValues(StyledElement target)
     {
-        if (_styleScope is null || !ReferenceEquals(_styleTarget, target))
+        EnsureEndpointScope(target);
+        return _styleScope!.CaptureValues();
+    }
+
+    internal void AttachHost(MotionPanelHost host)
+    {
+        if (_host is not null && !ReferenceEquals(_host, host))
         {
-            ReleaseEndpointScope();
-            _styleTarget = target;
-            _styleScope = new MotionStyleScope(
-                target,
-                TargetStyles,
-                CreateRootDefinitions(),
-                OnStyleEndpointChanged,
-                OnTargetStructureChanged);
+            throw new InvalidOperationException($"{nameof(MotionSlot)} '{Name}' already belongs to another state host.");
         }
 
-        return _styleScope.CaptureValues();
+        _host = host;
+    }
+
+    internal void BindTarget(StyledElement target) => EnsureEndpointScope(target);
+
+    internal void DetachHost(MotionPanelHost host)
+    {
+        if (!ReferenceEquals(_host, host))
+        {
+            return;
+        }
+
+        ReleaseEndpointScope();
+        _host = null;
     }
 
     internal int GetStateZIndex(StyledElement target)
@@ -153,8 +148,7 @@ public sealed class MotionSlot : Control
     /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)
     {
-        var scene = this.GetVisualAncestors().OfType<MotionPanelHost>().FirstOrDefault();
-        return scene?.MeasureTarget(Target, availableSize) ?? default;
+        return _host?.MeasureTarget(this, availableSize) ?? default;
     }
 
     /// <inheritdoc />
@@ -162,7 +156,7 @@ public sealed class MotionSlot : Control
     {
         base.OnPropertyChanged(change);
 
-        if (ShortcutPropertySet.Contains(change.Property) || change.Property == TargetProperty)
+        if (ShortcutPropertySet.Contains(change.Property))
         {
             ReleaseEndpointScope();
             EndpointChanged?.Invoke(this, EventArgs.Empty);
@@ -180,6 +174,23 @@ public sealed class MotionSlot : Control
     {
         ReleaseEndpointScope();
         EndpointChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void EnsureEndpointScope(StyledElement target)
+    {
+        if (_styleScope is not null && ReferenceEquals(_styleTarget, target))
+        {
+            return;
+        }
+
+        ReleaseEndpointScope();
+        _styleTarget = target;
+        _styleScope = new MotionStyleScope(
+            target,
+            TargetStyles,
+            CreateRootDefinitions(),
+            OnStyleEndpointChanged,
+            OnTargetStructureChanged);
     }
 
     private IReadOnlyList<MotionEndpointDefinition> CreateRootDefinitions()
@@ -204,7 +215,7 @@ public sealed class MotionSlot : Control
             if (!properties.Add(property))
             {
                 throw new InvalidOperationException(
-                    $"{nameof(MotionSlot)} for target '{Target}' defines property '{property}' both directly and with a Setter.");
+                    $"{nameof(MotionSlot)} '{Name}' defines property '{property}' both directly and with a Setter.");
             }
 
             result.Add(new MotionEndpointDefinition(property, GetValue(property)));
@@ -229,10 +240,8 @@ public sealed class MotionSlot : Control
 
     private static AvaloniaProperty ValidateSetter(Setter setter)
     {
-        var property = setter.Property ??
-            throw new InvalidOperationException($"{nameof(MotionSlot)} contains a Setter without a Property.");
-
-        MotionStyleCompiler.ValidateProperty(property);
+        var property = setter.Property ?? throw new InvalidOperationException($"{nameof(MotionSlot)} contains a Setter without a Property.");
+        MotionStyleProxy.ValidateProperty(property);
         return property;
     }
 

@@ -93,6 +93,7 @@ public sealed class TimelineMotionController : PlayerDrivenMotionController
 
     private readonly HashSet<MotionKeyFrame> _attachedKeyFrames = [];
     private readonly List<MotionKeyFrame> _orderedKeyFrames = [];
+    private int _initializationDepth;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TimelineMotionController"/> class.
@@ -104,7 +105,41 @@ public sealed class TimelineMotionController : PlayerDrivenMotionController
         PublishPose();
     }
 
-    private void OnTimeChanged() => PublishPose();
+    /// <inheritdoc />
+    public override void BeginInit()
+    {
+        base.BeginInit();
+        _initializationDepth++;
+    }
+
+    /// <inheritdoc />
+    public override void EndInit()
+    {
+        if (_initializationDepth == 0)
+        {
+            base.EndInit();
+            return;
+        }
+
+        var completesBatch = _initializationDepth == 1;
+        if (completesBatch)
+        {
+            SynchronizeKeyFrames();
+            RebuildOrderedKeyFrames();
+            OnTimelineStructureChanged();
+        }
+
+        _initializationDepth--;
+        base.EndInit();
+    }
+
+    private void OnTimeChanged()
+    {
+        if (_initializationDepth == 0)
+        {
+            PublishPose();
+        }
+    }
 
     /// <inheritdoc />
     protected override void OnPlayerTick(TimeSpan time, TimeSpan deltaTime)
@@ -149,6 +184,11 @@ public sealed class TimelineMotionController : PlayerDrivenMotionController
 
     private void OnKeyFramesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        if (_initializationDepth > 0)
+        {
+            return;
+        }
+
         SynchronizeKeyFrames();
         RebuildOrderedKeyFrames();
         OnTimelineStructureChanged();
@@ -175,6 +215,11 @@ public sealed class TimelineMotionController : PlayerDrivenMotionController
 
     private void OnKeyFramePropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
+        if (_initializationDepth > 0)
+        {
+            return;
+        }
+
         if (e.Property == MotionKeyFrame.KeyTimeProperty)
         {
             RebuildOrderedKeyFrames();

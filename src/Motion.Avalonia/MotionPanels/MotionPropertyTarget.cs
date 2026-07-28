@@ -8,9 +8,11 @@ namespace Motion.Avalonia;
 /// </summary>
 internal sealed class MotionPropertyTarget(
     StyledElement target,
-    MotionPanelItemContainer? layoutContainer) : IDisposable
+    MotionPanelItemContainer? layoutContainer
+) : IDisposable
 {
     private readonly Dictionary<AvaloniaProperty, MotionPropertyOutput> _outputs = [];
+    private readonly List<AvaloniaProperty> _obsoleteProperties = [];
 
     public object? GetBaseValue(AvaloniaProperty property) =>
         GetOrCreateOutput(property).BaseValue;
@@ -22,9 +24,21 @@ internal sealed class MotionPropertyTarget(
             GetOrCreateOutput(pair.Key).Publish(pair.Value);
         }
 
-        foreach (var property in _outputs.Keys.Where(property => !values.ContainsKey(property)).ToArray())
+        _obsoleteProperties.Clear();
+        foreach (var property in _outputs.Keys)
         {
-            if (_outputs.Remove(property, out var output)) output.Dispose();
+            if (!values.ContainsKey(property))
+            {
+                _obsoleteProperties.Add(property);
+            }
+        }
+
+        foreach (var property in _obsoleteProperties)
+        {
+            if (_outputs.Remove(property, out var output))
+            {
+                output.Dispose();
+            }
         }
     }
 
@@ -99,19 +113,23 @@ internal sealed class MotionPropertyTarget(
 
     private sealed class MotionValueSubject : IObservable<object?>
     {
-        private readonly List<IObserver<object?>> _observers = [];
+        private IObserver<object?>[] _observers = [];
         private object? _value;
         private bool _hasValue;
 
         public IDisposable Subscribe(IObserver<object?> observer)
         {
-            _observers.Add(observer);
+            var observers = new IObserver<object?>[_observers.Length + 1];
+            _observers.CopyTo(observers, 0);
+            observers[^1] = observer;
+            _observers = observers;
+
             if (_hasValue)
             {
                 observer.OnNext(_value);
             }
 
-            return new Subscription(_observers, observer);
+            return new Subscription(this, observer);
         }
 
         public void Publish(object? value)
@@ -119,15 +137,41 @@ internal sealed class MotionPropertyTarget(
             _value = value;
             _hasValue = true;
 
-            foreach (var observer in _observers.ToArray())
+            foreach (var observer in _observers)
             {
                 observer.OnNext(value);
             }
         }
 
-        private sealed class Subscription(List<IObserver<object?>> observers, IObserver<object?> observer) : IDisposable
+        private void Unsubscribe(IObserver<object?> observer)
         {
-            public void Dispose() => observers.Remove(observer);
+            var index = Array.IndexOf(_observers, observer);
+            if (index < 0)
+            {
+                return;
+            }
+
+            if (_observers.Length == 1)
+            {
+                _observers = [];
+                return;
+            }
+
+            var observers = new IObserver<object?>[_observers.Length - 1];
+            Array.Copy(_observers, 0, observers, 0, index);
+            Array.Copy(_observers, index + 1, observers, index, _observers.Length - index - 1);
+            _observers = observers;
+        }
+
+        private sealed class Subscription(MotionValueSubject owner, IObserver<object?> observer) : IDisposable
+        {
+            private MotionValueSubject? _owner = owner;
+
+            public void Dispose()
+            {
+                _owner?.Unsubscribe(observer);
+                _owner = null;
+            }
         }
     }
 }

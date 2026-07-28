@@ -74,12 +74,12 @@
                     <DataTemplate>
                       <Grid>
                         <motion:MotionSlot
-                          MaxWidth="304" HorizontalAlignment="Center"
-                          VerticalAlignment="Center" Target="ProjectCard"/>
+                          x:Name="ProjectCard" MaxWidth="304"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         <motion:MotionSlot
-                          MaxWidth="304" HorizontalAlignment="Center"
-                          VerticalAlignment="Bottom" Opacity="0"
-                          Target="ProjectContext"/>
+                          x:Name="ProjectContext" MaxWidth="304"
+                          HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                          Opacity="0"/>
                       </Grid>
                     </DataTemplate>
                   </motion:MotionState.Template>
@@ -89,9 +89,9 @@
                     <DataTemplate>
                       <Grid
                         ColumnDefinitions="*,*" ColumnSpacing="16">
-                        <motion:MotionSlot Target="ProjectCard"/>
+                        <motion:MotionSlot x:Name="ProjectCard"/>
                         <motion:MotionSlot
-                          Grid.Column="1" Target="ProjectContext"/>
+                          x:Name="ProjectContext" Grid.Column="1"/>
                       </Grid>
                     </DataTemplate>
                   </motion:MotionState.Template>
@@ -102,8 +102,8 @@
                       <StackPanel
                         MaxWidth="768" HorizontalAlignment="Stretch"
                         Spacing="16">
-                        <motion:MotionSlot Target="ProjectCard"/>
-                        <motion:MotionSlot Target="ProjectContext"/>
+                        <motion:MotionSlot x:Name="ProjectCard"/>
+                        <motion:MotionSlot x:Name="ProjectContext"/>
                       </StackPanel>
                     </DataTemplate>
                   </motion:MotionState.Template>

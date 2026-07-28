@@ -114,13 +114,13 @@
                       <UniformGrid
                         Columns="2" Rows="2">
                         <motion:MotionSlot
-                          Margin="8" Target="AlphaTile"/>
+                          x:Name="AlphaTile" Margin="8"/>
                         <motion:MotionSlot
-                          Margin="8" Target="BetaTile"/>
+                          x:Name="BetaTile" Margin="8"/>
                         <motion:MotionSlot
-                          Margin="8" Target="GammaTile"/>
+                          x:Name="GammaTile" Margin="8"/>
                         <motion:MotionSlot
-                          Margin="8" Target="DeltaTile"/>
+                          x:Name="DeltaTile" Margin="8"/>
                       </UniformGrid>
                     </DataTemplate>
                   </motion:MotionState.Template>
@@ -130,13 +130,13 @@
                     <DataTemplate>
                       <UniformGrid Columns="4">
                         <motion:MotionSlot
-                          Margin="8" Target="AlphaTile"/>
+                          x:Name="AlphaTile" Margin="8"/>
                         <motion:MotionSlot
-                          Margin="8" Target="BetaTile"/>
+                          x:Name="BetaTile" Margin="8"/>
                         <motion:MotionSlot
-                          Margin="8" Target="GammaTile"/>
+                          x:Name="GammaTile" Margin="8"/>
                         <motion:MotionSlot
-                          Margin="8" Target="DeltaTile"/>
+                          x:Name="DeltaTile" Margin="8"/>
                       </UniformGrid>
                     </DataTemplate>
                   </motion:MotionState.Template>
@@ -147,16 +147,16 @@
                       <Grid
                         ColumnDefinitions="2*,*" ColumnSpacing="8">
                         <motion:MotionSlot
-                          Grid.Column="0" Margin="8"
-                          Target="AlphaTile"/>
+                          x:Name="AlphaTile" Grid.Column="0"
+                          Margin="8"/>
                         <UniformGrid
                           Grid.Column="1" Rows="3">
                           <motion:MotionSlot
-                            Margin="8" Target="BetaTile"/>
+                            x:Name="BetaTile" Margin="8"/>
                           <motion:MotionSlot
-                            Margin="8" Target="GammaTile"/>
+                            x:Name="GammaTile" Margin="8"/>
                           <motion:MotionSlot
-                            Margin="8" Target="DeltaTile"/>
+                            x:Name="DeltaTile" Margin="8"/>
                         </UniformGrid>
                       </Grid>
                     </DataTemplate>
@@ -167,13 +167,13 @@
                     <DataTemplate>
                       <UniformGrid Rows="4">
                         <motion:MotionSlot
-                          Margin="8" Target="AlphaTile"/>
+                          x:Name="AlphaTile" Margin="8"/>
                         <motion:MotionSlot
-                          Margin="8" Target="BetaTile"/>
+                          x:Name="BetaTile" Margin="8"/>
                         <motion:MotionSlot
-                          Margin="8" Target="GammaTile"/>
+                          x:Name="GammaTile" Margin="8"/>
                         <motion:MotionSlot
-                          Margin="8" Target="DeltaTile"/>
+                          x:Name="DeltaTile" Margin="8"/>
                       </UniformGrid>
                     </DataTemplate>
                   </motion:MotionState.Template>
@@ -337,28 +337,28 @@
                     <DataTemplate>
                       <Panel Margin="16">
                         <motion:MotionSlot
-                          Width="280" Height="280"
-                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                          Opacity="0.32" RenderTransform="scale(0.72) rotate(0deg)"
-                          RenderTransformOrigin="50%,50%" Target="TimelineHalo"
+                          x:Name="TimelineHalo" Width="280"
+                          Height="280" HorizontalAlignment="Center"
+                          VerticalAlignment="Center" Opacity="0.32"
+                          RenderTransform="scale(0.72) rotate(0deg)" RenderTransformOrigin="50%,50%"
                           ZIndex="0"/>
                         <motion:MotionSlot
-                          Width="168" Height="96"
-                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                          Opacity="0.12" RenderTransform="scale(0.72) rotate(-10deg)"
-                          RenderTransformOrigin="50%,50%" Target="SignalAlpha"
+                          x:Name="SignalAlpha" Width="168"
+                          Height="96" HorizontalAlignment="Center"
+                          VerticalAlignment="Center" Opacity="0.12"
+                          RenderTransform="scale(0.72) rotate(-10deg)" RenderTransformOrigin="50%,50%"
                           ZIndex="1"/>
                         <motion:MotionSlot
-                          Width="168" Height="96"
-                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                          Opacity="0.08" RenderTransform="scale(0.64) rotate(8deg)"
-                          RenderTransformOrigin="50%,50%" Target="SignalBeta"
+                          x:Name="SignalBeta" Width="168"
+                          Height="96" HorizontalAlignment="Center"
+                          VerticalAlignment="Center" Opacity="0.08"
+                          RenderTransform="scale(0.64) rotate(8deg)" RenderTransformOrigin="50%,50%"
                           ZIndex="1"/>
                         <motion:MotionSlot
-                          Width="168" Height="96"
-                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                          Opacity="0.9" RenderTransform="scale(0.56) rotate(-6deg)"
-                          RenderTransformOrigin="50%,50%" Target="SignalGamma"
+                          x:Name="SignalGamma" Width="168"
+                          Height="96" HorizontalAlignment="Center"
+                          VerticalAlignment="Center" Opacity="0.9"
+                          RenderTransform="scale(0.56) rotate(-6deg)" RenderTransformOrigin="50%,50%"
                           ZIndex="2">
                           <motion:MotionSlot.TargetStyles>
                             <Style Selector="DockPanel#Header">
@@ -370,19 +370,19 @@
                           </motion:MotionSlot.TargetStyles>
                         </motion:MotionSlot>
                         <motion:MotionSlot
-                          Width="288" Height="160"
-                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                          x:SetterTargetType="Border" Opacity="0.9"
-                          RenderTransform="scale(0.92) rotate(0deg)" RenderTransformOrigin="50%,50%"
-                          Target="TimelineCore" ZIndex="4">
+                          x:Name="TimelineCore" Width="288"
+                          Height="160" HorizontalAlignment="Center"
+                          VerticalAlignment="Center" x:SetterTargetType="Border"
+                          Opacity="0.9" RenderTransform="scale(0.92) rotate(0deg)"
+                          RenderTransformOrigin="50%,50%" ZIndex="4">
                           <Setter Property="Background" Value="#FF1D2A46"/>
                           <Setter Property="BorderBrush" Value="#FF5277B7"/>
                           <Setter Property="CornerRadius" Value="28"/>
                         </motion:MotionSlot>
                         <motion:MotionSlot
-                          Margin="0,0,0,16" HorizontalAlignment="Center"
-                          VerticalAlignment="Bottom" Opacity="0.72"
-                          Target="TimelineStatus" ZIndex="5"/>
+                          x:Name="TimelineStatus" Margin="0,0,0,16"
+                          HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                          Opacity="0.72" ZIndex="5"/>
                       </Panel>
                     </DataTemplate>
                   </motion:MotionState.Template>
@@ -395,32 +395,32 @@
                         Margin="16" ColumnDefinitions="*,1.1*,*"
                         RowDefinitions="*,1.1*,*">
                         <motion:MotionSlot
-                          Grid.Row="0" Grid.RowSpan="3"
-                          Grid.Column="0" Grid.ColumnSpan="3"
-                          Margin="56" Opacity="0.72"
-                          RenderTransform="scale(1) rotate(90deg)" RenderTransformOrigin="50%,50%"
-                          Target="TimelineHalo" ZIndex="0"/>
+                          x:Name="TimelineHalo" Grid.Row="0"
+                          Grid.RowSpan="3" Grid.Column="0"
+                          Grid.ColumnSpan="3" Margin="56"
+                          Opacity="0.72" RenderTransform="scale(1) rotate(90deg)"
+                          RenderTransformOrigin="50%,50%" ZIndex="0"/>
                         <motion:MotionSlot
-                          Grid.Row="0" Grid.Column="0"
-                          Width="168" Height="96"
-                          Margin="8" HorizontalAlignment="Left"
-                          VerticalAlignment="Top" RenderTransform="scale(1) rotate(-4deg)"
-                          RenderTransformOrigin="50%,50%" Target="SignalAlpha"
+                          x:Name="SignalAlpha" Grid.Row="0"
+                          Grid.Column="0" Width="168"
+                          Height="96" Margin="8"
+                          HorizontalAlignment="Left" VerticalAlignment="Top"
+                          RenderTransform="scale(1) rotate(-4deg)" RenderTransformOrigin="50%,50%"
                           ZIndex="1"/>
                         <motion:MotionSlot
-                          Grid.Row="0" Grid.Column="2"
-                          Width="168" Height="96"
-                          Margin="8" HorizontalAlignment="Right"
-                          VerticalAlignment="Top" RenderTransform="scale(1) rotate(5deg)"
-                          RenderTransformOrigin="50%,50%" Target="SignalBeta"
+                          x:Name="SignalBeta" Grid.Row="0"
+                          Grid.Column="2" Width="168"
+                          Height="96" Margin="8"
+                          HorizontalAlignment="Right" VerticalAlignment="Top"
+                          RenderTransform="scale(1) rotate(5deg)" RenderTransformOrigin="50%,50%"
                           ZIndex="1"/>
                         <motion:MotionSlot
-                          Grid.Row="2" Grid.Column="1"
-                          Width="168" Height="96"
-                          Margin="8" HorizontalAlignment="Center"
-                          VerticalAlignment="Bottom" Opacity="0.9"
-                          RenderTransform="scale(1) rotate(-2deg)" RenderTransformOrigin="50%,50%"
-                          Target="SignalGamma" ZIndex="2">
+                          x:Name="SignalGamma" Grid.Row="2"
+                          Grid.Column="1" Width="168"
+                          Height="96" Margin="8"
+                          HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                          Opacity="0.9" RenderTransform="scale(1) rotate(-2deg)"
+                          RenderTransformOrigin="50%,50%" ZIndex="2">
                           <motion:MotionSlot.TargetStyles>
                             <Style Selector="DockPanel#Header">
                               <Setter Property="Opacity" Value="1"/>
@@ -431,19 +431,19 @@
                           </motion:MotionSlot.TargetStyles>
                         </motion:MotionSlot>
                         <motion:MotionSlot
-                          Grid.Row="1" Grid.Column="1"
-                          Margin="8" x:SetterTargetType="Border"
-                          Opacity="0.9" RenderTransform="scale(1) rotate(0deg)"
-                          RenderTransformOrigin="50%,50%" Target="TimelineCore"
+                          x:Name="TimelineCore" Grid.Row="1"
+                          Grid.Column="1" Margin="8"
+                          x:SetterTargetType="Border" Opacity="0.9"
+                          RenderTransform="scale(1) rotate(0deg)" RenderTransformOrigin="50%,50%"
                           ZIndex="4">
                           <Setter Property="Background" Value="#FF202E50"/>
                           <Setter Property="BorderBrush" Value="#FF6B8ED0"/>
                           <Setter Property="CornerRadius" Value="20"/>
                         </motion:MotionSlot>
                         <motion:MotionSlot
-                          Grid.Row="2" Grid.Column="2"
-                          Margin="8" HorizontalAlignment="Right"
-                          VerticalAlignment="Bottom" Target="TimelineStatus"
+                          x:Name="TimelineStatus" Grid.Row="2"
+                          Grid.Column="2" Margin="8"
+                          HorizontalAlignment="Right" VerticalAlignment="Bottom"
                           ZIndex="5"/>
                       </Grid>
                     </DataTemplate>
@@ -458,16 +458,16 @@
                         ColumnSpacing="12" RowDefinitions="*,Auto"
                         RowSpacing="12">
                         <motion:MotionSlot
-                          Grid.Row="0" Grid.RowSpan="2"
-                          Grid.Column="0" Margin="24"
-                          Opacity="0.48" RenderTransform="scale(1.08) rotate(180deg)"
-                          RenderTransformOrigin="50%,50%" Target="TimelineHalo"
+                          x:Name="TimelineHalo" Grid.Row="0"
+                          Grid.RowSpan="2" Grid.Column="0"
+                          Margin="24" Opacity="0.48"
+                          RenderTransform="scale(1.08) rotate(180deg)" RenderTransformOrigin="50%,50%"
                           ZIndex="0"/>
                         <motion:MotionSlot
-                          Grid.Row="0" Grid.Column="0"
-                          Margin="16" x:SetterTargetType="Border"
-                          Opacity="0.9" RenderTransform="scale(1) rotate(-2deg)"
-                          RenderTransformOrigin="50%,50%" Target="TimelineCore"
+                          x:Name="TimelineCore" Grid.Row="0"
+                          Grid.Column="0" Margin="16"
+                          x:SetterTargetType="Border" Opacity="0.9"
+                          RenderTransform="scale(1) rotate(-2deg)" RenderTransformOrigin="50%,50%"
                           ZIndex="4">
                           <Setter Property="Background" Value="#FF273251"/>
                           <Setter Property="BorderBrush" Value="#FF7891C6"/>
@@ -479,21 +479,21 @@
                           RowSpacing="12" Rows="3"
                           ZIndex="1">
                           <motion:MotionSlot
-                            Height="96" RenderTransform="scale(1) rotate(0deg)"
-                            RenderTransformOrigin="50%,50%" Target="SignalAlpha"
-                            ZIndex="1">
-                            <Setter x:SetterTargetType="Border" Property="Padding" Value="0,12,128,12"/>
-                          </motion:MotionSlot>
-                          <motion:MotionSlot
-                            Height="96" RenderTransform="scale(1) rotate(0deg)"
-                            RenderTransformOrigin="50%,50%" Target="SignalBeta"
-                            ZIndex="1">
-                            <Setter x:SetterTargetType="Border" Property="Padding" Value="0,12,128,12"/>
-                          </motion:MotionSlot>
-                          <motion:MotionSlot
-                            Height="96" Opacity="0.9"
+                            x:Name="SignalAlpha" Height="96"
                             RenderTransform="scale(1) rotate(0deg)" RenderTransformOrigin="50%,50%"
-                            Target="SignalGamma" ZIndex="2">
+                            ZIndex="1">
+                            <Setter x:SetterTargetType="Border" Property="Padding" Value="0,12,128,12"/>
+                          </motion:MotionSlot>
+                          <motion:MotionSlot
+                            x:Name="SignalBeta" Height="96"
+                            RenderTransform="scale(1) rotate(0deg)" RenderTransformOrigin="50%,50%"
+                            ZIndex="1">
+                            <Setter x:SetterTargetType="Border" Property="Padding" Value="0,12,128,12"/>
+                          </motion:MotionSlot>
+                          <motion:MotionSlot
+                            x:Name="SignalGamma" Height="96"
+                            Opacity="0.9" RenderTransform="scale(1) rotate(0deg)"
+                            RenderTransformOrigin="50%,50%" ZIndex="2">
                             <motion:MotionSlot.TargetStyles>
                               <Style Selector="DockPanel#Header">
                                 <Setter Property="Opacity" Value="1"/>
@@ -506,9 +506,9 @@
                           </motion:MotionSlot>
                         </UniformGrid>
                         <motion:MotionSlot
-                          Grid.Row="1" Grid.Column="0"
-                          Grid.ColumnSpan="2" HorizontalAlignment="Left"
-                          Target="TimelineStatus" ZIndex="5"/>
+                          x:Name="TimelineStatus" Grid.Row="1"
+                          Grid.Column="0" Grid.ColumnSpan="2"
+                          HorizontalAlignment="Left" ZIndex="5"/>
                       </Grid>
                     </DataTemplate>
                   </motion:MotionState.Template>
@@ -522,37 +522,37 @@
                         ColumnSpacing="12" RowDefinitions="*,*,*,Auto"
                         RowSpacing="12">
                         <motion:MotionSlot
-                          Grid.Row="0" Grid.RowSpan="3"
-                          Grid.Column="1" Margin="32"
-                          Opacity="0.64" RenderTransform="scale(1.12) rotate(270deg)"
-                          RenderTransformOrigin="50%,50%" Target="TimelineHalo"
+                          x:Name="TimelineHalo" Grid.Row="0"
+                          Grid.RowSpan="3" Grid.Column="1"
+                          Margin="32" Opacity="0.64"
+                          RenderTransform="scale(1.12) rotate(270deg)" RenderTransformOrigin="50%,50%"
                           ZIndex="0"/>
                         <motion:MotionSlot
-                          Grid.Row="0" Grid.Column="0"
-                          Margin="4" x:SetterTargetType="Border"
-                          Opacity="0.9" RenderTransform="scale(0.96) rotate(-2deg)"
-                          RenderTransformOrigin="50%,50%" Target="TimelineCore"
+                          x:Name="TimelineCore" Grid.Row="0"
+                          Grid.Column="0" Margin="4"
+                          x:SetterTargetType="Border" Opacity="0.9"
+                          RenderTransform="scale(0.96) rotate(-2deg)" RenderTransformOrigin="50%,50%"
                           ZIndex="4">
                           <Setter Property="Background" Value="#FF242C44"/>
                           <Setter Property="BorderBrush" Value="#FF566783"/>
                           <Setter Property="CornerRadius" Value="12"/>
                         </motion:MotionSlot>
                         <motion:MotionSlot
-                          Grid.Row="1" Grid.Column="0"
-                          Margin="4" Opacity="0.82"
-                          RenderTransform="scale(0.96) rotate(0deg)" RenderTransformOrigin="50%,50%"
-                          Target="SignalAlpha" ZIndex="1"/>
+                          x:Name="SignalAlpha" Grid.Row="1"
+                          Grid.Column="0" Margin="4"
+                          Opacity="0.82" RenderTransform="scale(0.96) rotate(0deg)"
+                          RenderTransformOrigin="50%,50%" ZIndex="1"/>
                         <motion:MotionSlot
-                          Grid.Row="2" Grid.Column="0"
-                          Margin="4" Opacity="0.64"
-                          RenderTransform="scale(0.92) rotate(0deg)" RenderTransformOrigin="50%,50%"
-                          Target="SignalBeta" ZIndex="1"/>
+                          x:Name="SignalBeta" Grid.Row="2"
+                          Grid.Column="0" Margin="4"
+                          Opacity="0.64" RenderTransform="scale(0.92) rotate(0deg)"
+                          RenderTransformOrigin="50%,50%" ZIndex="1"/>
                         <motion:MotionSlot
-                          Grid.Row="0" Grid.RowSpan="3"
-                          Grid.Column="1" Margin="16"
-                          x:SetterTargetType="Border" Opacity="0.9"
-                          RenderTransform="scale(1.04) rotate(2deg)" RenderTransformOrigin="50%,50%"
-                          Target="SignalGamma" ZIndex="2">
+                          x:Name="SignalGamma" Grid.Row="0"
+                          Grid.RowSpan="3" Grid.Column="1"
+                          Margin="16" x:SetterTargetType="Border"
+                          Opacity="0.9" RenderTransform="scale(1.04) rotate(2deg)"
+                          RenderTransformOrigin="50%,50%" ZIndex="2">
                           <motion:MotionSlot.TargetStyles>
                             <Style Selector="DockPanel#Header">
                               <Setter Property="Opacity" Value="0"/>
@@ -567,9 +567,9 @@
                           <Setter Property="CornerRadius" Value="24"/>
                         </motion:MotionSlot>
                         <motion:MotionSlot
-                          Grid.Row="3" Grid.Column="0"
-                          Grid.ColumnSpan="2" HorizontalAlignment="Right"
-                          Target="TimelineStatus" ZIndex="5"/>
+                          x:Name="TimelineStatus" Grid.Row="3"
+                          Grid.Column="0" Grid.ColumnSpan="2"
+                          HorizontalAlignment="Right" ZIndex="5"/>
                       </Grid>
                     </DataTemplate>
                   </motion:MotionState.Template>

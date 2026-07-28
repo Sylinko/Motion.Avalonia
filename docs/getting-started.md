@@ -86,7 +86,7 @@ Add a state collection:
       <DataTemplate>
         <Grid>
           <motion:MotionSlot
-            Target="Editor"
+            x:Name="Editor"
             MaxWidth="600"
             HorizontalAlignment="Center"
             VerticalAlignment="Stretch"/>
@@ -97,8 +97,8 @@ Add a state collection:
 </motion:MotionPanel.States>
 ```
 
-The `Grid` is a real, persistent layout tree for this state. `MotionSlot.Target="Editor"` asks the panel to measure the
-real `Editor` control and place its resolved bounds at the slot's position.
+The `Grid` is a real, persistent layout tree for this state. The `MotionSlot` named `Editor` asks the panel to measure
+the real `Editor` control with the same `x:Name` and place its resolved bounds at the slot's position.
 
 Properties such as `MaxWidth`, `HorizontalAlignment`, `Margin`, and attached Grid or DockPanel properties configure the
 slot's layout. They are not copied to the real control.
@@ -113,13 +113,13 @@ Add a second state to the same collection:
     <DataTemplate>
       <Grid ColumnDefinitions="420,*" ColumnSpacing="24">
         <motion:MotionSlot
-          Target="Editor"
+          x:Name="Editor"
           MaxWidth="420"
           HorizontalAlignment="Stretch"/>
 
         <motion:MotionSlot
           Grid.Column="1"
-          Target="Preview"/>
+          x:Name="Preview"/>
       </Grid>
     </DataTemplate>
   </motion:MotionState.Template>
@@ -158,7 +158,7 @@ A slot can also describe selected properties of the real target. Some common `Co
 
 ```xml
 <motion:MotionSlot
-  Target="Preview"
+  x:Name="Preview"
   Opacity="0.85"
   ClipToBounds="True"/>
 ```
@@ -168,7 +168,7 @@ Other styled properties use setters. `x:SetterTargetType` gives the XAML compile
 ```xml
 <motion:MotionSlot
   x:SetterTargetType="Border"
-  Target="Editor"
+  x:Name="Editor"
   MaxWidth="420">
   <Setter Property="CornerRadius" Value="8"/>
   <Setter Property="BorderThickness" Value="2"/>
@@ -236,7 +236,7 @@ next blend, so the control does not jump back to a previously settled state.
         <DataTemplate>
           <Grid>
             <motion:MotionSlot
-              Target="Editor"
+              x:Name="Editor"
               MaxWidth="600"
               HorizontalAlignment="Center"/>
           </Grid>
@@ -250,13 +250,13 @@ next blend, so the control does not jump back to a previously settled state.
           <Grid ColumnDefinitions="420,*" ColumnSpacing="24">
             <motion:MotionSlot
               x:SetterTargetType="Border"
-              Target="Editor"
+              x:Name="Editor"
               MaxWidth="420">
               <Setter Property="CornerRadius" Value="8"/>
             </motion:MotionSlot>
             <motion:MotionSlot
               Grid.Column="1"
-              Target="Preview"/>
+              x:Name="Preview"/>
           </Grid>
         </DataTemplate>
       </motion:MotionState.Template>

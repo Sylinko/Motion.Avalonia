@@ -37,7 +37,7 @@ The following properties are recognized as direct `MotionSlot` shortcuts:
 Only explicitly set shortcut values become motion endpoints. An inherited or default value on the slot is not copied accidentally.
 
 ```xml
-<motion:MotionSlot Target="Card"
+<motion:MotionSlot x:Name="Card"
                    Opacity="0.72"
                    ClipToBounds="True"
                    IsHitTestVisible="False"
@@ -49,7 +49,7 @@ Only explicitly set shortcut values become motion endpoints. An inherited or def
 Use setters for properties outside the shortcut list:
 
 ```xml
-<motion:MotionSlot Target="Card"
+<motion:MotionSlot x:Name="Card"
                    x:SetterTargetType="Border"
                    Opacity="0.72">
     <Setter Property="Background"
@@ -66,7 +66,7 @@ Use setters for properties outside the shortcut list:
 Specify the target type on `MotionSlot` so that the XAML compiler and IDE can resolve unqualified properties:
 
 ```xml
-<motion:MotionSlot Target="Card"
+<motion:MotionSlot x:Name="Card"
                    x:SetterTargetType="Border">
     <Setter Property="CornerRadius"
             Value="16" />
@@ -80,12 +80,12 @@ The exact target type depends on the real control and the property owner.
 These two endpoint declarations have the same motion semantics:
 
 ```xml
-<motion:MotionSlot Target="Card"
+<motion:MotionSlot x:Name="Card"
                    Opacity="0.5" />
 ```
 
 ```xml
-<motion:MotionSlot Target="Card">
+<motion:MotionSlot x:Name="Card">
     <Setter Property="Opacity"
             Value="0.5" />
 </motion:MotionSlot>
@@ -100,7 +100,7 @@ Shortcuts exist for readability and tooling, not as a separate animation system.
 A setter value may be a binding:
 
 ```xml
-<motion:MotionSlot Target="Card">
+<motion:MotionSlot x:Name="Card">
     <Setter Property="Background"
             Value="{Binding ActiveCardBrush}" />
 </motion:MotionSlot>
@@ -122,14 +122,14 @@ If only one side of a blend defines a property, the other endpoint is the target
 <!-- Compact defines no Background endpoint. -->
 <motion:MotionState Key="Compact">
     <DataTemplate>
-        <motion:MotionSlot Target="Card" />
+        <motion:MotionSlot x:Name="Card" />
     </DataTemplate>
 </motion:MotionState>
 
 <!-- Expanded blends from the target's base Background. -->
 <motion:MotionState Key="Expanded">
     <DataTemplate>
-        <motion:MotionSlot Target="Card">
+        <motion:MotionSlot x:Name="Card">
             <Setter Property="Background"
                     Value="#FF3F294F" />
         </motion:MotionSlot>
@@ -162,9 +162,9 @@ This means a state can express ordering naturally:
 
 ```xml
 <Grid>
-    <motion:MotionSlot Target="Backdrop"
+    <motion:MotionSlot x:Name="Backdrop"
                        ZIndex="0" />
-    <motion:MotionSlot Target="Dialog"
+    <motion:MotionSlot x:Name="Dialog"
                        ZIndex="10" />
 </Grid>
 ```

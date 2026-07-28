@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
@@ -13,9 +14,9 @@ namespace Motion.Avalonia;
 /// </summary>
 /// <remarks>
 /// Every direct child must have a unique, non-empty <c>x:Name</c>. A
-/// <see cref="MotionSlot"/> in each state template maps to that child through
-/// <see cref="MotionSlot.Target"/>. State templates remain live and are laid out again when
-/// the panel size or a binding changes; they are not bitmap snapshots.
+/// <see cref="MotionSlot"/> in each state template maps to the child with the same
+/// <see cref="StyledElement.Name"/>. State templates remain live and are laid out again
+/// when the panel size or a binding changes; they are not bitmap snapshots.
 /// </remarks>
 /// <example>
 /// The same <c>Card</c> instance moves between two responsive layouts:
@@ -35,7 +36,7 @@ namespace Motion.Avalonia;
 ///       <DataTemplate>
 ///         <Grid>
 ///           <motion:MotionSlot
-///             Target="Card"
+///             x:Name="Card"
 ///             MaxWidth="600"
 ///             HorizontalAlignment="Center"/>
 ///         </Grid>
@@ -44,7 +45,7 @@ namespace Motion.Avalonia;
 ///     <motion:MotionState Key="Leading">
 ///       <DataTemplate>
 ///         <Grid ColumnDefinitions="420,*">
-///           <motion:MotionSlot Target="Card" MaxWidth="420"/>
+///           <motion:MotionSlot x:Name="Card" MaxWidth="420"/>
 ///         </Grid>
 ///       </DataTemplate>
 ///     </motion:MotionState>
@@ -60,11 +61,7 @@ public sealed class MotionPanel : Control
     public static readonly StyledProperty<IMotionController?> ControllerProperty =
         AvaloniaProperty.Register<MotionPanel, IMotionController?>(nameof(Controller));
 
-    private static readonly MotionLayoutSnapshot EmptyLayout =
-        new(
-            default,
-            new Dictionary<string, MotionLayoutEntry>(StringComparer.Ordinal),
-            new Dictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>>());
+    private static readonly MotionLayoutBuffer EmptyLayout = new();
 
     private static readonly IReadOnlyDictionary<AvaloniaProperty, object?> EmptyPropertyValues =
         new Dictionary<AvaloniaProperty, object?>();
@@ -106,14 +103,24 @@ public sealed class MotionPanel : Control
     private readonly Dictionary<string, TargetEntry> _targets = new(StringComparer.Ordinal);
     private readonly Dictionary<Control, MotionPanelItemContainer> _containers = [];
     private readonly Dictionary<StyledElement, MotionPropertyTarget> _propertyTargets = [];
-    private readonly Dictionary<InterpolatorLookup, MotionInterpolator> _interpolatorCache = [];
+    private readonly Dictionary<MotionStateKey, MotionState> _stateIndex = [];
+    private readonly Dictionary<InterpolatorLookup, MotionInterpolator> _interpolatorIndex = [];
     private readonly Dictionary<MotionState, Size> _measuredSizes = [];
-    private readonly Dictionary<MotionState, MotionLayoutSnapshot> _arrangedLayouts = [];
+    private readonly Dictionary<MotionState, MotionLayoutBuffer> _arrangedLayouts = [];
     private readonly List<MotionState> _requiredStates = [];
+    private readonly List<MotionLayoutBuffer> _blendLayoutBuffers = [];
+    private readonly List<StyledElement> _obsoletePropertyTargets = [];
     private readonly HashSet<MotionInterpolator> _attachedInterpolators = [];
+
     private IMotionController? _attachedController;
-    private MotionLayoutSnapshot? _presentedLayout;
+    private MotionLayoutBuffer? _presentedLayout;
+    private int _nextBlendLayoutBuffer;
     private bool _targetMapDirty = true;
+    private bool _interpolatorsDirty = true;
+    private bool _interpolatorIndexDirty = true;
+    private bool _scenesDirty = true;
+    private bool _stateIndexDirty = true;
+    private bool _sceneTargetsDirty = true;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MotionPanel"/> class.
@@ -123,22 +130,6 @@ public sealed class MotionPanel : Control
         Children.CollectionChanged += OnChildrenChanged;
         States.CollectionChanged += OnStatesChanged;
         Interpolators.CollectionChanged += OnInterpolatorsChanged;
-    }
-
-    internal Size MeasureTarget(string? id, Size availableSize)
-    {
-        if (string.IsNullOrWhiteSpace(id))
-        {
-            return default;
-        }
-
-        if (!_targets.TryGetValue(id, out var target))
-        {
-            throw new InvalidOperationException($"Motion state references target '{id}', but no direct child has that name.");
-        }
-
-        target.Child.Measure(availableSize);
-        return target.Child.DesiredSize;
     }
 
     internal Control ResolveTarget(string id)
@@ -163,17 +154,24 @@ public sealed class MotionPanel : Control
         }
 
         _arrangedLayouts[state] = host.CaptureLayout();
-        ApplyPropertyValues(EvaluateLayout(_attachedController?.CurrentPose ?? MotionPose.Empty));
+        ApplyPropertyValues(EvaluateLayoutRoot(_attachedController?.CurrentPose ?? MotionPose.Empty));
     }
 
     /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)
     {
-        RebuildTargetMap();
+        EnsureTopology();
         var pose = _attachedController?.CurrentPose ?? MotionPose.Empty;
         MeasureRequiredScenes(pose, availableSize);
         MeasurePresentedContainers();
         return EvaluateDesiredSize(pose);
+    }
+
+    /// <inheritdoc />
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        EnsureTopology();
     }
 
     /// <inheritdoc />
@@ -182,7 +180,7 @@ public sealed class MotionPanel : Control
         var pose = _attachedController?.CurrentPose ?? MotionPose.Empty;
         CaptureRequiredLayouts(pose, finalSize);
 
-        var layout = EvaluateLayout(pose);
+        var layout = EvaluateLayoutRoot(pose);
         ApplyLayout(layout);
         _presentedLayout = layout;
 
@@ -303,6 +301,19 @@ public sealed class MotionPanel : Control
         }
 
         _targetMapDirty = true;
+        _sceneTargetsDirty = true;
+        _presentedLayout = null;
+        ClearBlendLayoutBuffers();
+        foreach (var scene in _scenes.Values)
+        {
+            scene.InvalidateTargets();
+        }
+
+        if (IsInitialized)
+        {
+            EnsureTopology();
+        }
+
         InvalidateMeasure();
     }
 
@@ -317,7 +328,6 @@ public sealed class MotionPanel : Control
 
             var container = new MotionPanelItemContainer(child);
             _containers.Add(child, container);
-            child.PropertyChanged += OnChildPropertyChanged;
             LogicalChildren.Insert(index, child);
             VisualChildren.Insert(index, container);
             index++;
@@ -328,8 +338,6 @@ public sealed class MotionPanel : Control
     {
         foreach (var child in items.OfType<Control>())
         {
-            child.PropertyChanged -= OnChildPropertyChanged;
-
             if (_containers.Remove(child, out var container))
             {
                 VisualChildren.Remove(container);
@@ -346,7 +354,6 @@ public sealed class MotionPanel : Control
     {
         foreach (var pair in _containers.ToArray())
         {
-            pair.Key.PropertyChanged -= OnChildPropertyChanged;
             VisualChildren.Remove(pair.Value);
             pair.Value.DetachChild();
             LogicalChildren.Remove(pair.Key);
@@ -357,50 +364,137 @@ public sealed class MotionPanel : Control
         AddChildren(0, Children);
     }
 
-    private void OnChildPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
-    {
-        if (e.Property != NameProperty)
-        {
-            return;
-        }
-
-        _targetMapDirty = true;
-        InvalidateMeasure();
-    }
-
     private void OnStatesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        SynchronizeScenes();
+        _scenesDirty = true;
+        _stateIndexDirty = true;
+        _sceneTargetsDirty = true;
+        ClearBlendLayoutBuffers();
+
+        if (IsInitialized)
+        {
+            EnsureTopology();
+        }
+
         InvalidateMeasure();
     }
 
     private void OnInterpolatorsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        SynchronizeInterpolators();
-        _interpolatorCache.Clear();
+        _interpolatorsDirty = true;
+        _interpolatorIndexDirty = true;
+
+        if (IsInitialized)
+        {
+            EnsureTopology();
+        }
+
         InvalidateMeasure();
     }
 
     private void OnInterpolatorPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
-        _interpolatorCache.Clear();
+        _interpolatorIndexDirty = true;
+
+        if (IsInitialized)
+        {
+            EnsureTopology();
+        }
+
         InvalidateMeasure();
     }
 
     private void OnInterpolatorEdgesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        _interpolatorCache.Clear();
+        _interpolatorIndexDirty = true;
+
+        if (IsInitialized)
+        {
+            EnsureTopology();
+        }
+
         InvalidateMeasure();
     }
 
     private void OnStatePropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
+        if (e.Property == MotionState.KeyProperty)
+        {
+            _stateIndexDirty = true;
+        }
+
         if (e.Property == MotionState.TemplateProperty)
         {
             _scenes[(MotionState)sender!].Rebuild();
+            _sceneTargetsDirty = true;
+
+            if (IsInitialized)
+            {
+                EnsureTopology();
+            }
+        }
+
+        if (IsInitialized && _stateIndexDirty)
+        {
+            EnsureTopology();
         }
 
         InvalidateMeasure();
+    }
+
+    private void EnsureTopology()
+    {
+        RebuildTargetMap();
+        EnsureInterpolators();
+        EnsureScenes();
+        EnsureSceneTargets();
+    }
+
+    private void EnsureInterpolators()
+    {
+        if (_interpolatorsDirty)
+        {
+            SynchronizeInterpolators();
+            _interpolatorsDirty = false;
+        }
+
+        if (_interpolatorIndexDirty)
+        {
+            RebuildInterpolatorIndex();
+            _interpolatorIndexDirty = false;
+        }
+    }
+
+    private void EnsureScenes()
+    {
+        if (_scenesDirty)
+        {
+            SynchronizeScenes();
+            _scenesDirty = false;
+            _stateIndexDirty = true;
+            _sceneTargetsDirty = true;
+        }
+
+        if (_stateIndexDirty)
+        {
+            RebuildStateIndex();
+            _stateIndexDirty = false;
+        }
+    }
+
+    private void EnsureSceneTargets()
+    {
+        if (!_sceneTargetsDirty)
+        {
+            return;
+        }
+
+        foreach (var scene in _scenes.Values)
+        {
+            scene.RebindTargets();
+        }
+
+        _sceneTargetsDirty = false;
     }
 
     private void SynchronizeScenes()
@@ -448,6 +542,53 @@ public sealed class MotionPanel : Control
             interpolator.PropertyChanged += OnInterpolatorPropertyChanged;
             interpolator.Edges.CollectionChanged += OnInterpolatorEdgesChanged;
         }
+    }
+
+    private void RebuildStateIndex()
+    {
+        _stateIndex.Clear();
+
+        foreach (var state in States)
+        {
+            var key = new MotionStateKey(state.Key);
+            if (!_stateIndex.TryAdd(key, state))
+            {
+                throw new InvalidOperationException($"{nameof(MotionPanel)} contains multiple states with key '{state.Key}'.");
+            }
+        }
+    }
+
+    private void RebuildInterpolatorIndex()
+    {
+        _interpolatorIndex.Clear();
+
+        foreach (var interpolator in Interpolators)
+        {
+            ValidateInterpolator(interpolator);
+
+            if (interpolator.Edges.Count == 0)
+            {
+                AddInterpolatorIndexEntry(interpolator, null);
+                continue;
+            }
+
+            foreach (var edge in interpolator.Edges)
+            {
+                AddInterpolatorIndexEntry(interpolator, edge);
+            }
+        }
+    }
+
+    private void AddInterpolatorIndexEntry(MotionInterpolator interpolator, MotionEdge? edge)
+    {
+        var lookup = new InterpolatorLookup(interpolator.Target, interpolator.Property!, edge);
+        if (_interpolatorIndex.TryAdd(lookup, interpolator) ||
+            ReferenceEquals(_interpolatorIndex[lookup], interpolator))
+        {
+            return;
+        }
+
+        throw CreateDuplicateInterpolatorException(interpolator.Target, interpolator.Property!, edge);
     }
 
     private void RebuildTargetMap()
@@ -548,27 +689,8 @@ public sealed class MotionPanel : Control
         }
     }
 
-    private MotionState? FindState(object? key)
-    {
-        MotionState? result = null;
-
-        foreach (var state in States)
-        {
-            if (!Equals(state.Key, key))
-            {
-                continue;
-            }
-
-            if (result is not null)
-            {
-                throw new InvalidOperationException($"{nameof(MotionPanel)} contains multiple states with key '{key}'.");
-            }
-
-            result = state;
-        }
-
-        return result;
-    }
+    private MotionState? FindState(object? key) =>
+        _stateIndex.GetValueOrDefault(new MotionStateKey(key));
 
     private Size EvaluateDesiredSize(MotionPose pose) =>
         pose switch
@@ -590,7 +712,13 @@ public sealed class MotionPanel : Control
         return state is not null && _measuredSizes.TryGetValue(state, out var size) ? size : default;
     }
 
-    private MotionLayoutSnapshot EvaluateLayout(MotionPose pose) =>
+    private MotionLayoutBuffer EvaluateLayoutRoot(MotionPose pose)
+    {
+        _nextBlendLayoutBuffer = 0;
+        return EvaluateLayout(pose);
+    }
+
+    private MotionLayoutBuffer EvaluateLayout(MotionPose pose) =>
         pose switch
         {
             StateMotionPose statePose => GetArrangedLayout(statePose.Key),
@@ -601,13 +729,34 @@ public sealed class MotionPanel : Control
             _ => EmptyLayout,
         };
 
-    private MotionLayoutSnapshot GetArrangedLayout(object? key)
+    private MotionLayoutBuffer GetArrangedLayout(object? key)
     {
         var state = FindState(key);
         return state is not null && _arrangedLayouts.TryGetValue(state, out var layout) ? layout : EmptyLayout;
     }
 
-    private void ApplyLayout(MotionLayoutSnapshot layout)
+    private MotionLayoutBuffer GetNextBlendLayoutBuffer()
+    {
+        if (_nextBlendLayoutBuffer == _blendLayoutBuffers.Count)
+        {
+            _blendLayoutBuffers.Add(new MotionLayoutBuffer(_targets.Count));
+        }
+
+        return _blendLayoutBuffers[_nextBlendLayoutBuffer++];
+    }
+
+    private void ClearBlendLayoutBuffers()
+    {
+        foreach (var buffer in _blendLayoutBuffers)
+        {
+            buffer.Clear();
+        }
+
+        _blendLayoutBuffers.Clear();
+        _nextBlendLayoutBuffer = 0;
+    }
+
+    private void ApplyLayout(MotionLayoutBuffer layout)
     {
         foreach (var pair in _targets)
         {
@@ -635,28 +784,44 @@ public sealed class MotionPanel : Control
         ApplyPropertyValues(layout);
     }
 
-    private void ApplyPropertyValues(MotionLayoutSnapshot layout)
+    private void ApplyPropertyValues(MotionLayoutBuffer layout)
     {
         foreach (var pair in layout.PropertyValues)
         {
             GetOrCreatePropertyTarget(pair.Key).Apply(pair.Value);
         }
 
-        foreach (var pair in _propertyTargets
-                     .Where(pair => !layout.PropertyValues.ContainsKey(pair.Key))
-                     .ToArray())
+        _obsoletePropertyTargets.Clear();
+        foreach (var pair in _propertyTargets)
         {
-            pair.Value.Dispose();
-            _propertyTargets.Remove(pair.Key);
+            if (!layout.PropertyValues.ContainsKey(pair.Key))
+            {
+                _obsoletePropertyTargets.Add(pair.Key);
+            }
+        }
+
+        foreach (var target in _obsoletePropertyTargets)
+        {
+            if (_propertyTargets.Remove(target, out var propertyTarget))
+            {
+                propertyTarget.Dispose();
+            }
         }
     }
 
-    private MotionLayoutSnapshot BlendLayouts(MotionLayoutSnapshot source, MotionLayoutSnapshot target, BlendMotionPose blend)
+    private MotionLayoutBuffer BlendLayouts(MotionLayoutBuffer source, MotionLayoutBuffer target, BlendMotionPose blend)
     {
         var progress = blend.Easing.Ease(blend.Progress);
-        var entries = new Dictionary<string, MotionLayoutEntry>(
-            _targets.Count,
-            StringComparer.Ordinal);
+        var result = GetNextBlendLayoutBuffer();
+        result.BeginLayoutUpdate(
+            InterpolateValue(
+                null,
+                MotionLayout.DesiredSizeProperty,
+                source.DesiredSize,
+                target.DesiredSize,
+                blend,
+                progress));
+        result.BeginPropertyValuesUpdate();
 
         foreach (var id in _targets.Keys)
         {
@@ -678,7 +843,7 @@ public sealed class MotionPanel : Control
                 targetEntry = sourceEntry with { Presence = 0 };
             }
 
-            entries.Add(
+            result.EntriesBuffer.Add(
                 id,
                 new MotionLayoutEntry(
                     new Rect(
@@ -705,76 +870,85 @@ public sealed class MotionPanel : Control
                         progress)));
         }
 
-        var propertyValues = BlendPropertyValues(source.PropertyValues, target.PropertyValues, blend, progress);
-        return new MotionLayoutSnapshot(
-            InterpolateValue(
-                null,
-                MotionLayout.DesiredSizeProperty,
-                source.DesiredSize,
-                target.DesiredSize,
-                blend,
-                progress),
-            entries,
-            propertyValues);
-    }
-
-    private IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>> BlendPropertyValues(
-        IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>> source,
-        IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>> destination,
-        BlendMotionPose blend,
-        double inheritedProgress)
-    {
-        var result =
-            new Dictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>>(source.Count + destination.Count);
-
-        foreach (var target in source.Keys.Concat(destination.Keys).Distinct())
-        {
-            var sourceValues = source.TryGetValue(target, out var oldValues) ? oldValues : EmptyPropertyValues;
-            var destinationValues = destination.TryGetValue(target, out var newValues) ? newValues : EmptyPropertyValues;
-            var values = BlendProperties(target, sourceValues, destinationValues, blend, inheritedProgress);
-            if (values.Count > 0)
-            {
-                result.Add(target, values);
-            }
-        }
-
+        BlendPropertyValues(source.PropertyValues, target.PropertyValues, blend, progress, result);
         return result;
     }
 
-    private IReadOnlyDictionary<AvaloniaProperty, object?> BlendProperties(
+    private void BlendPropertyValues(
+        IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>> source,
+        IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>> destination,
+        BlendMotionPose blend,
+        double inheritedProgress,
+        MotionLayoutBuffer result)
+    {
+        foreach (var pair in source)
+        {
+            var destinationValues = destination.GetValueOrDefault(pair.Key, EmptyPropertyValues);
+            BlendProperties(pair.Key, pair.Value, destinationValues, blend, inheritedProgress, result);
+        }
+
+        foreach (var pair in destination)
+        {
+            if (!source.ContainsKey(pair.Key))
+            {
+                BlendProperties(pair.Key, EmptyPropertyValues, pair.Value, blend, inheritedProgress, result);
+            }
+        }
+    }
+
+    private void BlendProperties(
         StyledElement target,
         IReadOnlyDictionary<AvaloniaProperty, object?> source,
         IReadOnlyDictionary<AvaloniaProperty, object?> destination,
         BlendMotionPose blend,
-        double inheritedProgress)
+        double inheritedProgress,
+        MotionLayoutBuffer result)
     {
         if (source.Count == 0 && destination.Count == 0)
         {
-            return EmptyPropertyValues;
+            return;
         }
 
-        var result = new Dictionary<AvaloniaProperty, object?>(source.Count + destination.Count);
-        var propertyTarget = GetOrCreatePropertyTarget(target);
-        foreach (var property in source.Keys.Concat(destination.Keys).Distinct())
+        if (!result.TryAddPropertyTarget(target, out var values))
         {
-            var oldValue = source.TryGetValue(property, out var sourceValue) ?
-                sourceValue :
-                propertyTarget.GetBaseValue(property);
-            var newValue = destination.TryGetValue(property, out var destinationValue) ?
+            throw new InvalidOperationException(
+                $"Motion blend produced duplicate property values for target '{target.Name ?? target.GetType().Name}'.");
+        }
+
+        var propertyTarget = GetOrCreatePropertyTarget(target);
+        foreach (var pair in source)
+        {
+            var newValue = destination.TryGetValue(pair.Key, out var destinationValue) ?
                 destinationValue :
-                propertyTarget.GetBaseValue(property);
-            result.Add(
-                property,
+                propertyTarget.GetBaseValue(pair.Key);
+            values.Add(
+                pair.Key,
                 InterpolateValue(
                     target.Name,
-                    property,
-                    oldValue,
+                    pair.Key,
+                    pair.Value,
                     newValue,
                     blend,
                     inheritedProgress));
         }
 
-        return result;
+        foreach (var pair in destination)
+        {
+            if (source.ContainsKey(pair.Key))
+            {
+                continue;
+            }
+
+            values.Add(
+                pair.Key,
+                InterpolateValue(
+                    target.Name,
+                    pair.Key,
+                    propertyTarget.GetBaseValue(pair.Key),
+                    pair.Value,
+                    blend,
+                    inheritedProgress));
+        }
     }
 
     private T InterpolateValue<T>(
@@ -792,51 +966,18 @@ public sealed class MotionPanel : Control
 
     private MotionInterpolator FindInterpolator(string? target, AvaloniaProperty property, MotionEdge? edge)
     {
-        var lookup = new InterpolatorLookup(target, property, edge);
-        if (_interpolatorCache.TryGetValue(lookup, out var cached))
+        if (edge is not null &&
+            _interpolatorIndex.TryGetValue(new InterpolatorLookup(target, property, edge), out var edgeSpecific))
         {
-            return cached;
+            return edgeSpecific;
         }
 
-        MotionInterpolator? general = null;
-        MotionInterpolator? edgeSpecific = null;
-
-        foreach (var interpolator in Interpolators)
+        if (_interpolatorIndex.TryGetValue(new InterpolatorLookup(target, property, null), out var general))
         {
-            ValidateInterpolator(interpolator);
-
-            if (!StringComparer.Ordinal.Equals(interpolator.Target, target) || interpolator.Property != property)
-            {
-                continue;
-            }
-
-            if (interpolator.Edges.Count > 0)
-            {
-                if (edge is null || !interpolator.Edges.Contains(edge))
-                {
-                    continue;
-                }
-
-                if (edgeSpecific is not null)
-                {
-                    throw CreateDuplicateInterpolatorException(target, property, edge);
-                }
-
-                edgeSpecific = interpolator;
-                continue;
-            }
-
-            if (general is not null)
-            {
-                throw CreateDuplicateInterpolatorException(target, property, null);
-            }
-
-            general = interpolator;
+            return general;
         }
 
-        var result = edgeSpecific ?? general ?? MotionAvaloniaInterpolator.Default;
-        _interpolatorCache.Add(lookup, result);
-        return result;
+        return MotionAvaloniaInterpolator.Default;
     }
 
     private MotionPropertyTarget GetOrCreatePropertyTarget(StyledElement target)
@@ -903,11 +1044,20 @@ public sealed class MotionPanel : Control
 
     private readonly record struct TargetEntry(
         Control Child,
-        MotionPanelItemContainer Container);
+        MotionPanelItemContainer Container
+    );
 
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
     private readonly record struct InterpolatorLookup(
         string? Target,
         AvaloniaProperty Property,
         MotionEdge? Edge
     );
+
+    private readonly record struct MotionStateKey(object? Value)
+    {
+        public bool Equals(MotionStateKey other) => Equals(Value, other.Value);
+
+        public override int GetHashCode() => Value?.GetHashCode() ?? 0;
+    }
 }

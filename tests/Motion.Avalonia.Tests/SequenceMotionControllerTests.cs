@@ -219,7 +219,7 @@ public sealed class SequenceMotionControllerTests
             Key = key,
             Template = new TestTemplate(() => new MotionSlot
             {
-                Target = "editor",
+                Name = "editor",
                 Width = 100,
                 Height = 40,
                 Opacity = opacity,
@@ -236,7 +236,7 @@ public sealed class SequenceMotionControllerTests
             Key = key,
             Template = new TestTemplate(() => new MotionSlot
             {
-                Target = "editor",
+                Name = "editor",
                 Width = width,
                 Height = 40,
                 HorizontalAlignment = HorizontalAlignment.Left,

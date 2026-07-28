@@ -84,7 +84,7 @@ Add the namespace and define stable controls, a controller, and two state templa
           <DataTemplate>
             <Grid>
               <motion:MotionSlot
-                Target="Editor"
+                x:Name="Editor"
                 MaxWidth="600"
                 HorizontalAlignment="Center"/>
             </Grid>
@@ -97,10 +97,10 @@ Add the namespace and define stable controls, a controller, and two state templa
           <DataTemplate>
             <DockPanel HorizontalSpacing="24">
               <motion:MotionSlot
-                Target="Editor"
+                x:Name="Editor"
                 MaxWidth="420"
                 DockPanel.Dock="Left"/>
-              <motion:MotionSlot Target="Preview"/>
+              <motion:MotionSlot x:Name="Preview"/>
             </DockPanel>
           </DataTemplate>
         </motion:MotionState.Template>
@@ -117,7 +117,7 @@ Three rules define the relationship:
 
 1. Real controls are stable direct children of `MotionPanel`.
 2. Every real target has a unique `x:Name`.
-3. Each `MotionSlot.Target` maps a state layout slot to that name.
+3. Each `MotionSlot` uses the same `x:Name` as the target it represents.
 
 Set `BasicMotionController.State` to `"Advanced"` to start the motion. Continue with
 [Getting Started](https://github.com/Sylinko/Motion.Avalonia/blob/main/docs/getting-started.md) for a complete, step-by-step example.

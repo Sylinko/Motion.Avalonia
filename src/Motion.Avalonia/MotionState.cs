@@ -16,8 +16,8 @@ namespace Motion.Avalonia;
 /// <motion:MotionState Key="Expanded">
 ///   <DataTemplate>
 ///     <Grid ColumnDefinitions="2*,*">
-///       <motion:MotionSlot Target="Editor"/>
-///       <motion:MotionSlot Grid.Column="1" Target="Preview"/>
+///       <motion:MotionSlot x:Name="Editor"/>
+///       <motion:MotionSlot Grid.Column="1" x:Name="Preview"/>
 ///     </Grid>
 ///   </DataTemplate>
 /// </motion:MotionState>

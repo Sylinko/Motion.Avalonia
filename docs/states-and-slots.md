@@ -15,9 +15,9 @@ A state has a `Key` and a persistent `IDataTemplate`:
   <motion:MotionState.Template>
     <DataTemplate>
       <UniformGrid Columns="3">
-        <motion:MotionSlot Margin="8" Target="Alpha"/>
-        <motion:MotionSlot Margin="8" Target="Beta"/>
-        <motion:MotionSlot Margin="8" Target="Gamma"/>
+        <motion:MotionSlot Margin="8" x:Name="Alpha"/>
+        <motion:MotionSlot Margin="8" x:Name="Beta"/>
+        <motion:MotionSlot Margin="8" x:Name="Gamma"/>
       </UniformGrid>
     </DataTemplate>
   </motion:MotionState.Template>
@@ -42,10 +42,11 @@ same target.
 Names provide a stable identity boundary:
 
 ```text
-MotionSlot.Target == Control.Name
+MotionSlot.Name == Control.Name
 ```
 
-Changing the target's `Name` causes the panel to rebuild its target map during the next layout pass.
+Avalonia prevents changing a styled element's `Name`. Motion therefore resolves each slot-to-target mapping once for
+the current panel structure and rebuilds it only when the panel children or state template change.
 
 ## Use Ordinary Avalonia Panels
 
@@ -60,14 +61,14 @@ The state template can use normal Avalonia layout:
     RowSpacing="16">
     <motion:MotionSlot
       Grid.RowSpan="2"
-      Target="Primary"/>
+      x:Name="Primary"/>
     <motion:MotionSlot
       Grid.Column="1"
-      Target="Toolbar"/>
+      x:Name="Toolbar"/>
     <motion:MotionSlot
       Grid.Row="1"
       Grid.Column="1"
-      Target="Details"/>
+      x:Name="Details"/>
   </Grid>
 </DataTemplate>
 ```
@@ -102,7 +103,7 @@ For example:
   Margin="8"
   MaxWidth="420"
   HorizontalAlignment="Stretch"
-  Target="Editor"/>
+  x:Name="Editor"/>
 ```
 
 The endpoint uses the slot's resolved bounds, not the raw `MaxWidth` or alignment values. `double.NaN`/Auto sizing and
@@ -114,7 +115,7 @@ State templates remain connected to the panel's data context:
 
 ```xml
 <motion:MotionSlot
-  Target="Inspector"
+  x:Name="Inspector"
   MaxWidth="{Binding InspectorMaximumWidth}"
   Margin="{Binding InspectorMargin}"/>
 ```
@@ -133,7 +134,7 @@ A target does not need a slot in every state:
 <!-- Compact contains only Content. -->
 <DataTemplate>
   <Grid>
-    <motion:MotionSlot Target="Content"/>
+    <motion:MotionSlot x:Name="Content"/>
   </Grid>
 </DataTemplate>
 ```
@@ -142,8 +143,8 @@ A target does not need a slot in every state:
 <!-- Detail adds Inspector. -->
 <DataTemplate>
   <Grid ColumnDefinitions="*,320" ColumnSpacing="16">
-    <motion:MotionSlot Target="Content"/>
-    <motion:MotionSlot Grid.Column="1" Target="Inspector"/>
+    <motion:MotionSlot x:Name="Content"/>
+    <motion:MotionSlot Grid.Column="1" x:Name="Inspector"/>
   </Grid>
 </DataTemplate>
 ```
@@ -160,7 +161,7 @@ therefore remains centered when the window changes width:
 ```xml
 <Grid>
   <motion:MotionSlot
-    Target="Card"
+    x:Name="Card"
     Width="320"
     HorizontalAlignment="Center"/>
 </Grid>
@@ -185,10 +186,10 @@ from different ancestors cannot be compared directly.
 ```xml
 <Grid>
   <motion:MotionSlot
-    Target="Backdrop"
+    x:Name="Backdrop"
     ZIndex="0"/>
   <motion:MotionSlot
-    Target="Dialog"
+    x:Name="Dialog"
     ZIndex="10"/>
 </Grid>
 ```
@@ -201,7 +202,7 @@ Setting `IsVisible="False"` directly on a slot would remove the slot from its ow
 unavailable. To describe the target's `IsVisible`, use an explicit setter:
 
 ```xml
-<motion:MotionSlot Target="OptionalAction">
+<motion:MotionSlot x:Name="OptionalAction">
   <Setter Property="IsVisible" Value="False"/>
 </motion:MotionSlot>
 ```

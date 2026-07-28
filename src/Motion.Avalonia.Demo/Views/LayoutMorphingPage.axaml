@@ -59,8 +59,8 @@
                       <StackPanel
                         MaxWidth="472" HorizontalAlignment="Center"
                         Spacing="16">
-                        <motion:MotionSlot Target="ArticleCard"/>
-                        <motion:MotionSlot Target="MetricsCard"/>
+                        <motion:MotionSlot x:Name="ArticleCard"/>
+                        <motion:MotionSlot x:Name="MetricsCard"/>
                       </StackPanel>
                     </DataTemplate>
                   </motion:MotionState.Template>
@@ -70,9 +70,9 @@
                     <DataTemplate>
                       <Grid
                         ColumnDefinitions="2*,*" ColumnSpacing="16">
-                        <motion:MotionSlot Target="ArticleCard"/>
+                        <motion:MotionSlot x:Name="ArticleCard"/>
                         <motion:MotionSlot
-                          Grid.Column="1" Target="MetricsCard"/>
+                          x:Name="MetricsCard" Grid.Column="1"/>
                       </Grid>
                     </DataTemplate>
                   </motion:MotionState.Template>

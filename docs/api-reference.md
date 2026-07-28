@@ -49,9 +49,9 @@ Represents one real target inside a state layout.
 
 | Member | Type | Description |
 | --- | --- | --- |
-| `Target` | `string?` | Exact name of the represented direct child |
+| `Name` | `string?` | Inherited identity; must equal the represented direct child's `x:Name` |
 | `Setters` | `AvaloniaList<Setter>` | Additional target-property endpoints; also the XAML content collection |
-| `TargetProperty` | `StyledProperty<string?>` | Avalonia property backing `Target` |
+| `TargetStyles` | `Styles` | Styles whose effective setters are projected onto the target subtree |
 
 The supported direct shortcuts are:
 

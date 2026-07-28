@@ -31,7 +31,7 @@ A `MotionState` owns an `IDataTemplate` that describes one layout endpoint:
     <DataTemplate>
       <Grid>
         <motion:MotionSlot
-          Target="SearchEditor"
+          x:Name="SearchEditor"
           MaxWidth="600"
           HorizontalAlignment="Center"/>
       </Grid>

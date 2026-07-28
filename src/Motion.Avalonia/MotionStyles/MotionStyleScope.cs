@@ -17,13 +17,15 @@ internal sealed class MotionStyleScope : IDisposable
 {
     private readonly Dictionary<StyledElement, MotionStyleProxy> _proxies = [];
     private readonly Dictionary<EndpointKey, EndpointChannel> _channels = [];
+    private readonly Dictionary<StyledElement, Dictionary<AvaloniaProperty, object?>> _captureBuffers = [];
+    private readonly Dictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>> _capturedValues = [];
+    private readonly List<Dictionary<AvaloniaProperty, object?>> _activeCaptureBuffers = [];
     private readonly List<INotifyCollectionChanged> _logicalChildren = [];
     private readonly Action _endpointChanged;
     private readonly Action _structureChanged;
     private readonly MotionStyleProxy _root;
-    private IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>>? _capturedValues;
+    private readonly bool _initialized;
     private bool _captureDirty = true;
-    private bool _initialized;
     private bool _disposed;
 
     public MotionStyleScope(
@@ -38,8 +40,8 @@ internal sealed class MotionStyleScope : IDisposable
         _root = BuildProxyTree(target);
         try
         {
-            MotionStyleCompiler.AddCompiledStyles(styles, _root);
-            MotionStyleCompiler.AddRootDefinitions(rootDefinitions, _root);
+            _root.CopyStyles(styles);
+            _root.AddRootDefinitions(rootDefinitions);
 
             foreach (var proxy in _proxies.Values)
             {
@@ -58,18 +60,43 @@ internal sealed class MotionStyleScope : IDisposable
 
     public IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>> CaptureValues()
     {
-        if (!_captureDirty && _capturedValues is not null)
+        if (!_captureDirty)
         {
             return _capturedValues;
         }
 
-        var result = _channels.Where(pair => pair.Value.HasValue).GroupBy(pair => pair.Key.Target).ToDictionary(
-            group => group.Key,
-            IReadOnlyDictionary<AvaloniaProperty, object?> (group) => group.ToDictionary(pair => pair.Key.Property, pair => pair.Value.Value));
+        foreach (var values in _activeCaptureBuffers)
+        {
+            values.Clear();
+        }
 
-        _capturedValues = result;
+        _activeCaptureBuffers.Clear();
+        _capturedValues.Clear();
+        foreach (var pair in _channels)
+        {
+            if (!pair.Value.HasValue)
+            {
+                continue;
+            }
+
+            if (!_captureBuffers.TryGetValue(pair.Key.Target, out var values))
+            {
+                values = [];
+                _captureBuffers.Add(pair.Key.Target, values);
+            }
+
+            if (!_capturedValues.ContainsKey(pair.Key.Target))
+            {
+                values.Clear();
+                _capturedValues.Add(pair.Key.Target, values);
+                _activeCaptureBuffers.Add(values);
+            }
+
+            values.Add(pair.Key.Property, pair.Value.Value);
+        }
+
         _captureDirty = false;
-        return result;
+        return _capturedValues;
     }
 
     public void Dispose()
@@ -98,7 +125,9 @@ internal sealed class MotionStyleScope : IDisposable
 
         _channels.Clear();
         _proxies.Clear();
-        _capturedValues = null;
+        _captureBuffers.Clear();
+        _capturedValues.Clear();
+        _activeCaptureBuffers.Clear();
         _root.Dispose();
     }
 
@@ -186,9 +215,9 @@ internal sealed class MotionStyleScope : IDisposable
 
         private readonly StyledElement _target;
         private readonly Action _changed;
+        private readonly bool _suppressChanges;
         private MotionEndpointDefinition? _definition;
         private IDisposable? _binding;
-        private bool _suppressChanges;
 
         public EndpointChannel(StyledElement target, MotionEndpointDefinition definition, Action changed)
         {

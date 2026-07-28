@@ -38,7 +38,7 @@ public sealed class SequenceMotionController : MotionController
 
     static SequenceMotionController()
     {
-        ProgressProperty.Changed.AddClassHandler<SequenceMotionController>(static (controller, _) => controller.PublishPose());
+        ProgressProperty.Changed.AddClassHandler<SequenceMotionController>(static (controller, _) => controller.OnProgressChanged());
     }
 
     /// <summary>
@@ -58,6 +58,7 @@ public sealed class SequenceMotionController : MotionController
 
     private readonly HashSet<MotionStop> _attachedStops = [];
     private readonly List<MotionStop> _orderedStops = [];
+    private int _initializationDepth;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SequenceMotionController"/> class.
@@ -68,8 +69,49 @@ public sealed class SequenceMotionController : MotionController
         PublishPose();
     }
 
+    /// <inheritdoc />
+    public override void BeginInit()
+    {
+        base.BeginInit();
+        _initializationDepth++;
+    }
+
+    /// <inheritdoc />
+    public override void EndInit()
+    {
+        if (_initializationDepth == 0)
+        {
+            base.EndInit();
+            return;
+        }
+
+        var completesBatch = _initializationDepth == 1;
+        if (completesBatch)
+        {
+            SynchronizeStops();
+            RebuildOrderedStops();
+            PublishPose();
+        }
+
+        _initializationDepth--;
+        base.EndInit();
+    }
+
+    private void OnProgressChanged()
+    {
+        if (_initializationDepth == 0)
+        {
+            PublishPose();
+        }
+    }
+
     private void OnStopsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        if (_initializationDepth > 0)
+        {
+            return;
+        }
+
         SynchronizeStops();
         RebuildOrderedStops();
         PublishPose();
@@ -96,6 +138,11 @@ public sealed class SequenceMotionController : MotionController
 
     private void OnStopPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
+        if (_initializationDepth > 0)
+        {
+            return;
+        }
+
         if (e.Property == MotionStop.OffsetProperty)
         {
             RebuildOrderedStops();
