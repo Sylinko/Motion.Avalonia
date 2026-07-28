@@ -157,6 +157,47 @@ public sealed class LayoutInterpolationTests
     }
 
     [Test]
+    public void PositionChannel_WhenCubicBezierInterpolatorMatches_FollowsTheCurve()
+    {
+        var child = new Border();
+        var (panel, controller) = CreatePanel(child);
+        panel.Interpolators.Add(new CubicBezierMotionInterpolator
+        {
+            Target = "editor",
+            Property = MotionLayout.PositionProperty,
+            SourceControlOffset = new Vector(0, 100),
+            TargetControlOffset = new Vector(0, 100),
+        });
+        panel.States.Add(CreateState(
+            "center",
+            () => CreateSlot("editor", 100, HorizontalAlignment.Center)));
+        panel.States.Add(CreateState(
+            "left",
+            () => CreateSlot("editor", 100, HorizontalAlignment.Left)));
+
+        Present(panel, controller, MotionPose.State("center"));
+        Present(
+            panel,
+            controller,
+            MotionPose.CreateBlend(
+                MotionPose.State("center"),
+                MotionPose.State("left"),
+                0.5));
+
+        Assert.That(GetPresentedBounds(child).Position, Is.EqualTo(new Point(75, 75)));
+    }
+
+    [Test]
+    public void CubicBezierInterpolator_WhenControlOffsetIsNotFinite_RejectsTheValue()
+    {
+        Assert.Throws<ArgumentException>(
+            () => _ = new CubicBezierMotionInterpolator
+            {
+                SourceControlOffset = new Vector(double.NaN, 0),
+            });
+    }
+
+    [Test]
     public void MotionSlot_WhenSetterUsesLayoutProperty_RejectsTheChannel()
     {
         var slot = CreateSlot("editor", 100, HorizontalAlignment.Left);
