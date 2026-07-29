@@ -952,27 +952,26 @@ public sealed class MotionPanel : Control
     }
 
     private T InterpolateValue<T>(
-        string? target,
+        string? targetName,
         AvaloniaProperty property,
         T oldValue,
         T newValue,
         BlendMotionPose blend,
         double inheritedProgress)
     {
-        var interpolator = FindInterpolator(target, property, blend.Edge);
+        var interpolator = FindInterpolator(targetName, property, blend.Edge);
         var progress = interpolator.Easing?.Ease(blend.Progress) ?? inheritedProgress;
         return (T)interpolator.InterpolateCore(property, progress, oldValue, newValue)!;
     }
 
-    private MotionInterpolator FindInterpolator(string? target, AvaloniaProperty property, MotionEdge? edge)
+    private MotionInterpolator FindInterpolator(string? targetName, AvaloniaProperty property, MotionEdge? edge)
     {
-        if (edge is not null &&
-            _interpolatorIndex.TryGetValue(new InterpolatorLookup(target, property, edge), out var edgeSpecific))
+        if (edge is not null && _interpolatorIndex.TryGetValue(new InterpolatorLookup(targetName, property, edge), out var edgeSpecific))
         {
             return edgeSpecific;
         }
 
-        if (_interpolatorIndex.TryGetValue(new InterpolatorLookup(target, property, null), out var general))
+        if (_interpolatorIndex.TryGetValue(new InterpolatorLookup(targetName, property, null), out var general))
         {
             return general;
         }

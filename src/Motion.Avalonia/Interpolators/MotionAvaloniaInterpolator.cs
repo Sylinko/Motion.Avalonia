@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Animation;
@@ -30,38 +29,44 @@ public sealed class MotionAvaloniaInterpolator : MotionInterpolator
 {
     internal static MotionAvaloniaInterpolator Default { get; } = new();
 
-    private static readonly Dictionary<InterpolatorKey, IMotionValueInterpolator> Cache = [];
+    private static readonly Dictionary<AvaloniaProperty, IMotionValueInterpolator> Cache = [];
 
     internal override object? InterpolateCore(AvaloniaProperty property, double progress, object? oldValue, object? newValue)
     {
-        var key = new InterpolatorKey(property, oldValue?.GetType(), newValue?.GetType());
-        if (!Cache.TryGetValue(key, out var interpolator))
+        if (!Cache.TryGetValue(property, out var interpolator))
         {
-            interpolator = CreateInterpolator(property, oldValue, newValue);
-            Cache.Add(key, interpolator);
+            interpolator = CreateInterpolator(property);
+            Cache.Add(property, interpolator);
         }
 
         return interpolator.Interpolate(progress, oldValue, newValue);
     }
 
-    private static IMotionValueInterpolator CreateInterpolator(AvaloniaProperty property, object? oldValue, object? newValue)
+    private static IMotionValueInterpolator CreateInterpolator(AvaloniaProperty property)
     {
-        if (oldValue is IBrush || newValue is IBrush)
+        // Avalonia's BaseBrushAnimator and EffectAnimator select a concrete subtype animator in
+        // Apply(). Motion calls Animator<T>.Interpolate directly, where both base animators only
+        // provide a discrete fallback. Select equivalent value interpolators once from the
+        // property's declared type; they inspect both concrete endpoint values when interpolating.
+        if (typeof(IBrush).IsAssignableFrom(property.PropertyType))
         {
             return BrushValueInterpolator.Shared;
         }
 
-        if (oldValue is IEffect || newValue is IEffect)
+        if (typeof(IEffect).IsAssignableFrom(property.PropertyType))
         {
             return EffectValueInterpolator.Shared;
         }
 
+        // Avalonia's TransformAnimator targets scalar properties owned by Transform objects; it
+        // is not an ITransform value interpolator. Normalize RenderTransform values to
+        // TransformOperations so Motion can interpolate the property itself.
         if (property == Visual.RenderTransformProperty)
         {
             return TransformValueInterpolator.Shared;
         }
 
-        var registration = GetAnimatorType(null!, property);
+        var registration = GetAnimatorType(null, property);
         if (registration is not { } registered)
         {
             return DiscreteValueInterpolator.Shared;
@@ -92,10 +97,7 @@ public sealed class MotionAvaloniaInterpolator : MotionInterpolator
     }
 
     [UnsafeAccessor(UnsafeAccessorKind.StaticMethod, Name = "GetAnimatorType")]
-    private static extern (Type Type, Func<IAnimator> Factory)? GetAnimatorType(Animation animation, AvaloniaProperty property);
-
-    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
-    private readonly record struct InterpolatorKey(AvaloniaProperty Property, Type? OldValueType, Type? NewValueType);
+    private static extern (Type Type, Func<IAnimator> Factory)? GetAnimatorType(Animation? klass, AvaloniaProperty property);
 
     private interface IMotionValueInterpolator
     {

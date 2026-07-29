@@ -496,6 +496,47 @@ public sealed class MotionPanelTests
     }
 
     [Test]
+    public void StateTransition_WhenSolidBrushBlendsToGradient_UsesGradientAnimator()
+    {
+        var child = new Border();
+        var panel = CreatePanel(child);
+        GetBasicController(panel).Duration = TimeSpan.FromSeconds(1);
+        GetBasicController(panel).Easing = new LinearEasing();
+        panel.States.Add(CreateState(
+            "solid",
+            () => CreateSlotWithSetter(
+                "editor",
+                Border.BackgroundProperty,
+                new SolidColorBrush(Colors.Red))));
+        panel.States.Add(CreateState(
+            "gradient",
+            () => CreateSlotWithSetter(
+                "editor",
+                Border.BackgroundProperty,
+                new LinearGradientBrush
+                {
+                    GradientStops =
+                    [
+                        new GradientStop(Colors.Blue, 0),
+                        new GradientStop(Colors.Green, 1),
+                    ],
+                })));
+        Arrange(panel, "solid", new Size(400, 200));
+
+        Arrange(panel, "gradient", new Size(400, 200));
+        AdvanceAnimation(panel, TimeSpan.Zero, new Size(400, 200));
+        AdvanceAnimation(panel, TimeSpan.FromMilliseconds(250), new Size(400, 200));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(child.Background, Is.InstanceOf<IGradientBrush>());
+            var firstStop = ((IGradientBrush)child.Background!).GradientStops[0];
+            Assert.That(firstStop.Color, Is.Not.EqualTo(Colors.Red));
+            Assert.That(firstStop.Color, Is.Not.EqualTo(Colors.Blue));
+        });
+    }
+
+    [Test]
     public void StateTransition_WhenCustomInterpolatorMatches_UsesTypedInterpolator()
     {
         var child = new Border();
