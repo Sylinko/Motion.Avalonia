@@ -12,8 +12,8 @@ public partial class TargetPropertiesPage : UserControl
 
     private void OnFormModeButtonClick(object? sender, RoutedEventArgs e)
     {
-        var isEditing = Equals(FormController.State, "Editing");
-        FormController.State = isEditing ? "Review" : "Editing";
+        var isEditing = Equals(FormMotion.State, "Editing");
+        FormMotion.State = isEditing ? "Review" : "Editing";
         FormModeLabel.Text = isEditing ? "Reviewing" : "Editing";
 
         if (sender is Button button)

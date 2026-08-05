@@ -1,232 +1,116 @@
 # Interpolators
 
-An easing answers, “How far through the transition are we?” An interpolator answers, “What motion value exists at that progress?”
+[Documentation index](README.md)
 
-Keeping those responsibilities separate allows one motion pose to use a general timing curve while selected layout
-channels or target properties use a different curve or interpolation algorithm.
+Motion separates two operations:
 
-## Default Behavior
+- `Easing` remaps progress on the time axis;
+- `MotionInterpolator` maps progress through a property's value space.
 
-If no override matches a layout channel or target property, `MotionPanel` uses `MotionAvaloniaInterpolator`.
+## Default Interpolation
 
-It reuses Avalonia's registered `Animator<T>` for the property whenever possible. This provides the same strongly typed interpolation behavior as Avalonia animations without requiring Motion.Avalonia to maintain a parallel table for every supported value type.
+`MotionAvaloniaInterpolator` is the fallback. It caches one value interpolator per `AvaloniaProperty` and reuses
+Avalonia's registered `Animator<T>` where possible.
 
-It also handles several polymorphic properties explicitly:
+Brushes, effects, and `RenderTransform` receive specialized handling because Avalonia's corresponding base animators
+normally choose a concrete implementation during Avalonia animation `Apply()`. Unsupported value types switch
+discretely at halfway.
 
-| Values or property | Default behavior |
-| --- | --- |
-| Solid-color brushes | `ISolidColorBrushAnimator` |
-| Gradient brushes | `GradientBrushAnimator` |
-| Compatible solid/gradient pair | Solid brush normalized to a gradient |
-| Blur effects | `BlurEffectAnimator` |
-| Drop-shadow effects | `DropShadowEffectAnimator` |
-| `RenderTransform` | `TransformOperationsAnimator` |
-| Other registered properties | Avalonia's registered `Animator<T>` |
-| No compatible animator | Discrete switch at progress `0.5` |
+## MotionInterpolation
 
-Animator resolution is cached by property and endpoint runtime types.
-
-## Panel-Level Overrides
-
-`MotionPanel.Interpolators` is a lookup collection. Each target-scoped entry must identify:
-
-- `Target`: the stable `x:Name` of a direct child;
-- `Property`: the Avalonia property to interpolate;
-- optionally, `Edges`: the directed transitions on which it applies;
-- optionally, `Easing`: a property-specific progress curve.
+A `MotionInterpolation` selects one property channel:
 
 ```xml
-<motion:MotionPanel.Interpolators>
-    <motion:MotionAvaloniaInterpolator
-        Target="Card"
-        Property="Opacity"
-        Easing="SineEaseInOut" />
-</motion:MotionPanel.Interpolators>
+<motion:SequenceMotion>
+  <motion:Motion.Interpolations>
+    <motion:MotionInterpolation
+      Target="Card"
+      Property="(Visual.Opacity)"
+      Easing="SineEaseOut"/>
+  </motion:Motion.Interpolations>
+</motion:SequenceMotion>
 ```
 
-The explicit `MotionAvaloniaInterpolator` still uses Avalonia's default value interpolation. Here it only overrides the easing for `Card.Opacity`.
+Motion-level entries require `Target` for target channels. Omit `Target` for the panel-wide
+`Motion.DesiredSize` channel or for a slot-local entry. Motion-level entries are compile-time
+authoring data: changing the collection or an entry does not alter an existing compiled motion.
 
-## Built-in Layout Channels
+## Layout Channels
 
-Layout results use the same resolver as target properties. `MotionLayout` exposes strongly typed Avalonia properties
-that identify the four built-in channels:
+Layout uses the same resolver as target properties:
 
-| Property | Type | Scope | Meaning |
-| --- | --- | --- | --- |
-| `MotionLayout.DesiredSizeProperty` | `Size` | Panel | Desired size returned during measure |
-| `MotionLayout.PositionProperty` | `Point` | Target | Absolute position resolved from the live state template |
-| `MotionLayout.SizeProperty` | `Size` | Target | Resolved target layout size |
-| `MotionLayout.PresenceProperty` | `double` | Target | Enter/leave weight before final clamping |
+| Property | Type | Destination |
+|---|---|---|
+| `Motion.DesiredSizeProperty` | `Size` | MotionPanel |
+| `Motion.PositionProperty` | `Point` | Target container |
+| `Motion.SizeProperty` | `Size` | Target container |
+| `Motion.PresenceProperty` | `double` | Target container |
 
-Use the attached-property form when selecting a layout channel in AXAML:
+Example:
 
 ```xml
-<motion:MotionPanel.Interpolators>
-    <local:SpringPointInterpolator
-        Target="Card"
-        Property="(motion:MotionLayout.Position)" />
-
-    <motion:MotionAvaloniaInterpolator
-        Target="Card"
-        Property="(motion:MotionLayout.Size)"
-        Easing="CubicEaseOut" />
-</motion:MotionPanel.Interpolators>
+<motion:MotionInterpolation
+  Target="Card"
+  Property="(motion:Motion.Position)">
+  <motion:MotionInterpolation.Interpolator>
+    <motion:CubicBezierMotionInterpolator
+      SourceControlOffset="120,-80"
+      TargetControlOffset="-96,64"/>
+  </motion:MotionInterpolation.Interpolator>
+</motion:MotionInterpolation>
 ```
 
-`Position`, `Size`, and `Presence` require `Target`. `DesiredSize` belongs to the panel and therefore omits it:
+The Bézier control points are offsets from the live source and destination positions. Resizing therefore moves the
+entire curve with its endpoints.
 
-```xml
-<local:OvershootSizeInterpolator
-    Property="(motion:MotionLayout.DesiredSize)" />
-```
+## Resolution Order
 
-These properties are interpolation keys, not state endpoints. State templates continue to calculate position and size
-through ordinary Avalonia layout, and target presence continues to come from whether a state contains the target.
-Do not put `MotionLayout` properties in a `MotionSlot.Setter`.
+For a channel arriving at an endpoint, metadata resolves from most specific to broadest:
 
-## Lookup Order
+1. setter or slot endpoint;
+2. matching `MotionEdge.Interpolations` for `StateMotion`;
+3. matching `Motion.Interpolations`;
+4. default linear easing and `MotionAvaloniaInterpolator`.
 
-For each `(Target, Property)` pair—or the panel-wide `DesiredSize` property—the panel selects:
+Easing and interpolator fall back independently. An explicit null easing means linear. An explicit null interpolator
+resets to the default Avalonia interpolator.
 
-1. an override whose `Edges` collection contains the active `MotionEdge`;
-2. a general panel override with an empty `Edges` collection;
-3. the shared default `MotionAvaloniaInterpolator`.
+For Sequence and Timeline tracks, destination keyframe easing supplies the inherited segment easing before the
+property-specific chain is applied.
 
-An edge-specific match takes precedence over a general match. Multiple matches at the same level are configuration errors.
-
-Edge filtering is available whenever the pose carries a `MotionEdge`. `BasicMotionController` supplies its selected
-edge automatically. A custom controller can pass its selected edge to
-`MotionPose.CreateBlend(source, target, progress, easing, edge)` and receives the same lookup behavior. Reuse the actual
-edge instance registered with the interpolator; edge matching uses object identity.
-
-## Property-Specific Easing
-
-When an interpolator has an `Easing`, it evaluates that easing against the blend's raw progress:
-
-```xml
-<motion:MotionAvaloniaInterpolator
-    Target="Card"
-    Property="Opacity"
-    Easing="CubicEaseIn" />
-```
-
-When `Easing` is `null`, the property inherits the pose's already-eased progress.
-
-This makes two useful levels available:
-
-- controller or edge easing shapes the motion as a whole;
-- interpolator easing reshapes one target property.
-
-## A Strongly Typed Custom Interpolator
-
-Derive from `MotionInterpolator<T>` when a property needs a different value path:
+## Strongly Typed Custom Interpolator
 
 ```csharp
-using Motion.Avalonia;
-
 public sealed class OvershootDoubleInterpolator : MotionInterpolator<double>
 {
-    public double Overshoot { get; set; } = 0.08;
-
-    public override double Interpolate(
+    protected override double Interpolate(
         double progress,
         double oldValue,
         double newValue)
     {
-        var distance = newValue - oldValue;
-        var wave = Math.Sin(progress * Math.PI) * Overshoot;
-        return oldValue + (distance * (progress + wave));
+        var overshoot = Math.Sin(progress * Math.PI) * 0.08;
+        return oldValue + ((newValue - oldValue) * (progress + overshoot));
     }
 }
 ```
 
-Register it for one target and property:
+Use it through `MotionInterpolation`:
 
 ```xml
-<motion:MotionPanel.Interpolators>
-    <local:OvershootDoubleInterpolator
-        Target="Card"
-        Property="Opacity" />
-</motion:MotionPanel.Interpolators>
+<motion:MotionInterpolation
+  Target="Card"
+  Property="(Visual.Opacity)">
+  <motion:MotionInterpolation.Interpolator>
+    <local:OvershootDoubleInterpolator/>
+  </motion:MotionInterpolation.Interpolator>
+</motion:MotionInterpolation>
 ```
 
-The generic base checks both endpoint types and reports a descriptive error if the selected property or layout channel
-does not produce `T`.
+The generic type must match both endpoint values. Type mismatches fail with a configuration exception that identifies
+the property and endpoint.
 
-The example is intentionally small. A production interpolator should define how it handles overshoot, clamping, null endpoints, and values outside its natural domain.
+## Easing Is Not a Spatial Path
 
-## Cubic Bézier Position Paths
-
-`CubicBezierMotionInterpolator` is a strongly typed `MotionInterpolator<Point>`. Register it for
-`MotionLayout.PositionProperty` to replace linear position interpolation with one cubic Bézier segment:
-
-```xml
-<motion:CubicBezierMotionInterpolator
-    Target="Satellite"
-    Property="(motion:MotionLayout.Position)"
-    SourceControlOffset="120,-80"
-    TargetControlOffset="-96,64" />
-```
-
-The source and destination layout positions are the curve endpoints. `SourceControlOffset` locates the first control
-point relative to the live source position; `TargetControlOffset` locates the second relative to the live destination.
-Only position follows the curve. Target size, presence, and ordinary properties retain their own interpolators.
-
-One instance intentionally describes one cubic segment with exactly two control offsets. A future multi-segment spline
-can build on the same `Point` channel without changing the panel's interpolation architecture.
-
-## Restricting an Override to Edges
-
-`MotionInterpolator.Edges` contains actual `MotionEdge` instances, not state-key pairs. This keeps lookup tied to the edge selected by the controller.
-
-The relationship can be configured in code when that is clearer than XAML references:
-
-```csharp
-using Avalonia;
-using Avalonia.Animation.Easings;
-using Motion.Avalonia;
-
-var expandEdge = new MotionEdge
-{
-    From = "Compact",
-    To = "Expanded",
-    Duration = TimeSpan.FromMilliseconds(500),
-};
-
-var opacityInterpolator = new MotionAvaloniaInterpolator
-{
-    Target = "Card",
-    Property = Visual.OpacityProperty,
-    Easing = new CubicEaseIn(),
-};
-
-opacityInterpolator.Edges.Add(expandEdge);
-controller.Edges.Add(expandEdge);
-panel.Interpolators.Add(opacityInterpolator);
-```
-
-The reverse edge can use the general interpolator or a second edge-specific override.
-
-## Why Interpolators Belong to the Panel
-
-The panel owns the mapping from a slot endpoint to a real target property. Therefore it is also the natural first lookup scope for interpolation policy.
-
-This avoids ambiguity in state templates:
-
-- an interpolator is not arbitrarily attached to the source or destination setter;
-- forward and reverse transitions can be distinguished by edge;
-- one state definition does not need to know every controller that may present it;
-- the default case remains concise.
-
-More advanced scopes may be added in the future, but the current fallback chain is intentionally small and deterministic.
-
-## Discrete Values
-
-Not every property has a meaningful continuous path. For cursors, unsupported object types, and incompatible polymorphic values, the default interpolator returns:
-
-- the source value before progress `0.5`;
-- the destination value at and after progress `0.5`.
-
-This is deterministic and keeps unsupported properties usable. Define a custom interpolator when the halfway switch is not the desired policy.
-
-Next: [Recipes](recipes.md)
+Easing changes only the scalar progress parameter. A position path requires a value-space interpolator such as
+`CubicBezierMotionInterpolator`. Other property types can define entirely different value-space mappings without
+changing MotionPanel.

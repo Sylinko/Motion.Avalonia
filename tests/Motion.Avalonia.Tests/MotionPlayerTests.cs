@@ -1,5 +1,7 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Avalonia.Controls;
+using Avalonia.LogicalTree;
 
 namespace Motion.Avalonia.Tests;
 
@@ -23,26 +25,59 @@ public sealed class MotionPlayerTests
     }
 
     [Test]
-    public void PlayerDrivenController_WhenPanelAssociationEnds_ReleasesPlayerAttachment()
+    public void PlayerDrivenMotion_WhenLogicalTreeAttachmentEnds_ReleasesPlayerAttachment()
     {
-        var controller = new TestMotionController();
-        var player = controller.Player;
-        var panel = new MotionPanel { Controller = controller };
+        var motion = new TestMotion();
+        var player = motion.Player;
+        var panel = new MotionPanel { Motion = motion };
+        var root = DispatchProxy.Create<ILogicalRoot, LogicalRootProxy>();
+        var eventArgs = new LogicalTreeAttachmentEventArgs(root, motion, panel);
+        var logical = (ILogical)motion;
+        logical.NotifyAttachedToLogicalTree(eventArgs);
 
         Assert.Throws<InvalidOperationException>(
             () => player.Attach(new Border()));
 
-        panel.Controller = null;
+        logical.NotifyDetachedFromLogicalTree(eventArgs);
         using var attachment = player.Attach(new Border());
 
-        Assert.That(controller.Player, Is.SameAs(player));
+        Assert.That(motion.Player, Is.SameAs(player));
+    }
+
+    [Test]
+    public void Motion_WhenRemovedFromPanel_CanBelongToAnotherPanel()
+    {
+        var motion = new TestMotion();
+        var firstPanel = new MotionPanel { Motion = motion };
+
+        firstPanel.Motion = null;
+        var secondPanel = new MotionPanel { Motion = motion };
+
+        Assert.That(motion.Parent, Is.SameAs(secondPanel));
+    }
+
+    [Test]
+    public void Motion_WhenItAlreadyHasAParent_CannotBelongToAnotherPanel()
+    {
+        var motion = new TestMotion();
+        var firstPanel = new MotionPanel { Motion = motion };
+        var secondPanel = new MotionPanel();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => secondPanel.Motion = motion);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(exception!.Message, Does.Contain("logical parent"));
+            Assert.That(motion.Parent, Is.SameAs(firstPanel));
+        });
     }
 
     [Test]
     public void Playback_WhenFramesAdvance_PublishesClockTicksWithoutCompleting()
     {
-        var controller = new TestMotionController();
-        var player = controller.Player;
+        var motion = new TestMotion();
+        var player = motion.Player;
 
         player.Play();
         Advance(player, TimeSpan.FromSeconds(10));
@@ -53,15 +88,15 @@ public sealed class MotionPlayerTests
         {
             Assert.That(player.Time, Is.EqualTo(TimeSpan.FromSeconds(2)));
             Assert.That(player.State, Is.EqualTo(MotionPlayerState.Playing));
-            Assert.That(controller.Ticks, Has.Count.EqualTo(3));
+            Assert.That(motion.Ticks, Has.Count.EqualTo(3));
             Assert.That(
-                controller.Ticks[0],
+                motion.Ticks[0],
                 Is.EqualTo((TimeSpan.Zero, TimeSpan.Zero)));
             Assert.That(
-                controller.Ticks[1],
+                motion.Ticks[1],
                 Is.EqualTo((TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500))));
             Assert.That(
-                controller.Ticks[2],
+                motion.Ticks[2],
                 Is.EqualTo((TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(1500))));
         });
     }
@@ -69,8 +104,8 @@ public sealed class MotionPlayerTests
     [Test]
     public void Playback_WhenPausedPlayedResetAndStopped_UsesOrthogonalClockControls()
     {
-        var controller = new TestMotionController();
-        var player = controller.Player;
+        var motion = new TestMotion();
+        var player = motion.Player;
 
         player.Play();
         Advance(player, TimeSpan.Zero);
@@ -124,13 +159,24 @@ public sealed class MotionPlayerTests
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_frameGeneration")]
     private static extern ref int GetFrameGeneration(MotionPlayer player);
 
-    private sealed class TestMotionController : PlayerDrivenMotionController
+    private sealed class TestMotion : PlayerDrivenMotion
     {
         public IReadOnlyList<(TimeSpan Time, TimeSpan DeltaTime)> Ticks => _ticks;
 
         private readonly List<(TimeSpan Time, TimeSpan DeltaTime)> _ticks = [];
 
-        protected override void OnPlayerTick(TimeSpan time, TimeSpan deltaTime) =>
+        public TestMotion()
+        {
+            Player.Tick += HandlePlayerTick;
+        }
+
+        private void HandlePlayerTick(MotionPlayer sender, TimeSpan time, TimeSpan deltaTime) =>
             _ticks.Add((time, deltaTime));
+    }
+
+    private class LogicalRootProxy : DispatchProxy
+    {
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
+            throw new NotSupportedException();
     }
 }

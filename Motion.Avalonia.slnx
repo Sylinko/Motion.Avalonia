@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/3rd/">
+    <Project Path="../ClassicDiagnostics.Avalonia/src/ClassicDiagnostics.Avalonia.csproj" />
     <Project Path="3rd/shad-ui/src/ShadUI/ShadUI.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">

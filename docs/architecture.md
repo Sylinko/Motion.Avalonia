@@ -1,212 +1,193 @@
 # Architecture
 
-Motion.Avalonia treats animation as live layout evaluation, not as a rendered snapshot moving between rectangles.
+[Documentation index](README.md)
 
-This chapter describes the current implementation. Internal types are not public API, but understanding their roles helps when diagnosing layout, lifetime, and performance behavior.
+Motion.Avalonia separates authoring, live layout, evaluation, interpolation, and property application.
 
-## Ownership Model
+## Ownership
 
-One `MotionPanel` owns:
+`MotionPanel` owns:
 
-- stable logical target controls;
-- one internal item container per target;
-- persistent hosts for its `MotionState` templates;
-- the currently attached controller;
-- panel-level interpolator overrides;
-- property-output channels for the real targets.
+- stable direct targets and their containers;
+- hidden hosts for live layout sources;
+- the current `MotionRuntime` and its disposal.
 
-A target control remains the same object throughout all states. State templates contain only layout proxies and ordinary layout controls.
+A `Motion` owns:
 
-## Evaluation Pipeline
+- state or keyframe authoring data;
+- the current evaluation coordinate;
+- motion-level interpolation policy;
+- an optional `MotionPlayer`.
+
+Layout source types own their `DataTemplate`; `MotionSlot` owns endpoint definitions for one named target.
+
+## Initialization Boundary
+
+AXAML collection and property assignment order is not a valid topology boundary. MotionPanel waits until
+`OnInitialized` before the first complete compilation. Changes before initialization only make the topology dirty.
+
+After initialization, collections remain dynamic. A later structure change recompiles the affected graph during
+the next layout pass.
+
+## Compile Phase
+
+Each motion implements the public `Compile` operation:
 
 ```text
-Controller publishes MotionPose
-        │
-        ▼
-Collect states required by the pose
-        │
-        ▼
-Measure and arrange their live templates
-        │
-        ▼
-Capture slot bounds, presence, properties, and paint order
-        │
-        ▼
-Recursively evaluate the pose
-        │
-        ▼
-Arrange stable target containers
-        │
-        ▼
-Publish target properties at Animation priority
+Motion + MotionPanel topology
+           │
+           ▼
+  MotionCompilationContext
+           │
+           ▼
+      MotionRuntime
+           │
+           ▼
+one MotionTrack<T> per discovered channel
 ```
 
-The pipeline runs through Avalonia's normal layout invalidation. A controller pose change invalidates measure, and the next layout pass captures the required endpoints.
+Compilation resolves target destinations, builds interpolation lookup tables, discovers channels, and creates strongly
+typed tracks. If compilation fails partway through, already-created bindings and subscriptions are disposed before the
+exception escapes. Custom motions use the same public context, runtime, and track types as the built-ins.
+Motion-level interpolation entries are copied into the runtime's lookup table; later changes to their collection or
+properties do not affect the existing runtime.
 
-## Persistent State Hosts
+After MotionPanel stores the complete runtime, it activates the runtime. Activation connects
+runtime publishers only after every track and binding exists. Observable sources may therefore
+publish their current value synchronously during subscription without observing a partially built
+graph.
 
-Each `MotionState` has an internal `MotionPanelHost`. The host builds the state's `DataTemplate`, keeps it connected to the logical and visual trees, and subscribes to its slots.
+`StateMotion` compiles the union of complete-state channels into state-specific tracks.
+`SequenceMotion` and `TimelineMotion` compile independent sparse channels directly into the same
+`KeyFrameMotionTrack<T>` type. Each keyframe track owns its typed `Keys`; every
+`KeyFrameMotionTrack<T>.Key` retains its source keyframe and latest live endpoint value.
+Both motions implement `IKeyFrameMotion`: the interface publishes normalized progress and maps
+each authored keyframe to an Avalonia `Cue`. Timeline converts absolute `Time` and `KeyTime`
+against its current `Duration` during this boundary.
 
-The host is invisible, non-interactive, and non-focusable. It exists to let Avalonia perform real layout:
+## Track Binding
 
-- bindings remain active;
-- resources and inherited values resolve normally;
-- text and nested controls measure at the current constraints;
-- a panel resize changes endpoint geometry;
-- endpoint setter bindings can notify the owner.
+Every track owns one `IObservable<T>` binding at `BindingPriority.Animation`. The track:
 
-The template is not rebuilt every frame. Replacing `MotionState.Template` rebuilds its host; ordinary layout and binding changes reuse it.
+- reads the destination's base value;
+- watches lower-priority value changes;
+- evaluates its current value when requested;
+- skips publishing equal consecutive values;
+- restores the current base value when disposed.
 
-## Required-State Evaluation
+The runtime's private type bridge is cached by the property's declared type. The specific destination
+property still identifies the channel, while `MotionTrack<T>` retains the resolved Motion-level
+interpolation fallback for its lifetime.
 
-The panel traverses the current pose and collects only the referenced states:
+## Live Layout Frames
 
-- `State(A)` requires `A`;
-- `Blend(State(A), State(B), p)` requires `A` and `B`;
-- an interrupted nested blend requires every distinct state reachable from that pose.
+Every state or keyframe has a persistent hidden `MotionPanelHost`. A host builds the source template, measures its slots
+against real targets, and captures one reusable `MotionLayoutFrame` containing:
 
-Only required states are measured and arranged for the current pass. This prevents unrelated state templates from taking part in every frame.
+- source desired size;
+- target position, size, presence, and endpoint metadata;
+- target and nested-target property endpoints.
 
-## Slot Capture
+The frame owns reusable dictionaries. Capturing updates them in place; it is not an immutable snapshot and contains no
+bitmap data.
 
-After a required state host is arranged, each `MotionSlot` contributes:
+Only layout sources required by the current state blend or active sparse track segments are measured and arranged.
 
-- bounds relative to the state host;
-- presence `1`;
-- explicitly set shortcut values;
-- evaluated setter values;
-- normalized relative `ZIndex`.
+## Layout Cycle
 
-Slots can be nested under `Grid`, `DockPanel`, `StackPanel`, or custom panels. The host accumulates ancestor positions to convert their final bounds into its coordinate space.
+During measure:
 
-A state that does not contain a target contributes no entry for it.
+1. ensure the current `MotionRuntime`;
+2. collect required layout sources;
+3. measure their live hosts;
+4. publish panel desired-size tracks;
+5. measure target containers at their evaluated sizes.
 
-## Presence
+During arrange:
 
-When a target exists on only one side of a blend, the missing endpoint is synthesized from the existing bounds and properties with presence `0`.
+1. arrange and capture required hosts at the final panel size;
+2. publish all tracks against the current frames;
+3. arrange target containers at `Motion.Position` and `Motion.Size`;
+4. notify the runtime that the result was presented.
 
-The result is:
+This is why resizing a settled state remains responsive.
 
-- stable geometry while entering or leaving;
-- container opacity driven by presence;
-- hit testing disabled near zero presence;
-- no `IsVisible` layout jump.
+## Runtime Publication
 
-When a pose contains no entry for a target, its container is arranged at zero size and made non-interactive.
+State, progress, time, player, and live endpoint changes reuse the runtime graph. Sequence and
+Timeline publish current progress directly through `IKeyFrameMotion`; their runtime owns
+that subscription and forwards each value to its keyframe tracks. `MotionRuntime` publishes each
+track directly into its animation-priority binding. Avalonia then decides whether the changed
+destination property invalidates measure, arrange, render, or none of them.
 
-## Stable Item Containers
+Motion does not attempt to classify arbitrary Avalonia properties as layout-affecting. Avalonia controls can register
+their own property-change handlers, so the framework itself is the source of truth.
 
-Each target is hosted by an internal `MotionPanelItemContainer`. The container owns the layout-facing animated values:
+`MotionPanel` coordinates only values whose evaluation depends on a live layout template. If a sparse segment first
+references a source that has not yet been measured and arranged for the current panel size, the panel queues layout,
+captures that endpoint, and republishes the existing tracks. Pure property changes do not enter layout merely because
+they belong to a motion.
 
-- position;
-- width;
-- height;
-- presence opacity;
-- presence hit testing;
-- relative Z order.
+## State Evaluation
 
-Changing its direct `Position` property invalidates parent arrange. Changing width or height invalidates parent measure. This follows the same general mechanism used by layout panels such as `Canvas`: animated container properties participate directly in Avalonia layout invalidation.
+StateMotion keeps an internal recursive state composition only to preserve interruption:
 
-The target is arranged to fill its current container size. This is real intermediate layout, so its contents can reflow.
+```text
+State A
+   ╲
+    Blend(A, B, 0.42)
+                  ╲
+                   Blend(previous result, C, new progress)
+```
 
-## Pose Evaluation
+The composition is an implementation detail, not the public authoring model. Each state track
+evaluates the same recursive blend and applies endpoint, edge, and motion interpolation policy.
 
-A state pose returns its latest captured layout.
+## Sparse Track Evaluation
 
-A blend pose recursively evaluates its source and target, applies its easing, then interpolates:
+Sequence and Timeline compile one ordered key list per channel. Segment lookup is binary. A property omitted from an
+intermediate keyframe is not visited during evaluation because it was never inserted into that channel's track.
 
-- desired panel size through `MotionLayout.DesiredSizeProperty`;
-- target position through `MotionLayout.PositionProperty`;
-- target size through `MotionLayout.SizeProperty`;
-- presence through `MotionLayout.PresenceProperty`;
-- target-property endpoints.
+Duplicate cues replace the previous key for channels authored by the later declaration.
 
-Because source and target are themselves poses, interruption does not require a bitmap or a frozen property snapshot. A currently presented blend can become the source of another blend.
+## TargetStyles
 
-The four layout properties are typed interpolation keys. They do not replace state-template layout inputs such as
-margin, alignment, grid row, or attached panel properties. Those inputs first resolve into live position and size
-endpoints; the resolved values then enter the same interpolator pipeline as target properties.
+Target styles use Avalonia's selector and AXAML compilation syntax without applying setters to arbitrary proxy objects.
+Motion creates an isolated shadow tree that mirrors the real target logical subtree and registers shadow properties for
+the source Avalonia properties.
 
-## Property Outputs
+This avoids assigning properties such as `IsEnabledProperty` to an incompatible generic proxy. Effective shadow setter
+values are captured as endpoint definitions and later applied to the real registered destination.
 
-Target-property values are published through a binding at `BindingPriority.Animation`.
+Style endpoint values are cached until a binding changes. Value changes refresh the reusable frame and publish the
+existing tracks; channel additions or removals invalidate the compiled topology.
 
-For every active property output, the panel also observes non-animation changes on the destination and retains the latest base value. This allows a missing endpoint to blend against the current base and allows the base to reappear when motion stops supplying that property.
+## Invalidation Levels
 
-`ZIndex` is the exception in destination: it is published to the internal item container because the container, not the child, participates in the panel's paint order.
+- **Evaluation change**: progress, time, player tick, or active state blend changed. Publish existing tracks directly.
+- **Endpoint value change**: a live binding changed. Refresh the frame and publish existing tracks.
+- **Endpoint topology change**: a shortcut, setter, target style, or target subtree changed. Recompile tracks.
+- **Template change**: rebuild only that layout host, then recompile.
+- **Target collection or motion change**: dispose the complete runtime graph and rebind topology.
 
-## Interpolator Resolution
+## Lifetime
 
-For each layout channel or target property in a blend, lookup is:
+Motion is a logical child of MotionPanel. Compiled tracks are disposed when the motion changes or the panel leaves the
+visual tree. PlayerDrivenMotion attaches its player to a rooted visual through an `IDisposable` lease. Visual-tree
+detachment suspends frame requests and excludes detached time without destroying the player state.
 
-1. matching edge-specific panel interpolator;
-2. matching general panel interpolator;
-3. the shared `MotionAvaloniaInterpolator`.
+## Per-frame Work
 
-The default implementation queries Avalonia's internal animator registration, creates a typed adapter, and caches it by property and endpoint runtime types. Brush, effect, and transform properties have specialized dispatch because their concrete value types determine the correct animator.
+The steady path performs:
 
-The panel also caches resolved `(Target, Property, Edge)` matches. The cache is cleared when the interpolator
-collection, an interpolator property, or its edge collection changes, avoiding repeated collection scans on animation
-frames.
+- a required-source readiness check;
+- binary segment lookup for sparse tracks;
+- easing and interpolation;
+- equality-filtered observer publication;
+- Avalonia property invalidation when a published value actually changed.
 
-The project uses `IgnoresAccessChecksToGenerator` and a narrowly scoped `UnsafeAccessor` to reuse Avalonia's internal animator lookup. This removes the earlier reflection-style property interpolation path while preserving Avalonia's own type-aware behavior.
+Live template measure, arrange, capture, and target layout run only when Avalonia or a newly required layout source
+invalidates them.
 
-## Frame Scheduling
-
-`MotionPlayer.Attach(Visual)` establishes one exclusive attachment lease. The player subscribes to that visual's
-attach/detach events, resolves and caches its `TopLevel` when rooted, and requests animation frames directly from the
-cache. Normal per-frame scheduling is therefore `O(1)` rather than walking the visual-parent chain.
-
-Disposing the lease removes both event subscriptions, clears the visual and `TopLevel`, and invalidates pending frame
-callbacks. Visual-tree detachment performs the scheduling cleanup without ending the lease, allowing the same visual
-to reattach and resume playback.
-
-The player tracks a frame generation so stale callbacks from an earlier scheduling run are ignored after play, pause,
-reset, stop, visual-tree detachment, or lease disposal. Its first callback after a new scheduling baseline publishes a
-zero delta; later callbacks advance absolute `Time` and publish both `Time` and `deltaTime`.
-
-`MotionPlayer` does not own duration, normalized progress, easing, or completion. `BasicMotionController` maps the
-clock's absolute time onto its active edge duration. `TimelineMotionController` adds each elapsed delta to its own
-scrubbable `Time` property and stops the player at the latest keyframe.
-
-`PlayerDrivenMotionController` owns one stable player and holds its attachment lease for the complete controller-panel
-association. `BasicMotionController` and `TimelineMotionController` derive from it; the externally driven
-`SequenceMotionController` derives directly from `MotionController`.
-
-## Threading
-
-The layout, controller callbacks, endpoint capture, and property publication are UI-thread operations. The current implementation does not introduce background layout work or cross-thread synchronization.
-
-Custom controllers should publish poses on the UI thread. External physics or solver work may run elsewhere, but its results must be marshalled to Avalonia before changing a controller property or calling `SetCurrentPose`.
-
-## Performance Characteristics
-
-The design avoids several expensive or fragile techniques:
-
-- no bitmap capture;
-- no visual-tree cloning of targets;
-- no per-frame reflection-based property dispatch;
-- no background timer competing with rendering;
-- no measuring of states unrelated to the current pose.
-
-There is still real work on an active frame:
-
-- required state templates are measured and arranged when layout is invalid;
-- captured layouts and blended property maps are created;
-- real targets are measured at their current sizes;
-- animated styled-property values are published.
-
-The cost therefore depends on the complexity of required templates, target subtrees, nesting depth, and number of animated properties. Keep state templates layout-focused, avoid duplicating expensive visual content inside them, and profile realistic scenes.
-
-## Lifetime Summary
-
-| Object | Lifetime |
-| --- | --- |
-| Real target | Stable while it remains in `MotionPanel.Children` |
-| Item container | Stable for the corresponding target |
-| State host | Stable while its `MotionState` remains in `States` |
-| State template content | Stable until the template is replaced or state is removed |
-| Controller attachment | From assignment to replacement/removal |
-| Property output | While the evaluated pose supplies that property |
-
-Next: [Limitations and Troubleshooting](limitations-and-troubleshooting.md)
+It does not recreate bindings, scan all interpolators, rebuild style proxy trees, or allocate final layout snapshots
+each frame.

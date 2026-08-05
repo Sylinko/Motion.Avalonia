@@ -42,47 +42,45 @@
             Background="{DynamicResource WindowBackgroundColor}"
             CornerRadius="8">
             <motion:MotionPanel ClipToBounds="True">
-              <motion:MotionPanel.Controller>
-                <motion:BasicMotionController
-                  x:Name="FormController" Easing="CubicEaseInOut"
-                  State="Editing" Duration="0:0:0.5"/>
-              </motion:MotionPanel.Controller>
-
-              <motion:MotionPanel.States>
-                <motion:MotionState Key="Editing">
-                  <motion:MotionState.Template>
-                    <DataTemplate>
-                      <Grid>
-                        <motion:MotionSlot
-                          x:Name="ProjectForm" MaxWidth="624"
-                          HorizontalAlignment="Center" x:SetterTargetType="Border">
-                          <Setter Property="Background" Value="#FF203B56"/>
-                          <Setter Property="BorderBrush" Value="#FF315E86"/>
-                        </motion:MotionSlot>
-                        <motion:MotionSlot
-                          x:Name="ProjectReview" MaxWidth="624"
-                          HorizontalAlignment="Center" Opacity="0"/>
-                      </Grid>
-                    </DataTemplate>
-                  </motion:MotionState.Template>
-                </motion:MotionState>
-                <motion:MotionState Key="Review">
-                  <motion:MotionState.Template>
-                    <DataTemplate>
-                      <Grid
-                        ColumnDefinitions="1.25*,*" ColumnSpacing="16">
-                        <motion:MotionSlot
-                          x:Name="ProjectForm" x:SetterTargetType="Border">
-                          <Setter Property="Background" Value="#FF3F294F"/>
-                          <Setter Property="BorderBrush" Value="#FF754B8D"/>
-                        </motion:MotionSlot>
-                        <motion:MotionSlot
-                          x:Name="ProjectReview" Grid.Column="1"/>
-                      </Grid>
-                    </DataTemplate>
-                  </motion:MotionState.Template>
-                </motion:MotionState>
-              </motion:MotionPanel.States>
+              <motion:MotionPanel.Motion>
+                <motion:StateMotion
+                  x:Name="FormMotion" Easing="CubicEaseInOut"
+                  State="Editing" Duration="0:0:0.5">
+                  <motion:MotionState Key="Editing">
+                    <motion:MotionState.Template>
+                      <DataTemplate>
+                        <Grid>
+                          <motion:MotionSlot
+                            x:Name="ProjectForm" MaxWidth="624"
+                            HorizontalAlignment="Center" x:SetterTargetType="Border">
+                            <Setter Property="Background" Value="#FF203B56"/>
+                            <Setter Property="BorderBrush" Value="#FF315E86"/>
+                          </motion:MotionSlot>
+                          <motion:MotionSlot
+                            x:Name="ProjectReview" MaxWidth="624"
+                            HorizontalAlignment="Center" Opacity="0"/>
+                        </Grid>
+                      </DataTemplate>
+                    </motion:MotionState.Template>
+                  </motion:MotionState>
+                  <motion:MotionState Key="Review">
+                    <motion:MotionState.Template>
+                      <DataTemplate>
+                        <Grid
+                          ColumnDefinitions="1.25*,*" ColumnSpacing="16">
+                          <motion:MotionSlot
+                            x:Name="ProjectForm" x:SetterTargetType="Border">
+                            <Setter Property="Background" Value="#FF3F294F"/>
+                            <Setter Property="BorderBrush" Value="#FF754B8D"/>
+                          </motion:MotionSlot>
+                          <motion:MotionSlot
+                            x:Name="ProjectReview" Grid.Column="1"/>
+                        </Grid>
+                      </DataTemplate>
+                    </motion:MotionState.Template>
+                  </motion:MotionState>
+                </motion:StateMotion>
+              </motion:MotionPanel.Motion>
 
               <Border
                 x:Name="ProjectForm" Padding="24"

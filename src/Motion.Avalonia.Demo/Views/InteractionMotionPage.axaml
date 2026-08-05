@@ -1,0 +1,483 @@
+<!--  ReSharper disable Xaml.RedundantResource  -->
+<UserControl
+  x:Class="Motion.Avalonia.Demo.Views.InteractionMotionPage" xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:Motion.Avalonia.Demo.Controls"
+  xmlns:motion="using:Motion.Avalonia" xmlns:shadui="clr-namespace:ShadUI;assembly=ShadUI">
+  <UserControl.Styles>
+    <Style Selector="Button.UploadShowcase">
+      <Setter Property="Width" Value="560"/>
+      <Setter Property="Height" Value="152"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Background" Value="#FFF9FCFF"/>
+      <Setter Property="BorderBrush" Value="#FFD7E7F5"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="32"/>
+      <Setter Property="Foreground" Value="#FF132D46"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+      <Setter Property="shadui:ButtonAssist.HoverBackground" Value="#FFFFFFFF"/>
+    </Style>
+
+    <Style Selector="Button.UploadShowcase:disabled">
+      <Setter Property="Opacity" Value="1"/>
+    </Style>
+
+    <Style Selector="TextBlock.UploadLabel">
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="FontSize" Value="36"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="#FF132D46"/>
+    </Style>
+
+    <Style Selector="Border.MotionFeatureBadge">
+      <Setter Property="Padding" Value="12,8"/>
+      <Setter Property="Background" Value="#0F4A9EF1"/>
+      <Setter Property="BorderBrush" Value="#264A9EF1"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+    </Style>
+
+    <Style Selector="Border.MotionFeatureBadge TextBlock">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="#FF6B86A0"/>
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer>
+    <StackPanel
+      MaxWidth="{StaticResource DemoPageMaxWidth}"
+      Margin="{StaticResource DemoPageMargin}"
+      HorizontalAlignment="Stretch" Spacing="40">
+      <StackPanel Spacing="8">
+        <TextBlock
+          Classes="DemoEyebrow" Text="INTERACTION MOTION"/>
+        <TextBlock
+          Classes="DemoTitle" Text="Small controls, cinematic feedback."/>
+        <TextBlock
+          Classes="DemoDescription" MaxWidth="768"
+          HorizontalAlignment="Left" Text="A gallery for expressive interaction controls. Each example combines stable visual identities, semantic states, and focused timelines without replacing the controls being animated."/>
+      </StackPanel>
+
+      <controls:DemoExample
+        Title="Upload lifecycle" HorizontalContentAlignment="Stretch"
+        Description="Click the control to simulate an upload. StateMotion owns the semantic phases, a nested looping TimelineMotion drives the falling arrow, and TargetStyles animate the moon, craters, and hand-drawn completion stroke.">
+        <StackPanel Spacing="24">
+          <Border
+            Height="440" Background="#FFEAF4FD"
+            ClipToBounds="True" CornerRadius="16">
+            <Panel>
+              <Ellipse
+                Width="360" Height="360"
+                Margin="-120,-180,0,0" HorizontalAlignment="Left"
+                VerticalAlignment="Top" Fill="#38A8D5FA"/>
+              <Ellipse
+                Width="320" Height="320"
+                Margin="0,0,-136,-184" HorizontalAlignment="Right"
+                VerticalAlignment="Bottom" Fill="#2A7DBCF3"/>
+
+              <StackPanel
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Spacing="20">
+                <Border
+                  Width="560" Height="152"
+                  BoxShadow="0 20 56 0 #260B426F" CornerRadius="32">
+                  <Button
+                    x:Name="UploadButton" Classes="UploadShowcase NoScale"
+                    Click="OnUploadButtonClick" ToolTip.Tip="Start or replay the upload animation">
+                    <motion:MotionPanel
+                      Width="560" Height="152"
+                      ClipToBounds="True">
+                      <motion:MotionPanel.Motion>
+                        <motion:StateMotion
+                          x:Name="UploadLifecycleMotion" Easing="CubicEaseInOut"
+                          State="Ready" Duration="0:0:0.38">
+                          <motion:StateMotion.Edges>
+                            <motion:MotionEdge
+                              Easing="CubicEaseOut" From="Ready"
+                              To="Uploading" Duration="0:0:0.44"/>
+                            <motion:MotionEdge
+                              Easing="BackEaseOut" From="Uploading"
+                              To="Confirming" Duration="0:0:0.52"/>
+                            <motion:MotionEdge
+                              Easing="SineEaseInOut" From="Confirming"
+                              To="Complete" Duration="0:0:0.68"/>
+                            <motion:MotionEdge
+                              Easing="CubicEaseInOut" From="Complete"
+                              To="Ready" Duration="0:0:0.32"/>
+                          </motion:StateMotion.Edges>
+
+                          <motion:MotionState Key="Ready">
+                            <DataTemplate>
+                              <Grid
+                                Margin="24" ColumnDefinitions="96,*,Auto"
+                                RowDefinitions="*,Auto,*">
+                                <motion:MotionSlot
+                                  x:Name="UploadGlyph" Grid.Row="0"
+                                  Grid.RowSpan="3" Grid.Column="0"
+                                  Width="80" Height="80"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Opacity="1" RenderTransform="scale(1)"
+                                  RenderTransformOrigin="50%,50%" ZIndex="1"/>
+                                <motion:MotionSlot
+                                  x:Name="MoonCluster" Grid.Row="0"
+                                  Grid.RowSpan="3" Grid.Column="0"
+                                  Width="80" Height="80"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Opacity="0" RenderTransform="scale(0.55) rotate(-16deg)"
+                                  RenderTransformOrigin="50%,50%" ZIndex="3"/>
+                                <motion:MotionSlot
+                                  x:Name="UploadLabel" Grid.Row="1"
+                                  Grid.Column="1" Margin="20,0,16,0"/>
+                                <motion:MotionSlot
+                                  x:Name="UploadingLabel" Grid.Row="2"
+                                  Grid.Column="1" Margin="20,0,16,0"
+                                  VerticalAlignment="Bottom" Opacity="0"/>
+                                <motion:MotionSlot
+                                  x:Name="CompleteLabel" Grid.Row="2"
+                                  Grid.Column="1" Margin="20,0,16,0"
+                                  VerticalAlignment="Bottom" Opacity="0"/>
+                                <motion:MotionSlot
+                                  x:Name="PercentBadge" Grid.Row="1"
+                                  Grid.Column="2" VerticalAlignment="Center"
+                                  Opacity="0" RenderTransform="scale(0.72)"
+                                  RenderTransformOrigin="50%,50%"/>
+                              </Grid>
+                            </DataTemplate>
+                          </motion:MotionState>
+
+                          <motion:MotionState Key="Uploading">
+                            <DataTemplate>
+                              <Grid
+                                Margin="24" ColumnDefinitions="96,*,Auto"
+                                RowDefinitions="*,Auto,*">
+                                <motion:MotionSlot
+                                  x:Name="UploadGlyph" Grid.Row="0"
+                                  Grid.RowSpan="3" Grid.Column="0"
+                                  Width="80" Height="80"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Opacity="1" RenderTransform="scale(1.05)"
+                                  RenderTransformOrigin="50%,50%" ZIndex="1"/>
+                                <motion:MotionSlot
+                                  x:Name="MoonCluster" Grid.Row="0"
+                                  Grid.RowSpan="3" Grid.Column="0"
+                                  Width="80" Height="80"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Opacity="0" RenderTransform="scale(0.55) rotate(-16deg)"
+                                  RenderTransformOrigin="50%,50%" ZIndex="3"/>
+                                <motion:MotionSlot
+                                  x:Name="UploadLabel" Grid.Row="0"
+                                  Grid.Column="1" Margin="20,0,16,0"
+                                  VerticalAlignment="Top" Opacity="0"/>
+                                <motion:MotionSlot
+                                  x:Name="UploadingLabel" Grid.Row="1"
+                                  Grid.Column="1" Margin="20,0,16,0"/>
+                                <motion:MotionSlot
+                                  x:Name="CompleteLabel" Grid.Row="2"
+                                  Grid.Column="1" Margin="20,0,16,0"
+                                  VerticalAlignment="Bottom" Opacity="0"/>
+                                <motion:MotionSlot
+                                  x:Name="PercentBadge" Grid.Row="1"
+                                  Grid.Column="2" VerticalAlignment="Center"
+                                  Opacity="0" RenderTransform="scale(0.72)"
+                                  RenderTransformOrigin="50%,50%"/>
+                              </Grid>
+                            </DataTemplate>
+                          </motion:MotionState>
+
+                          <motion:MotionState Key="Confirming">
+                            <DataTemplate>
+                              <Grid
+                                Margin="24" ColumnDefinitions="96,*,Auto"
+                                RowDefinitions="*,Auto,*">
+                                <motion:MotionSlot
+                                  x:Name="UploadGlyph" Grid.Row="0"
+                                  Grid.RowSpan="3" Grid.Column="0"
+                                  Width="80" Height="80"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Opacity="0.72" RenderTransform="scale(0.92)"
+                                  RenderTransformOrigin="50%,50%" ZIndex="1">
+                                  <motion:MotionSlot.TargetStyles>
+                                    <Style Selector="Path#CloudGlyph">
+                                      <Setter Property="Opacity" Value="0.18"/>
+                                    </Style>
+                                    <Style Selector="Path#ArrowGlyph">
+                                      <Setter Property="Opacity" Value="0.85"/>
+                                      <Setter Property="RenderTransform" Value="scale(1,0.2)"/>
+                                    </Style>
+                                  </motion:MotionSlot.TargetStyles>
+                                </motion:MotionSlot>
+                                <motion:MotionSlot
+                                  x:Name="MoonCluster" Grid.Row="0"
+                                  Grid.RowSpan="3" Grid.Column="0"
+                                  Width="80" Height="80"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Opacity="1" RenderTransform="scale(1) rotate(-5deg)"
+                                  RenderTransformOrigin="50%,50%" ZIndex="3"/>
+                                <motion:MotionSlot
+                                  x:Name="UploadLabel" Grid.Row="0"
+                                  Grid.Column="1" Margin="20,0,16,0"
+                                  VerticalAlignment="Top" Opacity="0"/>
+                                <motion:MotionSlot
+                                  x:Name="UploadingLabel" Grid.Row="1"
+                                  Grid.Column="1" Margin="20,0,16,0"/>
+                                <motion:MotionSlot
+                                  x:Name="CompleteLabel" Grid.Row="2"
+                                  Grid.Column="1" Margin="20,0,16,0"
+                                  VerticalAlignment="Bottom" Opacity="0"/>
+                                <motion:MotionSlot
+                                  x:Name="PercentBadge" Grid.Row="1"
+                                  Grid.Column="2" VerticalAlignment="Center"
+                                  Opacity="0" RenderTransform="scale(0.72)"
+                                  RenderTransformOrigin="50%,50%"/>
+                              </Grid>
+                            </DataTemplate>
+                          </motion:MotionState>
+
+                          <motion:MotionState Key="Complete">
+                            <DataTemplate>
+                              <Grid
+                                Margin="24" ColumnDefinitions="96,*,Auto"
+                                RowDefinitions="*,Auto,*">
+                                <motion:MotionSlot
+                                  x:Name="UploadGlyph" Grid.Row="0"
+                                  Grid.RowSpan="3" Grid.Column="0"
+                                  Width="80" Height="80"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Opacity="0" RenderTransform="scale(0.72)"
+                                  RenderTransformOrigin="50%,50%" ZIndex="1"/>
+                                <motion:MotionSlot
+                                  x:Name="MoonCluster" Grid.Row="0"
+                                  Grid.RowSpan="3" Grid.Column="0"
+                                  Width="80" Height="80"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Opacity="1" RenderTransform="scale(1) rotate(0deg)"
+                                  RenderTransformOrigin="50%,50%" ZIndex="3">
+                                  <motion:MotionSlot.TargetStyles>
+                                    <Style Selector="Ellipse#MoonDisk">
+                                      <Setter Property="Fill" Value="#FF35C978"/>
+                                    </Style>
+                                    <Style Selector="Ellipse.MoonCrater">
+                                      <Setter Property="Opacity" Value="0"/>
+                                    </Style>
+                                    <Style Selector="Path#CompletionCheck">
+                                      <Setter Property="Opacity" Value="1"/>
+                                      <Setter Property="StrokeDashOffset" Value="0"/>
+                                    </Style>
+                                  </motion:MotionSlot.TargetStyles>
+                                </motion:MotionSlot>
+                                <motion:MotionSlot
+                                  x:Name="UploadLabel" Grid.Row="0"
+                                  Grid.Column="1" Margin="20,0,16,0"
+                                  VerticalAlignment="Top" Opacity="0"/>
+                                <motion:MotionSlot
+                                  x:Name="UploadingLabel" Grid.Row="0"
+                                  Grid.Column="1" Margin="20,0,16,0"
+                                  VerticalAlignment="Top" Opacity="0"/>
+                                <motion:MotionSlot
+                                  x:Name="CompleteLabel" Grid.Row="1"
+                                  Grid.Column="1" Margin="20,0,16,0"/>
+                                <motion:MotionSlot
+                                  x:Name="PercentBadge" Grid.Row="1"
+                                  Grid.Column="2" VerticalAlignment="Center"
+                                  Opacity="1" RenderTransform="scale(1)"
+                                  RenderTransformOrigin="50%,50%"/>
+                              </Grid>
+                            </DataTemplate>
+                          </motion:MotionState>
+                        </motion:StateMotion>
+                      </motion:MotionPanel.Motion>
+
+                      <Grid x:Name="UploadGlyph">
+                        <motion:MotionPanel ClipToBounds="True">
+                          <motion:MotionPanel.Motion>
+                            <motion:TimelineMotion
+                              x:Name="UploadLoop" Loop="True">
+                              <motion:TimelineMotionKeyFrame KeyTime="0:0:0">
+                                <DataTemplate>
+                                  <Panel>
+                                    <motion:MotionSlot
+                                      x:Name="CloudGlyph" Width="76"
+                                      Height="48" Margin="0,24,0,0"
+                                      HorizontalAlignment="Center" VerticalAlignment="Top"
+                                      ZIndex="2"/>
+                                    <motion:MotionSlot
+                                      x:Name="ArrowGlyph" Width="28"
+                                      Height="38" Margin="0,-2,0,0"
+                                      HorizontalAlignment="Center" VerticalAlignment="Top"
+                                      Opacity="1" ZIndex="1"/>
+                                  </Panel>
+                                </DataTemplate>
+                              </motion:TimelineMotionKeyFrame>
+                              <motion:TimelineMotionKeyFrame
+                                Easing="SineEaseOut" KeyTime="0:0:0.16">
+                                <DataTemplate>
+                                  <Panel>
+                                    <motion:MotionSlot
+                                      x:Name="CloudGlyph" Width="76"
+                                      Height="48" Margin="0,24,0,0"
+                                      HorizontalAlignment="Center" VerticalAlignment="Top"
+                                      ZIndex="2"/>
+                                    <motion:MotionSlot
+                                      x:Name="ArrowGlyph" Width="28"
+                                      Height="38" Margin="0,2,0,0"
+                                      HorizontalAlignment="Center" VerticalAlignment="Top"
+                                      Opacity="1" ZIndex="1"/>
+                                  </Panel>
+                                </DataTemplate>
+                              </motion:TimelineMotionKeyFrame>
+                              <motion:TimelineMotionKeyFrame
+                                Easing="SineEaseInOut" KeyTime="0:0:0.62">
+                                <DataTemplate>
+                                  <Panel>
+                                    <motion:MotionSlot
+                                      x:Name="CloudGlyph" Width="76"
+                                      Height="48" Margin="0,24,0,0"
+                                      HorizontalAlignment="Center" VerticalAlignment="Top"
+                                      ZIndex="2"/>
+                                    <motion:MotionSlot
+                                      x:Name="ArrowGlyph" Width="28"
+                                      Height="38" Margin="0,29,0,0"
+                                      HorizontalAlignment="Center" VerticalAlignment="Top"
+                                      Opacity="1" ZIndex="1"/>
+                                  </Panel>
+                                </DataTemplate>
+                              </motion:TimelineMotionKeyFrame>
+                              <motion:TimelineMotionKeyFrame
+                                Easing="SineEaseIn" KeyTime="0:0:0.82">
+                                <DataTemplate>
+                                  <Panel>
+                                    <motion:MotionSlot
+                                      x:Name="CloudGlyph" Width="76"
+                                      Height="48" Margin="0,24,0,0"
+                                      HorizontalAlignment="Center" VerticalAlignment="Top"
+                                      ZIndex="2"/>
+                                    <motion:MotionSlot
+                                      x:Name="ArrowGlyph" Width="28"
+                                      Height="38" Margin="0,35,0,0"
+                                      HorizontalAlignment="Center" VerticalAlignment="Top"
+                                      Opacity="0" ZIndex="1"/>
+                                  </Panel>
+                                </DataTemplate>
+                              </motion:TimelineMotionKeyFrame>
+                              <motion:TimelineMotionKeyFrame KeyTime="0:0:0.9">
+                                <DataTemplate>
+                                  <Panel>
+                                    <motion:MotionSlot
+                                      x:Name="CloudGlyph" Width="76"
+                                      Height="48" Margin="0,24,0,0"
+                                      HorizontalAlignment="Center" VerticalAlignment="Top"
+                                      ZIndex="2"/>
+                                    <motion:MotionSlot
+                                      x:Name="ArrowGlyph" Width="28"
+                                      Height="38" Margin="0,-2,0,0"
+                                      HorizontalAlignment="Center" VerticalAlignment="Top"
+                                      Opacity="1" ZIndex="1"/>
+                                  </Panel>
+                                </DataTemplate>
+                              </motion:TimelineMotionKeyFrame>
+                            </motion:TimelineMotion>
+                          </motion:MotionPanel.Motion>
+
+                          <Path
+                            x:Name="CloudGlyph" Width="76"
+                            Height="48" Data="M 18,48 C 8,48 0,41 0,31 C 0,22 7,15 16,14 C 20,5 29,0 39,0 C 51,0 61,9 63,21 C 71,22 76,28 76,36 C 76,43 71,48 64,48 Z"
+                            Stretch="Fill">
+                            <Path.Fill>
+                              <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                <GradientStop Offset="0" Color="#FFCDE8FF"/>
+                                <GradientStop Offset="1" Color="#FF73B9F5"/>
+                              </LinearGradientBrush>
+                            </Path.Fill>
+                          </Path>
+                          <Path
+                            x:Name="ArrowGlyph" Width="28"
+                            Height="38" Data="M 14,0 L 28,14 L 22,20 L 18,16 L 18,38 L 10,38 L 10,16 L 6,20 L 0,14 Z"
+                            Fill="#FF284D6D" RenderTransformOrigin="50%,100%"
+                            Stretch="Fill"/>
+                        </motion:MotionPanel>
+                      </Grid>
+
+                      <Panel
+                        x:Name="MoonCluster" IsHitTestVisible="False">
+                        <Ellipse
+                          x:Name="MoonDisk" Fill="#FFD5E3F0"
+                          Stroke="#B8FFFFFF" StrokeThickness="1"/>
+                        <Ellipse
+                          Classes="MoonCrater" Width="18"
+                          Height="14" Margin="15,15,0,0"
+                          HorizontalAlignment="Left" VerticalAlignment="Top"
+                          Fill="#2B7893A9"/>
+                        <Ellipse
+                          Classes="MoonCrater" Width="22"
+                          Height="18" Margin="0,25,14,0"
+                          HorizontalAlignment="Right" VerticalAlignment="Top"
+                          Fill="#26718CA5"/>
+                        <Ellipse
+                          Classes="MoonCrater" Width="11"
+                          Height="9" Margin="0,0,25,15"
+                          HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                          Fill="#24718CA5"/>
+                        <Path
+                          x:Name="CompletionCheck" Width="48"
+                          Height="40" HorizontalAlignment="Center"
+                          VerticalAlignment="Center" Data="M 4,21 L 16,33 L 44,6"
+                          Opacity="0" Stretch="Uniform"
+                          Stroke="White" StrokeDashArray="8,8"
+                          StrokeDashOffset="8" StrokeJoin="Round"
+                          StrokeLineCap="Round" StrokeThickness="6"/>
+                      </Panel>
+
+                      <TextBlock
+                        x:Name="UploadLabel" Classes="UploadLabel"
+                        Text="Upload"/>
+                      <TextBlock
+                        x:Name="UploadingLabel" Classes="UploadLabel"
+                        Text="Uploading"/>
+                      <TextBlock
+                        x:Name="CompleteLabel" Classes="UploadLabel"
+                        Text="Complete!"/>
+                      <Border
+                        x:Name="PercentBadge" Padding="16,10"
+                        Background="#FFF0F4F7" CornerRadius="18"
+                        IsHitTestVisible="False">
+                        <TextBlock
+                          FontSize="24" FontWeight="SemiBold"
+                          Foreground="#FF17324A" Text="100%"/>
+                      </Border>
+                    </motion:MotionPanel>
+                  </Button>
+                </Border>
+
+                <TextBlock
+                  HorizontalAlignment="Center" FontSize="12"
+                  FontWeight="SemiBold" Foreground="#FF7891A9"
+                  Text="CLICK TO START · CLICK AGAIN TO REPLAY"/>
+              </StackPanel>
+            </Panel>
+          </Border>
+
+          <UniformGrid
+            ColumnSpacing="12" Columns="4">
+            <Border Classes="MotionFeatureBadge">
+              <TextBlock
+                Text="STATE MOTION" TextAlignment="Center"/>
+            </Border>
+            <Border Classes="MotionFeatureBadge">
+              <TextBlock
+                Text="LOOPING TIMELINE" TextAlignment="Center"/>
+            </Border>
+            <Border Classes="MotionFeatureBadge">
+              <TextBlock
+                Text="NESTED TARGETS" TextAlignment="Center"/>
+            </Border>
+            <Border Classes="MotionFeatureBadge">
+              <TextBlock
+                Text="STROKE REVEAL" TextAlignment="Center"/>
+            </Border>
+          </UniformGrid>
+        </StackPanel>
+      </controls:DemoExample>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

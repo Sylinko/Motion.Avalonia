@@ -13,8 +13,8 @@ public partial class LayoutMorphingPage : UserControl
 
     private void OnLayoutModeButtonClick(object? sender, RoutedEventArgs e)
     {
-        var isStacked = Equals(ResponsiveController.State, "Stacked");
-        ResponsiveController.State = isStacked ? "Wide" : "Stacked";
+        var isStacked = Equals(ResponsiveMotion.State, "Stacked");
+        ResponsiveMotion.State = isStacked ? "Wide" : "Stacked";
         LayoutModeButton.Content = isStacked ? "Use stacked layout" : "Use wide layout";
     }
 

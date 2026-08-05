@@ -1,228 +1,114 @@
 # States and Slots
 
-[← Core Concepts](core-concepts.md) · [Documentation](README.md) ·
-[Next: Controllers and Poses →](controllers-and-poses.md)
+[Documentation index](README.md)
 
-`MotionState` and `MotionSlot` describe responsive endpoints. They deliberately reuse Avalonia's existing layout system
-instead of introducing a second layout language.
+This chapter focuses on complete named layouts owned by `StateMotion`. The same slot syntax is also used inside sparse
+keyframes.
 
-## Defining a MotionState
-
-A state has a `Key` and a persistent `IDataTemplate`:
+## A State Is a Live Template
 
 ```xml
-<motion:MotionState Key="Cards">
-  <motion:MotionState.Template>
-    <DataTemplate>
-      <UniformGrid Columns="3">
-        <motion:MotionSlot Margin="8" x:Name="Alpha"/>
-        <motion:MotionSlot Margin="8" x:Name="Beta"/>
-        <motion:MotionSlot Margin="8" x:Name="Gamma"/>
-      </UniformGrid>
-    </DataTemplate>
-  </motion:MotionState.Template>
+<motion:MotionState Key="Centered">
+  <DataTemplate>
+    <Grid>
+      <motion:MotionSlot
+        x:Name="Card"
+        MaxWidth="480"
+        HorizontalAlignment="Center"/>
+    </Grid>
+  </DataTemplate>
 </motion:MotionState>
 ```
 
-Keys are ordinary objects and are compared with `Equals`. A panel must not contain multiple states with equal keys.
+Use ordinary Avalonia panels and attached layout properties. The resolved slot bounds are the endpoint; the panel tree
+itself is not copied into the visible UI.
 
-## Matching Targets by Name
-
-Every real child must have a unique name:
-
-```xml
-<Border x:Name="Alpha"/>
-<Border x:Name="Beta"/>
-<Border x:Name="Gamma"/>
-```
-
-Every slot must specify a non-empty `Target` that matches one of those names. A state cannot contain two slots for the
-same target.
-
-Names provide a stable identity boundary:
-
-```text
-MotionSlot.Name == Control.Name
-```
-
-Avalonia prevents changing a styled element's `Name`. Motion therefore resolves each slot-to-target mapping once for
-the current panel structure and rebuilds it only when the panel children or state template change.
-
-## Use Ordinary Avalonia Panels
-
-The state template can use normal Avalonia layout:
+## Match by x:Name
 
 ```xml
-<DataTemplate>
-  <Grid
-    ColumnDefinitions="2*,*"
-    RowDefinitions="Auto,*"
-    ColumnSpacing="16"
-    RowSpacing="16">
-    <motion:MotionSlot
-      Grid.RowSpan="2"
-      x:Name="Primary"/>
-    <motion:MotionSlot
-      Grid.Column="1"
-      x:Name="Toolbar"/>
-    <motion:MotionSlot
-      Grid.Row="1"
-      Grid.Column="1"
-      x:Name="Details"/>
-  </Grid>
-</DataTemplate>
+<motion:MotionPanel>
+  <motion:MotionPanel.Motion>
+    <motion:StateMotion State="Centered">
+      <motion:MotionState Key="Centered">
+        <DataTemplate>
+          <motion:MotionSlot x:Name="Card"/>
+        </DataTemplate>
+      </motion:MotionState>
+    </motion:StateMotion>
+  </motion:MotionPanel.Motion>
+
+  <Border x:Name="Card"/>
+</motion:MotionPanel>
 ```
 
-Useful choices include:
+Names must be non-empty and unique within both the direct targets and each layout source.
 
-- `Grid` for shared rows and columns;
-- `DockPanel` for one or more docked regions and a fill region;
-- `StackPanel` for natural vertical or horizontal sequences;
-- `UniformGrid` for equal cells;
-- nested panels when one target group must move as a unit.
+## Layout Properties Stay on the Slot
 
-Use the simplest panel that expresses the endpoint. MotionPanel interpolates resolved rectangles, not the panel-specific
-constraints themselves.
+Properties used by the parent panel arrange the slot:
 
-## Layout Properties Belong to the Slot
-
-These properties configure state layout and are not copied to the target:
-
-- `Width`, `Height`, `MinWidth`, `MaxWidth`, `MinHeight`, and `MaxHeight`
 - `Margin`
 - `HorizontalAlignment` and `VerticalAlignment`
-- `UseLayoutRounding`
-- `FlowDirection`
-- Grid, DockPanel, Canvas, and other attached layout properties
+- `Width`, `Height`, `MinWidth`, `MaxWidth`, `MinHeight`, `MaxHeight`
+- panel-specific attached properties such as `Grid.Row`, `DockPanel.Dock`, or `Canvas.Left`
 
-For example:
+These values are not copied to the target. Their calculated result becomes `Motion.Position` and `Motion.Size`.
 
-```xml
-<motion:MotionSlot
-  Grid.Column="1"
-  Margin="8"
-  MaxWidth="420"
-  HorizontalAlignment="Stretch"
-  x:Name="Editor"/>
-```
+## Responsive Endpoints
 
-The endpoint uses the slot's resolved bounds, not the raw `MaxWidth` or alignment values. `double.NaN`/Auto sizing and
-constraints therefore behave like normal Avalonia layout.
-
-## Live Bindings inside State Templates
-
-State templates remain connected to the panel's data context:
+Avoid hard-coded animated offsets when a panel can express the relationship:
 
 ```xml
-<motion:MotionSlot
-  x:Name="Inspector"
-  MaxWidth="{Binding InspectorMaximumWidth}"
-  Margin="{Binding InspectorMargin}"/>
-```
-
-When a binding changes, the state layout is invalidated. A settled state updates immediately; an active blend evaluates
-the changed endpoint with its current progress.
-
-The same rule applies when the real target's desired size changes. The slot measures the real control instead of a
-duplicate placeholder.
-
-## Missing Targets and Presence
-
-A target does not need a slot in every state:
-
-```xml
-<!-- Compact contains only Content. -->
 <DataTemplate>
-  <Grid>
-    <motion:MotionSlot x:Name="Content"/>
-  </Grid>
+  <DockPanel HorizontalSpacing="16">
+    <motion:MotionSlot
+      x:Name="Editor"
+      MaxWidth="420"
+      DockPanel.Dock="Left"/>
+    <motion:MotionSlot x:Name="Preview"/>
+  </DockPanel>
 </DataTemplate>
 ```
 
-```xml
-<!-- Detail adds Inspector. -->
-<DataTemplate>
-  <Grid ColumnDefinitions="*,320" ColumnSpacing="16">
-    <motion:MotionSlot x:Name="Content"/>
-    <motion:MotionSlot Grid.Column="1" x:Name="Inspector"/>
-  </Grid>
-</DataTemplate>
-```
+When the host width changes, the live `DockPanel` produces new endpoints automatically.
 
-The panel keeps `Inspector` alive. During Compact → Detail, its presence moves from zero to one at the Detail bounds.
-During Detail → Compact, it fades at its last available bounds and its property outputs are released after it becomes
-absent.
+## Missing Targets
 
-## Responsive State Layouts
+In `StateMotion`, every state is complete. A slot omitted from the destination fades through `Presence` and becomes
+non-hit-testable. The target control remains alive.
 
-A state template is arranged against the current `MotionPanel` size on every required layout pass. A centered slot
-therefore remains centered when the window changes width:
-
-```xml
-<Grid>
-  <motion:MotionSlot
-    x:Name="Card"
-    Width="320"
-    HorizontalAlignment="Center"/>
-</Grid>
-```
-
-If the panel width changes from 800 to 1000 during a 50% blend, MotionPanel recalculates both endpoints at width 1000
-before evaluating the current frame.
+If a control should retain layout but become visually transparent, keep its slot and set target `Opacity="0"`.
 
 ## Relative Z-order
 
-Slots can use `ZIndex` directly or with a setter. MotionPanel walks each state template in its effective nested paint
-order:
+Slots are collected in template paint order, including nested panels and their `ZIndex` values. The resulting relative
+order is applied to target containers. `ZIndex` also participates as a target property channel and currently uses
+integer interpolation.
 
-1. siblings are ordered by their state Z-index;
-2. equal values preserve visual-child order;
-3. nested subtrees are traversed recursively;
-4. encountered targets receive normalized relative values `0, 1, 2, ...`.
+## Desired Size
 
-Those normalized values are applied to the targets' internal containers. This is necessary because raw Z-index values
-from different ancestors cannot be compared directly.
+MotionPanel's desired size is interpolated from the required live layout sources. A settled state continues to respond
+directly to new constraints. Motion does not retain a frozen state snapshot.
 
-```xml
-<Grid>
-  <motion:MotionSlot
-    x:Name="Backdrop"
-    ZIndex="0"/>
-  <motion:MotionSlot
-    x:Name="Dialog"
-    ZIndex="10"/>
-</Grid>
-```
+## Template Lifetime
 
-Z-order currently uses the default integer interpolation between state-relative values.
+Changing a state's `Template` rebuilds only that layout source. Changing state keys, edges, easing, Cue, or KeyTime
+recompiles motion tracks without rebuilding unrelated template trees.
 
-## `IsVisible` Is Not a Shortcut
-
-Setting `IsVisible="False"` directly on a slot would remove the slot from its own state layout and make its endpoint
-unavailable. To describe the target's `IsVisible`, use an explicit setter:
+Do not reuse one `MotionState` or keyframe instance in multiple collections. Reuse the `DataTemplate` resource instead:
 
 ```xml
-<motion:MotionSlot x:Name="OptionalAction">
-  <Setter Property="IsVisible" Value="False"/>
-</motion:MotionSlot>
+<UserControl.Resources>
+  <DataTemplate x:Key="SharedCardLayout">
+    <motion:MotionSlot x:Name="Card"/>
+  </DataTemplate>
+</UserControl.Resources>
+
+<motion:MotionState
+  Key="Compact"
+  Template="{StaticResource SharedCardLayout}"/>
 ```
-
-The setter is evaluated on a separate endpoint object, so it does not hide the layout proxy.
-
-## Configuration Errors
-
-MotionPanel reports configuration errors rather than choosing ambiguous behavior:
-
-- a direct child has no name;
-- direct children have duplicate names;
-- a slot has no target;
-- a slot references an unknown target;
-- one state contains duplicate slots for a target;
-- states have duplicate keys.
-
-See [Limitations and Troubleshooting](limitations-and-troubleshooting.md) for a diagnostic checklist.
 
 ---
 
-[← Core Concepts](core-concepts.md) · [Documentation](README.md) ·
-[Next: Controllers and Poses →](controllers-and-poses.md)
+[Next: Motions and Keyframes →](motions-and-keyframes.md)

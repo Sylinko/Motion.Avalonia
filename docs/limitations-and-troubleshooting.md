@@ -1,155 +1,111 @@
 # Limitations and Troubleshooting
 
-Motion.Avalonia is an early preview. Its current scope is deliberately narrower than a general shared-element or animation-authoring system.
+[Documentation index](README.md)
 
 ## Current Scope
 
-### Targets must be direct children
+- Targets must be stable direct children of one `MotionPanel`.
+- Cross-window, cross-page, and cross-ancestor shared-element transitions are not implemented.
+- Motion performs real layout; it does not provide bitmap snapshot transitions.
+- Direct Avalonia properties cannot receive animation-priority bindings.
+- External custom `Motion` implementations are not yet a supported extension surface; use the built-in motions and
+  custom interpolators.
+- All mutation and playback APIs are UI-thread-affine.
 
-Every motion target must be a direct logical child of the same `MotionPanel`.
+## “No direct child has that name”
 
-Targets in different ancestors, clipping regions, pages, windows, or top levels are not supported by the current layout-morphing mechanism.
+Every referenced `MotionSlot.Name` must match a direct target:
 
-### Targets need stable unique names
+```xml
+<motion:MotionSlot x:Name="Editor"/>
+...
+<Border x:Name="Editor"/>
+```
 
-Each direct child must have a non-empty, unique `x:Name`. Its `MotionSlot` uses the same exact, case-sensitive `x:Name`.
+Check spelling, nesting, and whether the target is accidentally inside another control.
 
-Names are the identity contract. Do not replace a target control merely to represent another state.
+## Empty or Duplicate Names
 
-### State templates describe layout
+Every direct target and every slot in one layout source must have a unique non-empty name. Duplicate state keys are also
+rejected.
 
-State templates are live, but they are not alternate copies of the real content. Put `MotionSlot` proxies and inexpensive layout structure in a state template.
+## A State Target Disappears
 
-Do not put a second text editor, media player, or other stateful replacement control in the template and expect its state to transfer to the target.
+That is complete-state semantics: a target omitted from a `MotionState` has zero presence. Add the slot when the target
+should remain in layout.
 
-### Styled properties only
+## A Keyframe Omission Does Nothing
 
-Target-property setters currently support Avalonia styled properties. Direct properties are rejected.
+That is sparse-track semantics. A property omitted from a keyframe has no key there. Author the property explicitly if
+the channel should reach a value at that Cue or KeyTime.
 
-Properties without a compatible Avalonia animator use a discrete halfway switch unless a custom `MotionInterpolator<T>` is registered.
+## A Property Changes Discretely
 
-### No bitmap or pseudo-layout fallback
+The default interpolator could not find a compatible Avalonia animator for the declared property. Supply a strongly
+typed `MotionInterpolator<T>` through `MotionInterpolation`.
 
-Motion.Avalonia does not capture target bitmaps and does not scale a snapshot to disguise layout changes.
+Boolean, cursor, focus, and similar semantic values are naturally discrete unless a custom policy says otherwise.
 
-This preserves real layout behavior, but it also means complex target trees may be measured at intermediate sizes during motion.
+## Setter Property Cannot Be Resolved
 
-### Focus migration is not yet a policy
+Specify `x:SetterTargetType`:
 
-When presence reaches zero, the target container becomes non-hit-testable and is arranged at zero size. The current panel does not define a complete focus-transfer policy for a descendant that already owns keyboard focus.
+```xml
+<motion:MotionSlot
+  x:Name="Card"
+  x:SetterTargetType="Border">
+  <Setter Property="CornerRadius" Value="16"/>
+</motion:MotionSlot>
+```
 
-Applications with keyboard-heavy flows should explicitly move focus when changing to a state that removes the focused target.
+## A Direct Property Throws
 
-## Troubleshooting Table
+Motion supports styled and attached properties. Move the effect to a styled property, an attached property, or a
+purpose-built target control API.
 
-| Symptom | Likely cause | What to check |
-| --- | --- | --- |
-| State changes immediately | Zero duration, null easing, or first presentation | Check controller timing; initial presentation intentionally snaps |
-| Nothing is visible | Controller pose refers to no matching state | Compare `State` or pose keys with `MotionState.Key` |
-| A target is missing | State intentionally or accidentally omits its slot | Check the slot's `x:Name` and template branch |
-| “No direct child has that name” | Slot target cannot be resolved | Add a direct child with the same `x:Name` |
-| Duplicate target exception | Repeated child name or repeated slot name in one state | Keep child and per-state slot names unique |
-| Property jumps at halfway | No compatible animator | Add a typed interpolator or accept discrete behavior |
-| Setter value appears ignored | Property is invalid, direct, duplicated, or not registered on the target | Read the complete exception and inspect the target type |
-| Resize changes the target abruptly | The controller currently presents a state pose | A static state follows live layout immediately by design |
-| Resize has a damped motion | A custom controller continues publishing a blend | Present `MotionPose.State` when the motion should be at rest |
-| Slider motion feels stepped | Input is quantized or rounded before reaching the controller | Bind a continuous `double` and map local segment progress |
-| Scroll progress is unstable | Scrollable range changes during the motion | Recompute from current `Extent` and `Viewport`; avoid feedback loops |
-| Target remains keyboard-focused after leaving | Focus migration is application-owned | Move focus before selecting the state that omits the target |
+## TargetStyles Reject a Selector
 
-## The First State Does Not Animate
+TargetStyles currently reject:
 
-`BasicMotionController` waits until the panel has completed its first presentation before animating state changes. Before that point it publishes the requested state directly.
+- property-value selectors such as `[IsChecked=True]`;
+- `/template/` traversal;
+- non-native `IStyle` entries;
+- non-native setter types;
+- Avalonia transitions and animations.
 
-This avoids an artificial transition from an empty, zero-sized layout during page load.
+Use type, name, class, child, and descendant selectors over the target logical subtree.
 
-If a deliberate entrance animation is required, present a real initial state first, then request the destination after the panel is loaded and presented.
+## A Binding Is Rejected
 
-## No Frame Updates
+`OneWayToSource` has no endpoint value and is unsupported. A custom binding type must expose an Avalonia observable
+binding expression. Use a standard reflection, compiled, template, or multi-binding when possible.
 
-For a custom time-based controller:
+## Underlying Values Are Lost
 
-1. Derive from `PlayerDrivenMotionController`.
-2. Override `OnPlayerTick`.
-3. Translate the absolute `time` or elapsed `deltaTime` into a pose.
-4. Call `SetCurrentPose` with the new pose.
-5. Start playback only after the controller is owned by a presented panel.
+They should not be. Motion binds at animation priority and tracks base-value changes. Verify that application code is
+not calling `ClearValue` or replacing the target itself. Removing `MotionPanel.Motion` should reveal the latest
+underlying value.
 
-`MotionPlayer` is an unbounded clock. A custom controller must define any duration, progress mapping, and completion
-behavior it requires.
+## Runtime Shortcut Set to Its Default Is Not Detected
 
-Changing ordinary fields without publishing a pose does not notify the panel.
+Avalonia does not raise a public effective-value `PropertyChanged` event when an unset property is explicitly assigned
+the same value as its default. AXAML initialization is unaffected because Apply scans `IsSet`. Runtime authoring that
+depends on the `unset → explicitly default` distinction requires a future value-store-level observation mechanism.
 
-## Layout Changes Only After Pointer Movement
+## Motion Does Not Advance
 
-This symptom usually means a custom implementation changed coordinates without entering Avalonia's layout invalidation path.
+- `SequenceMotion` never advances itself; update or bind `Progress`.
+- `TimelineMotion` advances only while `Player.State` is `Playing`.
+- `MotionPlayer` must be attached to a rooted visual. `PlayerDrivenMotion` handles this automatically.
+- A detached visual intentionally suspends animation-frame requests.
 
-Motion.Avalonia's internal item container solves this by exposing layout-affecting properties:
+## Full Solution Does Not Build
 
-- position changes invalidate parent arrange;
-- width or height changes invalidate parent measure;
-- controller pose changes invalidate panel measure.
+Mobile host projects require the corresponding .NET workloads. To validate the reusable library and desktop demo
+without iOS or Android workloads:
 
-If the symptom appears in a custom panel or controller, verify that the property change raises through Avalonia and invalidates the correct layout phase. Calling `InvalidateMeasure` on an already-invalid element is intentionally a no-op; the important part is changing a registered property or invalidating from the element that owns the layout dependency.
-
-## Duplicate Interpolator Errors
-
-For one target and property, the panel permits:
-
-- at most one general interpolator;
-- at most one interpolator for each active edge.
-
-An edge-specific override and a general fallback may coexist. Two general entries, or two entries that both contain the same active edge, are ambiguous and throw.
-
-Every interpolator in `MotionPanel.Interpolators` must set `Property`, even when it is not selected by the current
-pose. Ordinary target properties and the target-scoped `MotionLayout` channels also require `Target`.
-`MotionLayout.DesiredSizeProperty` is panel-wide and requires `Target` to be omitted.
-
-## `IsVisible` Versus Presence
-
-`IsVisible` participates in Avalonia layout as a boolean. Changing it can therefore remove a control from layout immediately.
-
-For a motion target:
-
-- omit or include its slot to animate presence;
-- use explicit `Opacity` when visual alpha is part of the state;
-- use an `IsVisible` setter only when a discrete visibility change is intentional.
-
-Presence is applied to the target container and does not overwrite the target's own opacity.
-
-## Clipping
-
-`MotionPanel` only controls its own targets and containers. Ancestor clipping still applies.
-
-If a moving target is cut off:
-
-- inspect `ClipToBounds` on the panel and its ancestors;
-- inspect explicit `Clip` values;
-- confirm the intended bounds remain inside the supported single-panel scene.
-
-Crossing unrelated clipping ancestors is a shared-element problem and is outside the current implementation.
-
-## Binding and Resource Updates
-
-State template and setter bindings stay live. If an endpoint does not update:
-
-- confirm the binding resolves in the state template's data context;
-- confirm the bound value is valid for the property;
-- check that the state is required by the current pose;
-- check that the change occurs on the UI thread;
-- inspect whether a local template binding is attached to the slot rather than the real target.
-
-Remember that the state template determines endpoint values. Ordinary bindings that belong to the real control should remain on the real control.
-
-## Reporting an Issue
-
-A useful reproduction includes:
-
-- the smallest `MotionPanel` and state templates that show the problem;
-- the controller and exact pose or state sequence;
-- whether resize, interruption, or target-property setters are involved;
-- the full exception and stack trace;
-- Avalonia, .NET, and Motion.Avalonia versions;
-- whether the behavior reproduces in the demo project.
-
-Next: [API Reference](api-reference.md)
+```shell
+dotnet build src/Motion.Avalonia/Motion.Avalonia.csproj
+dotnet build src/Motion.Avalonia.Demo.Desktop/Motion.Avalonia.Demo.Desktop.csproj
+dotnet test tests/Motion.Avalonia.Tests/Motion.Avalonia.Tests.csproj
+```

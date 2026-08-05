@@ -1,0 +1,31 @@
+<UserControl
+  x:Class="Motion.Avalonia.Tests.MotionSyntaxProbe" xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:motion="clr-namespace:Motion.Avalonia;assembly=Motion.Avalonia">
+  <motion:MotionPanel>
+    <motion:MotionPanel.Template>
+      <ControlTemplate>
+        <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}" />
+      </ControlTemplate>
+    </motion:MotionPanel.Template>
+    <motion:MotionPanel.Motion>
+      <motion:SequenceMotion Progress="0.5">
+        <motion:SequenceMotionKeyFrame Cue="0%">
+          <DataTemplate>
+            <Grid>
+              <motion:MotionSlot
+                x:Name="Target" motion:Motion.Presence="0"
+                x:SetterTargetType="Border">
+                <motion:Motion.Interpolations>
+                  <motion:MotionInterpolation Property="(Visual.Opacity)"/>
+                </motion:Motion.Interpolations>
+                <Setter motion:Motion.Easing="{x:Null}" Property="Opacity" Value="0"/>
+              </motion:MotionSlot>
+            </Grid>
+          </DataTemplate>
+        </motion:SequenceMotionKeyFrame>
+      </motion:SequenceMotion>
+    </motion:MotionPanel.Motion>
+
+    <Border x:Name="Target"/>
+  </motion:MotionPanel>
+</UserControl>

@@ -14,7 +14,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\ClassicDiagnostics.Avalonia\src\ClassicDiagnostics.Avalonia.csproj" />
     <ProjectReference Include="..\..\3rd\shad-ui\src\ShadUI\ShadUI.csproj" />
     <ProjectReference Include="..\Motion.Avalonia\Motion.Avalonia.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Views\InteractionMotionPage.axaml.cs">
+      <DependentUpon>InteractionMotionPage.axaml</DependentUpon>
+    </Compile>
   </ItemGroup>
 </Project>

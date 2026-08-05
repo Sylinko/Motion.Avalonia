@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Animation.Easings;
+using Avalonia.Collections;
 
 namespace Motion.Avalonia;
 
@@ -8,21 +9,23 @@ namespace Motion.Avalonia;
 /// </summary>
 /// <remarks>
 /// Edges are directional. An edge from <c>Compact</c> to <c>Expanded</c> does not
-/// affect the reverse transition. Omitted values inherit the owning controller defaults.
+/// affect the reverse transition. Omitted values inherit the owning motion defaults.
 /// </remarks>
 /// <example>
 /// <code><![CDATA[
-/// <motion:BasicMotionController State="{Binding State}" Duration="0:0:0.3">
-///   <motion:MotionEdge
-///     From="Compact" To="Expanded"
-///     Duration="0:0:0.5" Easing="CubicEaseOut"/>
-///   <motion:MotionEdge
-///     From="Expanded" To="Compact"
-///     Duration="0:0:0.18" Easing="CubicEaseIn"/>
-/// </motion:BasicMotionController>
+/// <motion:StateMotion State="{Binding State}" Duration="0:0:0.3">
+///   <motion:StateMotion.Edges>
+///     <motion:MotionEdge
+///       From="Compact" To="Expanded"
+///       Duration="0:0:0.5" Easing="CubicEaseOut"/>
+///     <motion:MotionEdge
+///       From="Expanded" To="Compact"
+///       Duration="0:0:0.18" Easing="CubicEaseIn"/>
+///   </motion:StateMotion.Edges>
+/// </motion:StateMotion>
 /// ]]></code>
 /// </example>
-public sealed class MotionEdge : AvaloniaObject
+public sealed class MotionEdge : MotionElement
 {
     /// <summary>
     /// Defines the <see cref="From"/> property.
@@ -50,6 +53,11 @@ public sealed class MotionEdge : AvaloniaObject
     public static readonly StyledProperty<Easing?> EasingProperty =
         AvaloniaProperty.Register<MotionEdge, Easing?>(nameof(Easing));
 
+    static MotionEdge()
+    {
+        AffectsMotion<MotionEdge>(FromProperty, ToProperty);
+    }
+
     /// <summary>
     /// Gets or sets the source state key.
     /// </summary>
@@ -69,7 +77,7 @@ public sealed class MotionEdge : AvaloniaObject
     }
 
     /// <summary>
-    /// Gets or sets the duration override. A null value inherits the controller duration.
+    /// Gets or sets the duration override. A null value inherits the motion duration.
     /// </summary>
     public TimeSpan? Duration
     {
@@ -78,11 +86,18 @@ public sealed class MotionEdge : AvaloniaObject
     }
 
     /// <summary>
-    /// Gets or sets the easing override. A null value inherits the controller easing.
+    /// Gets or sets the easing override. A null value inherits the motion easing.
     /// </summary>
     public Easing? Easing
     {
         get => GetValue(EasingProperty);
         set => SetValue(EasingProperty, value);
     }
+
+    /// <summary>
+    /// Gets property-specific interpolation overrides for this directed edge.
+    /// </summary>
+    public AvaloniaList<MotionInterpolation> Interpolations { get; } = [];
+
+    internal bool HasEasing => IsSet(EasingProperty);
 }

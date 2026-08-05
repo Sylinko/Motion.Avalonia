@@ -22,7 +22,7 @@ public delegate void MotionTickEventHandler(MotionPlayer sender, TimeSpan time, 
 /// detachment suspends frame requests without ending the lease, and detached time is excluded
 /// when the visual is attached again.
 ///
-/// The player deliberately has no duration or normalized progress. Controllers interpret
+/// The player deliberately has no duration or normalized progress. Motions interpret
 /// <see cref="Tick"/> values according to their own timing model.
 /// </remarks>
 /// <example>

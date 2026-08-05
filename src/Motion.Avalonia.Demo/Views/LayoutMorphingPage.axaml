@@ -46,38 +46,36 @@
             <motion:MotionPanel
               x:Name="ResponsivePanel" Height="360"
               ClipToBounds="True">
-              <motion:MotionPanel.Controller>
-                <motion:BasicMotionController
-                  x:Name="ResponsiveController" Easing="CubicEaseInOut"
-                  State="Stacked" Duration="0:0:0.5"/>
-              </motion:MotionPanel.Controller>
-
-              <motion:MotionPanel.States>
-                <motion:MotionState Key="Stacked">
-                  <motion:MotionState.Template>
-                    <DataTemplate>
-                      <StackPanel
-                        MaxWidth="472" HorizontalAlignment="Center"
-                        Spacing="16">
-                        <motion:MotionSlot x:Name="ArticleCard"/>
-                        <motion:MotionSlot x:Name="MetricsCard"/>
-                      </StackPanel>
-                    </DataTemplate>
-                  </motion:MotionState.Template>
-                </motion:MotionState>
-                <motion:MotionState Key="Wide">
-                  <motion:MotionState.Template>
-                    <DataTemplate>
-                      <Grid
-                        ColumnDefinitions="2*,*" ColumnSpacing="16">
-                        <motion:MotionSlot x:Name="ArticleCard"/>
-                        <motion:MotionSlot
-                          x:Name="MetricsCard" Grid.Column="1"/>
-                      </Grid>
-                    </DataTemplate>
-                  </motion:MotionState.Template>
-                </motion:MotionState>
-              </motion:MotionPanel.States>
+              <motion:MotionPanel.Motion>
+                <motion:StateMotion
+                  x:Name="ResponsiveMotion" Easing="CubicEaseInOut"
+                  State="Stacked" Duration="0:0:0.5">
+                  <motion:MotionState Key="Stacked">
+                    <motion:MotionState.Template>
+                      <DataTemplate>
+                        <StackPanel
+                          MaxWidth="472" HorizontalAlignment="Center"
+                          Spacing="16">
+                          <motion:MotionSlot x:Name="ArticleCard"/>
+                          <motion:MotionSlot x:Name="MetricsCard"/>
+                        </StackPanel>
+                      </DataTemplate>
+                    </motion:MotionState.Template>
+                  </motion:MotionState>
+                  <motion:MotionState Key="Wide">
+                    <motion:MotionState.Template>
+                      <DataTemplate>
+                        <Grid
+                          ColumnDefinitions="2*,*" ColumnSpacing="16">
+                          <motion:MotionSlot x:Name="ArticleCard"/>
+                          <motion:MotionSlot
+                            x:Name="MetricsCard" Grid.Column="1"/>
+                        </Grid>
+                      </DataTemplate>
+                    </motion:MotionState.Template>
+                  </motion:MotionState>
+                </motion:StateMotion>
+              </motion:MotionPanel.Motion>
 
               <Border
                 x:Name="ArticleCard" Padding="24"

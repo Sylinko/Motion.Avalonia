@@ -2,49 +2,47 @@
 
 [Project README](../README.md) · [Start the tutorial](getting-started.md)
 
-Motion.Avalonia describes motion as a composition of live layout states, controller-produced poses, and property
-interpolators. This documentation starts with a complete example, then separates the system into concepts that can be
-used independently.
+Motion.Avalonia combines stable target controls, live layout templates, independently evaluated property tracks, and
+strongly typed interpolation. Start with named states, then move to progress or time only when the interaction requires
+it.
 
 ## Learning Path
 
-1. [Getting Started](getting-started.md) — build and control a complete two-state layout motion.
-2. [Core Concepts](core-concepts.md) — understand stable targets, live state templates, poses, and presence.
-3. [States and Slots](states-and-slots.md) — create responsive layout endpoints with ordinary Avalonia panels.
-4. [Controllers and Poses](controllers-and-poses.md) — drive motion from time, sliders, scrolling, or custom logic.
-5. [Target Properties](target-properties.md) — animate target properties with shortcuts and setters.
-6. [Interpolators](interpolators.md) — customize how values move between endpoints.
-7. [Recipes](recipes.md) — assemble the primitives into practical interface patterns.
-8. [Architecture](architecture.md) — learn the implementation, lifetime, and performance model.
-9. [Limitations and Troubleshooting](limitations-and-troubleshooting.md) — diagnose common configuration problems.
-10. [API Reference](api-reference.md) — look up the contract of each public type.
+1. [Getting Started](getting-started.md) — build a complete two-state layout transition.
+2. [Core Concepts](core-concepts.md) — understand targets, layout sources, channels, and presence.
+3. [States and Slots](states-and-slots.md) — author responsive complete-state layouts.
+4. [Motions and Keyframes](motions-and-keyframes.md) — choose `StateMotion`, `SequenceMotion`, or `TimelineMotion`.
+5. [Target Properties](target-properties.md) — animate properties with shortcuts, setters, and target styles.
+6. [Interpolators](interpolators.md) — customize easing and value-space interpolation.
+7. [Recipes](recipes.md) — assemble practical interaction patterns.
+8. [Architecture](architecture.md) — learn Apply, track lifetime, and per-frame work.
+9. [Limitations and Troubleshooting](limitations-and-troubleshooting.md) — diagnose configuration problems.
+10. [API Reference](api-reference.md) — look up public contracts.
 
 ## Choose by Goal
 
 | Goal | Start here |
 |---|---|
 | Build a first layout transition | [Getting Started](getting-started.md) |
-| Move one control between unrelated panel layouts | [States and Slots](states-and-slots.md) |
-| Preserve text input, selection, and local state | [Core Concepts: Stable Targets](core-concepts.md#stable-targets) |
-| Use different timing from A → B and B → A | [Directed Edges](controllers-and-poses.md#directed-edges) |
-| Bind motion to a slider or scroll offset | [SequenceMotionController](controllers-and-poses.md#sequencemotioncontroller) |
-| Author motion at absolute times and play it | [TimelineMotionController](controllers-and-poses.md#timelinemotioncontroller) |
-| Animate `CornerRadius`, `Background`, or another styled property | [Target Properties](target-properties.md) |
-| See the complete shortcut list | [Shortcut Properties](target-properties.md#shortcuts) |
-| Move a target along a Bézier path | [Cubic Bézier Position Paths](interpolators.md#cubic-bézier-position-paths) |
-| Define a custom interpolation rule | [Strongly Typed Interpolators](interpolators.md#a-strongly-typed-custom-interpolator) |
-| Understand interruption behavior | [Nested Poses and Interruption](controllers-and-poses.md#nested-poses-and-interruption) |
+| Move controls between unrelated panel layouts | [States and Slots](states-and-slots.md) |
+| Preserve text input, selection, and local state | [Stable Targets](core-concepts.md#stable-targets) |
+| Use different timing from A → B and B → A | [Directed Edges](motions-and-keyframes.md#directed-edges) |
+| Bind motion to a slider or scroll offset | [SequenceMotion](motions-and-keyframes.md#sequencemotion) |
+| Author motion at absolute times and play it | [TimelineMotion](motions-and-keyframes.md#timelinemotion) |
+| Animate `CornerRadius`, `Background`, or nested content | [Target Properties](target-properties.md) |
+| See the shortcut property list | [Shortcut Properties](target-properties.md#shortcut-properties) |
+| Define a custom interpolation rule | [Interpolators](interpolators.md) |
 | Understand allocations and per-frame work | [Architecture](architecture.md) |
-| Investigate a configuration exception | [Limitations and Troubleshooting](limitations-and-troubleshooting.md) |
+| Investigate a configuration exception | [Troubleshooting](limitations-and-troubleshooting.md) |
 
-## Documentation Conventions
+## Terminology
 
-- Examples use the `motion` XAML namespace: `xmlns:motion="using:Motion.Avalonia"`.
-- State keys are ordinary objects. Examples use strings for readability.
-- “Target” means a stable direct child of `MotionPanel`.
-- “Slot” means the live layout proxy inside a state template.
-- “Presence” means the panel-owned enter/leave weight; it is not the target's `Opacity` property.
-- Current behavior is documented separately from planned features.
+- A **target** is a stable direct child of `MotionPanel`.
+- A **layout source** is a live `DataTemplate` owned by a state or keyframe.
+- A **slot** is a named proxy inside a layout source.
+- A **channel** is one target/property pair, including panel and container layout properties.
+- **Presence** is the container-level enter/leave envelope; it is distinct from target `Opacity`.
+- A **track** is the ordered endpoint sequence for one channel.
 
 ---
 

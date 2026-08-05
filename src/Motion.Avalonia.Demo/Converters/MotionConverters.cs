@@ -3,7 +3,7 @@ using Avalonia.Data.Converters;
 namespace Motion.Avalonia.Demo.Converters;
 
 /// <summary>
-/// Provides binding conversions used by the motion controller demos.
+/// Provides binding conversions used by the motion demos.
 /// </summary>
 public static class MotionConverters
 {

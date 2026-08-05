@@ -1,0 +1,148 @@
+<UserControl
+  x:Class="Motion.Avalonia.Demo.Views.StateMotionPage" xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:Motion.Avalonia.Demo.Controls"
+  xmlns:motion="using:Motion.Avalonia">
+
+  <ScrollViewer>
+    <StackPanel
+      MaxWidth="{StaticResource DemoPageMaxWidth}"
+      Margin="{StaticResource DemoPageMargin}"
+      HorizontalAlignment="Stretch" Spacing="32">
+      <StackPanel Spacing="8">
+        <TextBlock
+          Classes="DemoEyebrow" Text="STATE MOTION"/>
+        <TextBlock
+          Classes="DemoTitle" Text="Simple defaults, precise edges."/>
+        <TextBlock
+          Classes="DemoDescription" MaxWidth="768"
+          HorizontalAlignment="Left" Text="StateMotion owns complete named states and transition timing. A default duration and easing cover the common case, while directed MotionEdge entries override individual paths."/>
+      </StackPanel>
+
+      <controls:DemoExample
+        Title="Directed state edges" HorizontalContentAlignment="Stretch"
+        Description="Compact → Detail is intentionally slow, while Detail → Compact is fast. Summary uses the motion defaults. Click rapidly to interrupt any edge—the next transition starts from the exact visual result currently on screen.">
+        <StackPanel Spacing="16">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel
+              Orientation="Horizontal" Spacing="8">
+              <Button
+                Classes="Secondary" Click="OnStateButtonClick"
+                Content="Compact" Tag="Compact"/>
+              <Button
+                Classes="Secondary" Click="OnStateButtonClick"
+                Content="Summary" Tag="Summary"/>
+              <Button
+                Classes="Primary" Click="OnStateButtonClick"
+                Content="Detail" Tag="Detail"/>
+            </StackPanel>
+            <StackPanel
+              Grid.Column="1" HorizontalAlignment="Right">
+              <TextBlock
+                x:Name="MotionStateLabel" FontWeight="SemiBold"
+                Text="Compact"/>
+              <TextBlock
+                FontSize="11"
+                Foreground="{DynamicResource MutedColor}"
+                Text="Try changing direction mid-flight"/>
+            </StackPanel>
+          </Grid>
+
+          <Border
+            Height="384" Padding="16"
+            Background="{DynamicResource WindowBackgroundColor}"
+            CornerRadius="8">
+            <motion:MotionPanel ClipToBounds="True">
+              <motion:MotionPanel.Motion>
+                <motion:StateMotion
+                  x:Name="DirectedMotion" Easing="CubicEaseInOut"
+                  State="Compact" Duration="0:0:0.38">
+                  <motion:StateMotion.Edges>
+                    <motion:MotionEdge
+                      Easing="CubicEaseInOut" From="Compact"
+                      To="Detail" Duration="0:0:0.9"/>
+                    <motion:MotionEdge
+                      Easing="SineEaseOut" From="Detail"
+                      To="Compact" Duration="0:0:0.2"/>
+                    <motion:MotionEdge
+                      Easing="BackEaseOut" From="Summary"
+                      To="Detail" Duration="0:0:0.6"/>
+                  </motion:StateMotion.Edges>
+
+                  <motion:MotionState Key="Compact">
+                    <motion:MotionState.Template>
+                      <DataTemplate>
+                        <Grid>
+                          <motion:MotionSlot
+                            x:Name="ProjectCard" MaxWidth="304"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          <motion:MotionSlot
+                            x:Name="ProjectContext" MaxWidth="304"
+                            HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                            Opacity="0"/>
+                        </Grid>
+                      </DataTemplate>
+                    </motion:MotionState.Template>
+                  </motion:MotionState>
+                  <motion:MotionState Key="Summary">
+                    <motion:MotionState.Template>
+                      <DataTemplate>
+                        <Grid
+                          ColumnDefinitions="*,*" ColumnSpacing="16">
+                          <motion:MotionSlot x:Name="ProjectCard"/>
+                          <motion:MotionSlot
+                            x:Name="ProjectContext" Grid.Column="1"/>
+                        </Grid>
+                      </DataTemplate>
+                    </motion:MotionState.Template>
+                  </motion:MotionState>
+                  <motion:MotionState Key="Detail">
+                    <motion:MotionState.Template>
+                      <DataTemplate>
+                        <StackPanel
+                          MaxWidth="768" HorizontalAlignment="Stretch"
+                          Spacing="16">
+                          <motion:MotionSlot x:Name="ProjectCard"/>
+                          <motion:MotionSlot x:Name="ProjectContext"/>
+                        </StackPanel>
+                      </DataTemplate>
+                    </motion:MotionState.Template>
+                  </motion:MotionState>
+                </motion:StateMotion>
+              </motion:MotionPanel.Motion>
+
+              <Border
+                x:Name="ProjectCard" Padding="24"
+                Background="{DynamicResource PrimaryColor}"
+                CornerRadius="12">
+                <StackPanel Spacing="8">
+                  <TextBlock
+                    FontSize="21" FontWeight="SemiBold"
+                    Text="Motion.Avalonia"/>
+                  <TextBlock
+                    Text="A layout-motion toolkit for stable Avalonia controls." TextWrapping="Wrap"/>
+                  <TextBlock
+                    FontSize="12" Text="MIT · Avalonia 12 · Motion driven"/>
+                </StackPanel>
+              </Border>
+
+              <Border
+                x:Name="ProjectContext" Padding="24"
+                Background="{DynamicResource CardBackgroundColor}"
+                BorderBrush="{DynamicResource BorderColor}"
+                BorderThickness="1" CornerRadius="12">
+                <StackPanel Spacing="12">
+                  <TextBlock
+                    FontSize="16" FontWeight="SemiBold"
+                    Text="Transition context"/>
+                  <TextBlock
+                    LineHeight="20" Text="Edges are directed. Each matching From → To pair can override Duration and Easing independently; every other transition inherits the motion defaults."
+                    TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+            </motion:MotionPanel>
+          </Border>
+        </StackPanel>
+      </controls:DemoExample>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

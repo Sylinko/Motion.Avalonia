@@ -25,7 +25,7 @@
 
   <ItemGroup>
     <IgnoresAccessChecksTo Include="Avalonia.Base" />
-    <InternalsVisibleTo Include="Motion.Avalonia.Demo" />
+    <InternalsVisibleTo Include="Motion.Avalonia.Tests" />
   </ItemGroup>
 
   <ItemGroup>

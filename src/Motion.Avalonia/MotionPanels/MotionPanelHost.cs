@@ -5,29 +5,36 @@ using Avalonia.VisualTree;
 namespace Motion.Avalonia;
 
 /// <summary>
-/// Hosts one live state template and captures its layout and property endpoints into a reusable buffer.
+/// Hosts one live motion layout source and captures its layout and property endpoints into one
+/// reusable frame.
 /// </summary>
 internal sealed class MotionPanelHost : Decorator, IDisposable
 {
-    public MotionState State { get; }
+    public IMotionLayoutSource LayoutSource { get; }
 
-    private readonly MotionPanel _owner;
+    internal event EventHandler? EndpointChanged;
+
+    internal event EventHandler? EndpointStructureChanged;
+
+    private readonly MotionItemsPanel _owner;
     private readonly List<MotionSlot> _slots = [];
     private readonly Dictionary<MotionSlot, SlotEntry> _slotEntries = [];
     private readonly Dictionary<MotionSlot, int> _slotZIndices = [];
     private readonly HashSet<string> _slotNames = new(StringComparer.Ordinal);
     private readonly List<Visual> _paintOrderVisuals = [];
     private readonly List<MotionSlot> _orderedSlots = [];
-    private readonly MotionLayoutBuffer _layoutBuffer;
+    private readonly MotionLayoutFrame _layoutFrame;
     private bool _targetsDirty = true;
     private bool _slotOrderDirty = true;
     private bool _propertyValuesDirty = true;
+    private long _layoutFrameVersion = 1;
+    private long _capturedLayoutFrameVersion;
 
-    public MotionPanelHost(MotionPanel owner, MotionState state)
+    public MotionPanelHost(MotionItemsPanel owner, IMotionLayoutSource layoutSource)
     {
         _owner = owner;
-        State = state;
-        _layoutBuffer = new MotionLayoutBuffer(owner.TargetCount);
+        LayoutSource = layoutSource;
+        _layoutFrame = new MotionLayoutFrame(owner.TargetCount);
         Opacity = 0;
         IsHitTestVisible = false;
         Focusable = false;
@@ -37,7 +44,7 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
     public void Rebuild()
     {
         UnsubscribeSlots();
-        Child = State.Template?.Build(_owner.DataContext);
+        Child = LayoutSource.Template?.Build(_owner.DataContext);
         SubscribeSlots();
         InvalidateMeasure();
     }
@@ -57,15 +64,18 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
         {
             slot.ReleaseEndpointScope();
 
-            var name = slot.Name;
+            var name = Motion.GetEffectiveName(slot);
             if (string.IsNullOrWhiteSpace(name))
             {
-                throw new InvalidOperationException($"Every {nameof(MotionSlot)} in state '{State.Key}' must specify a non-empty x:Name.");
+                throw new InvalidOperationException(
+                    $"Every {nameof(MotionSlot)} in {LayoutSource.Description} must specify a non-empty {nameof(Motion)} identity " +
+                    $"({nameof(Motion.NameProperty)} or x:Name).");
             }
 
             if (!_slotNames.Add(name))
             {
-                throw new InvalidOperationException($"State '{State.Key}' contains more than one {nameof(MotionSlot)} named '{name}'.");
+                throw new InvalidOperationException(
+                    $"{LayoutSource.Description} contains more than one {nameof(MotionSlot)} with Motion identity '{name}'.");
             }
 
             var target = _owner.ResolveTarget(name);
@@ -76,56 +86,72 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
 
         _slotOrderDirty = true;
         _propertyValuesDirty = true;
-        _layoutBuffer.ResetPropertyValues();
+        InvalidateLayoutFrame();
+        _layoutFrame.ResetPropertyValues();
         _targetsDirty = false;
-    }
-
-    public void InvalidateTargets()
-    {
-        foreach (var slot in _slots)
-        {
-            slot.ReleaseEndpointScope();
-        }
-
-        _slotEntries.Clear();
-        _slotZIndices.Clear();
-        _slotNames.Clear();
-        _slotOrderDirty = true;
-        _propertyValuesDirty = true;
-        _targetsDirty = true;
-        _layoutBuffer.ResetPropertyValues();
     }
 
     public Size MeasureTarget(MotionSlot slot, Size availableSize)
     {
         if (!_slotEntries.TryGetValue(slot, out var entry))
         {
-            throw new InvalidOperationException($"{nameof(MotionSlot)} '{slot.Name}' is not registered with its state host.");
+            throw new InvalidOperationException(
+                $"{nameof(MotionSlot)} '{Motion.GetEffectiveName(slot) ?? slot.Name}' is not registered with its state host.");
         }
 
         entry.Target.Measure(availableSize);
         return entry.Target.DesiredSize;
     }
 
-    public MotionLayoutBuffer CaptureLayout()
+    /// <summary>
+    /// Gets the current reusable layout frame, capturing the host only when its local frame is dirty.
+    /// </summary>
+    /// <remarks>
+    /// The returned frame remains live and is reused by this host. Marking the frame dirty does not
+    /// publish an event; the next reader performs the capture on the UI thread. This keeps frame
+    /// freshness pull-based and prevents every track from recapturing the same layout.
+    /// </remarks>
+    public MotionLayoutFrame CaptureLayout()
     {
+        var captureVersion = _layoutFrameVersion;
+        if (_capturedLayoutFrameVersion == captureVersion)
+        {
+            return _layoutFrame;
+        }
+
         EnsureSlotOrder();
         if (_propertyValuesDirty)
         {
             RebuildPropertyValues();
         }
 
-        _layoutBuffer.BeginLayoutUpdate(DesiredSize);
+        _layoutFrame.BeginLayoutUpdate(DesiredSize);
         foreach (var slot in _orderedSlots)
         {
             var entry = _slotEntries[slot];
-            _layoutBuffer.EntriesBuffer.Add(entry.Name, new MotionLayoutEntry(GetLayoutBounds(entry), 1));
+            _layoutFrame.EntriesBuffer.Add(
+                entry.Name,
+                new MotionLayoutEntry(
+                    GetLayoutBounds(entry),
+                    Motion.GetAuthoredPresence(slot),
+                    Motion.GetSlotMetadata(slot, Motion.PositionProperty),
+                    Motion.GetSlotMetadata(slot, Motion.SizeProperty),
+                    Motion.GetSlotMetadata(slot, Motion.PresenceProperty)));
         }
 
-        return _layoutBuffer;
+        _capturedLayoutFrameVersion = captureVersion;
+        return _layoutFrame;
     }
 
-    public void Dispose() => UnsubscribeSlots();
+    /// <summary>
+    /// Invalidates the reusable frame without capturing it immediately.
+    /// </summary>
+    internal void InvalidateLayoutFrame() => _layoutFrameVersion++;
+
+    public void Dispose()
+    {
+        UnsubscribeSlots();
+    }
 
     private void EnsureSlotOrder()
     {
@@ -146,7 +172,7 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
 
     private void RebuildPropertyValues()
     {
-        _layoutBuffer.BeginPropertyValuesUpdate();
+        _layoutFrame.BeginPropertyValuesUpdate();
         for (var i = 0; i < _orderedSlots.Count; i++)
         {
             AddSlotPropertyValues(_slotEntries[_orderedSlots[i]], i);
@@ -159,10 +185,11 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
     {
         foreach (var pair in entry.Slot.CaptureEndpointValues(entry.Target))
         {
-            if (!_layoutBuffer.TryAddPropertyTarget(pair.Key, out var values))
+            if (!_layoutFrame.TryAddPropertyTarget(pair.Key, out var values))
             {
                 throw new InvalidOperationException(
-                    $"State '{State.Key}' defines motion properties for target '{pair.Key.Name ?? pair.Key.GetType().Name}' more than once.");
+                    $"{LayoutSource.Description} defines motion properties for target " +
+                    $"'{pair.Key.Name ?? pair.Key.GetType().Name}' more than once.");
             }
 
             foreach (var property in pair.Value)
@@ -172,14 +199,21 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
 
             if (ReferenceEquals(pair.Key, entry.Target))
             {
-                values[ZIndexProperty] = relativeZIndex;
+                var metadata = values.TryGetValue(ZIndexProperty, out var endpoint) ?
+                    endpoint.Metadata :
+                    Motion.GetSlotMetadata(entry.Slot, ZIndexProperty);
+                values[ZIndexProperty] = new MotionEndpointValue(relativeZIndex, metadata);
             }
         }
 
-        if (!_layoutBuffer.PropertyValues.ContainsKey(entry.Target))
+        if (!_layoutFrame.PropertyValues.ContainsKey(entry.Target))
         {
-            _layoutBuffer.TryAddPropertyTarget(entry.Target, out var values);
-            values.Add(ZIndexProperty, relativeZIndex);
+            _layoutFrame.TryAddPropertyTarget(entry.Target, out var values);
+            values.Add(
+                ZIndexProperty,
+                new MotionEndpointValue(
+                    relativeZIndex,
+                    Motion.GetSlotMetadata(entry.Slot, ZIndexProperty)));
         }
     }
 
@@ -237,7 +271,7 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
         if (current != this)
         {
             throw new InvalidOperationException(
-                $"{nameof(MotionSlot)} '{slot.Name}' is not a descendant of its state host.");
+                $"{nameof(MotionSlot)} '{Motion.GetEffectiveName(slot) ?? slot.Name}' is not a descendant of its state host.");
         }
 
         return [.. result];
@@ -269,6 +303,7 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
         slot.AttachHost(this);
         _slots.Add(slot);
         slot.EndpointChanged += OnSlotEndpointChanged;
+        slot.EndpointStructureChanged += OnSlotEndpointStructureChanged;
     }
 
     private void SubscribePaintOrderVisual(Visual visual)
@@ -282,6 +317,7 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
         foreach (var slot in _slots)
         {
             slot.EndpointChanged -= OnSlotEndpointChanged;
+            slot.EndpointStructureChanged -= OnSlotEndpointStructureChanged;
             slot.DetachHost(this);
         }
 
@@ -296,15 +332,17 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
         _slotZIndices.Clear();
         _slotNames.Clear();
         _orderedSlots.Clear();
-        _layoutBuffer.Clear();
+        _layoutFrame.Clear();
         _targetsDirty = true;
         _slotOrderDirty = true;
         _propertyValuesDirty = true;
+        InvalidateLayoutFrame();
     }
 
     private void OnSlotEndpointChanged(object? sender, EventArgs e)
     {
         _propertyValuesDirty = true;
+        InvalidateLayoutFrame();
 
         if (sender is MotionSlot slot &&
             _slotEntries.TryGetValue(slot, out var entry) &&
@@ -313,7 +351,15 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
             _slotOrderDirty = true;
         }
 
-        _owner.NotifyStateEndpointChanged(State, this);
+        EndpointChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnSlotEndpointStructureChanged(object? sender, EventArgs e)
+    {
+        _propertyValuesDirty = true;
+        _slotOrderDirty = true;
+        InvalidateLayoutFrame();
+        EndpointStructureChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnPaintOrderVisualPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
@@ -325,7 +371,8 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
 
         _slotOrderDirty = true;
         _propertyValuesDirty = true;
-        _owner.NotifyStateEndpointChanged(State, this);
+        InvalidateLayoutFrame();
+        EndpointChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private readonly record struct SlotEntry(
@@ -337,86 +384,3 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
 
     private readonly record struct OrderedVisual(Visual Visual, int Index);
 }
-
-/// <summary>
-/// Contains one evaluated state's panel layout and real-element property endpoints.
-/// </summary>
-/// <remarks>
-/// Instances own reusable dictionaries. Callers may retain a buffer until the owning host or
-/// panel evaluates it again, but must not treat its read-only views as immutable collections.
-/// </remarks>
-internal sealed class MotionLayoutBuffer(int targetCapacity = 0)
-{
-    public Size DesiredSize { get; private set; }
-
-    public IReadOnlyDictionary<string, MotionLayoutEntry> Entries => _entries;
-
-    public IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>> PropertyValues =>
-        _propertyValues;
-
-    internal Dictionary<string, MotionLayoutEntry> EntriesBuffer => _entries;
-
-    private readonly Dictionary<string, MotionLayoutEntry> _entries = new(targetCapacity, StringComparer.Ordinal);
-    private readonly Dictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>> _propertyValues = [];
-    private readonly Dictionary<StyledElement, Dictionary<AvaloniaProperty, object?>> _propertyValueBuffers = [];
-    private readonly List<Dictionary<AvaloniaProperty, object?>> _activePropertyValueBuffers = [];
-
-    internal void BeginLayoutUpdate(Size desiredSize)
-    {
-        DesiredSize = desiredSize;
-        _entries.Clear();
-    }
-
-    internal void BeginPropertyValuesUpdate()
-    {
-        foreach (var values in _activePropertyValueBuffers)
-        {
-            values.Clear();
-        }
-
-        _activePropertyValueBuffers.Clear();
-        _propertyValues.Clear();
-    }
-
-    internal bool TryAddPropertyTarget(StyledElement target, out Dictionary<AvaloniaProperty, object?> values)
-    {
-        if (_propertyValues.ContainsKey(target))
-        {
-            values = null!;
-            return false;
-        }
-
-        if (!_propertyValueBuffers.TryGetValue(target, out values!))
-        {
-            values = [];
-            _propertyValueBuffers.Add(target, values);
-        }
-
-        values.Clear();
-        _propertyValues.Add(target, values);
-        _activePropertyValueBuffers.Add(values);
-        return true;
-    }
-
-    internal void ResetPropertyValues()
-    {
-        BeginPropertyValuesUpdate();
-        _propertyValueBuffers.Clear();
-        _activePropertyValueBuffers.Clear();
-    }
-
-    internal void Clear()
-    {
-        DesiredSize = default;
-        _entries.Clear();
-        ResetPropertyValues();
-    }
-}
-
-/// <summary>
-/// Contains the layout channels associated with one named direct panel child.
-/// </summary>
-internal readonly record struct MotionLayoutEntry(
-    Rect Bounds,
-    double Presence
-);

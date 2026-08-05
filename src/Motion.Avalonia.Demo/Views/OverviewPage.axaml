@@ -54,7 +54,7 @@
           Classes="DemoTitle" Text="One screen. Three live layouts."/>
         <TextBlock
           Classes="DemoDescription" MaxWidth="768"
-          HorizontalAlignment="Left" Text="Scroll inside the phone. The video, author bar, actions, comments, and composer are stable controls projected through three responsive state templates—without snapshots, fake scaling, or fixed animated offsets."/>
+          HorizontalAlignment="Left" Text="Scroll inside the phone. The video, author bar, actions, comments, and composer are stable controls projected through responsive Cue keyframes—without snapshots, fake scaling, or fixed animated offsets."/>
       </StackPanel>
 
       <controls:DemoExample
@@ -123,88 +123,27 @@
                 ViewportHeight="704">
                 <motion:MotionPanel
                   x:Name="ShowcasePanel" ClipToBounds="True">
-                  <motion:MotionPanel.Controller>
-                    <motion:SequenceMotionController x:Name="ShowcaseController">
-                      <motion:MotionStop
-                        State="Immersive" Offset="0"/>
-                      <motion:MotionStop
-                        Easing="CubicEaseOut" State="Reveal"
-                        Offset="0.58"/>
-                      <motion:MotionStop
-                        Easing="CubicEaseInOut" State="Discussion"
-                        Offset="1"/>
-                    </motion:SequenceMotionController>
-                  </motion:MotionPanel.Controller>
-
-                  <motion:MotionPanel.States>
-                    <motion:MotionState Key="Immersive">
-                      <motion:MotionState.Template>
-                        <DataTemplate>
-                          <Panel>
-                            <motion:MotionSlot x:Name="VideoSurface"/>
-                            <motion:MotionSlot
-                              x:Name="DiscussionSurface" Height="0"
-                              VerticalAlignment="Bottom" Opacity="0"/>
-                            <motion:MotionSlot
-                              x:Name="AuthorBar" MaxWidth="256"
-                              Margin="16" HorizontalAlignment="Left"
-                              VerticalAlignment="Top" x:SetterTargetType="Border">
-                              <Setter Property="CornerRadius" Value="16"/>
-                              <Setter Property="BorderThickness" Value="1"/>
-                            </motion:MotionSlot>
-                            <StackPanel
-                              Width="48" Margin="0,0,12,72"
-                              HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                              Orientation="Vertical">
+                  <motion:MotionPanel.Motion>
+                    <motion:SequenceMotion x:Name="ShowcaseMotion">
+                      <motion:SequenceMotionKeyFrame Cue="0%">
+                        <motion:SequenceMotionKeyFrame.Template>
+                          <DataTemplate>
+                            <Panel>
+                              <motion:MotionSlot x:Name="VideoSurface"/>
                               <motion:MotionSlot
-                                x:Name="LikeButton" Width="48"
-                                Height="48"/>
+                                x:Name="DiscussionSurface" Height="0"
+                                VerticalAlignment="Bottom" Opacity="0"/>
                               <motion:MotionSlot
-                                x:Name="ShareButton" Width="48"
-                                Height="48"/>
-                              <motion:MotionSlot
-                                x:Name="MoreButton" Width="48"
-                                Height="48"/>
-                            </StackPanel>
-                            <motion:MotionSlot
-                              x:Name="CommentComposer" Height="52"
-                              Margin="12" HorizontalAlignment="Stretch"
-                              VerticalAlignment="Bottom"/>
-                            <motion:MotionSlot
-                              x:Name="ScrollHint" Margin="0,0,0,72"
-                              HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
-                          </Panel>
-                        </DataTemplate>
-                      </motion:MotionState.Template>
-                    </motion:MotionState>
-
-                    <motion:MotionState Key="Reveal">
-                      <motion:MotionState.Template>
-                        <DataTemplate>
-                          <Grid RowDefinitions="312,*,64">
-                            <motion:MotionSlot
-                              x:Name="ContinuePlayback" Grid.Row="0"
-                              Opacity="0"/>
-                            <motion:MotionSlot
-                              x:Name="VideoSurface" Grid.Row="0"
-                              MaxWidth="224" HorizontalAlignment="Center"/>
-                            <motion:MotionSlot
-                              x:Name="DiscussionSurface" Grid.Row="1"
-                              Grid.RowSpan="2"/>
-                            <motion:MotionSlot
-                              x:Name="AuthorBar" Grid.Row="1"
-                              Height="56" VerticalAlignment="Top"
-                              x:SetterTargetType="Border">
-                              <Setter Property="CornerRadius" Value="0"/>
-                              <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                            </motion:MotionSlot>
-                            <motion:MotionSlot
-                              x:Name="CommentList" Grid.Row="1"
-                              Margin="8,64,8,8"/>
-                            <DockPanel Grid.Row="2">
+                                x:Name="AuthorBar" MaxWidth="256"
+                                Margin="16" HorizontalAlignment="Left"
+                                VerticalAlignment="Top" x:SetterTargetType="Border">
+                                <Setter Property="CornerRadius" Value="16"/>
+                                <Setter Property="BorderThickness" Value="1"/>
+                              </motion:MotionSlot>
                               <StackPanel
-                                DockPanel.Dock="Right" Margin="0,8,8,8"
-                                Orientation="Horizontal">
+                                Width="48" Margin="0,0,12,72"
+                                HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                Orientation="Vertical">
                                 <motion:MotionSlot
                                   x:Name="LikeButton" Width="48"
                                   Height="48"/>
@@ -216,52 +155,104 @@
                                   Height="48"/>
                               </StackPanel>
                               <motion:MotionSlot
-                                x:Name="CommentComposer" Margin="8"/>
-                            </DockPanel>
-                          </Grid>
-                        </DataTemplate>
-                      </motion:MotionState.Template>
-                    </motion:MotionState>
-
-                    <motion:MotionState Key="Discussion">
-                      <motion:MotionState.Template>
-                        <DataTemplate>
-                          <Grid RowDefinitions="56,56,*,64">
-                            <motion:MotionSlot x:Name="ContinuePlayback"/>
-                            <motion:MotionSlot
-                              x:Name="DiscussionSurface" Grid.Row="1"
-                              Grid.RowSpan="3"/>
-                            <motion:MotionSlot
-                              x:Name="AuthorBar" Grid.Row="1"
-                              x:SetterTargetType="Border">
-                              <Setter Property="CornerRadius" Value="0"/>
-                              <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                            </motion:MotionSlot>
-                            <motion:MotionSlot
-                              x:Name="CommentList" Grid.Row="2"
-                              Margin="8"/>
-                            <DockPanel Grid.Row="3">
-                              <StackPanel
-                                DockPanel.Dock="Right" Margin="0,8,8,8"
-                                Orientation="Horizontal">
-                                <motion:MotionSlot
-                                  x:Name="LikeButton" Width="48"
-                                  Height="48"/>
-                                <motion:MotionSlot
-                                  x:Name="ShareButton" Width="48"
-                                  Height="48"/>
-                                <motion:MotionSlot
-                                  x:Name="MoreButton" Width="48"
-                                  Height="48"/>
-                              </StackPanel>
+                                x:Name="CommentComposer" Height="52"
+                                Margin="12" HorizontalAlignment="Stretch"
+                                VerticalAlignment="Bottom"/>
                               <motion:MotionSlot
-                                x:Name="CommentComposer" Margin="8"/>
-                            </DockPanel>
-                          </Grid>
-                        </DataTemplate>
-                      </motion:MotionState.Template>
-                    </motion:MotionState>
-                  </motion:MotionPanel.States>
+                                x:Name="ScrollHint" Margin="0,0,0,72"
+                                HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
+                            </Panel>
+                          </DataTemplate>
+                        </motion:SequenceMotionKeyFrame.Template>
+                      </motion:SequenceMotionKeyFrame>
+
+                      <motion:SequenceMotionKeyFrame
+                        Cue="58%" Easing="CubicEaseOut">
+                        <motion:SequenceMotionKeyFrame.Template>
+                          <DataTemplate>
+                            <Grid RowDefinitions="312,*,64">
+                              <motion:MotionSlot
+                                x:Name="ContinuePlayback" Grid.Row="0"
+                                Opacity="0"/>
+                              <motion:MotionSlot
+                                x:Name="VideoSurface" Grid.Row="0"
+                                MaxWidth="224" HorizontalAlignment="Center"/>
+                              <motion:MotionSlot
+                                x:Name="DiscussionSurface" Grid.Row="1"
+                                Grid.RowSpan="2"/>
+                              <motion:MotionSlot
+                                x:Name="AuthorBar" Grid.Row="1"
+                                Height="56" VerticalAlignment="Top"
+                                x:SetterTargetType="Border">
+                                <Setter Property="CornerRadius" Value="0"/>
+                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                              </motion:MotionSlot>
+                              <motion:MotionSlot
+                                x:Name="CommentList" Grid.Row="1"
+                                Margin="8,64,8,8"/>
+                              <DockPanel Grid.Row="2">
+                                <StackPanel
+                                  DockPanel.Dock="Right" Margin="0,8,8,8"
+                                  Orientation="Horizontal">
+                                  <motion:MotionSlot
+                                    x:Name="LikeButton" Width="48"
+                                    Height="48"/>
+                                  <motion:MotionSlot
+                                    x:Name="ShareButton" Width="48"
+                                    Height="48"/>
+                                  <motion:MotionSlot
+                                    x:Name="MoreButton" Width="48"
+                                    Height="48"/>
+                                </StackPanel>
+                                <motion:MotionSlot
+                                  x:Name="CommentComposer" Margin="8"/>
+                              </DockPanel>
+                            </Grid>
+                          </DataTemplate>
+                        </motion:SequenceMotionKeyFrame.Template>
+                      </motion:SequenceMotionKeyFrame>
+
+                      <motion:SequenceMotionKeyFrame
+                        Cue="100%" Easing="CubicEaseInOut">
+                        <motion:SequenceMotionKeyFrame.Template>
+                          <DataTemplate>
+                            <Grid RowDefinitions="56,56,*,64">
+                              <motion:MotionSlot x:Name="ContinuePlayback"/>
+                              <motion:MotionSlot
+                                x:Name="DiscussionSurface" Grid.Row="1"
+                                Grid.RowSpan="3"/>
+                              <motion:MotionSlot
+                                x:Name="AuthorBar" Grid.Row="1"
+                                x:SetterTargetType="Border">
+                                <Setter Property="CornerRadius" Value="0"/>
+                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                              </motion:MotionSlot>
+                              <motion:MotionSlot
+                                x:Name="CommentList" Grid.Row="2"
+                                Margin="8"/>
+                              <DockPanel Grid.Row="3">
+                                <StackPanel
+                                  DockPanel.Dock="Right" Margin="0,8,8,8"
+                                  Orientation="Horizontal">
+                                  <motion:MotionSlot
+                                    x:Name="LikeButton" Width="48"
+                                    Height="48"/>
+                                  <motion:MotionSlot
+                                    x:Name="ShareButton" Width="48"
+                                    Height="48"/>
+                                  <motion:MotionSlot
+                                    x:Name="MoreButton" Width="48"
+                                    Height="48"/>
+                                </StackPanel>
+                                <motion:MotionSlot
+                                  x:Name="CommentComposer" Margin="8"/>
+                              </DockPanel>
+                            </Grid>
+                          </DataTemplate>
+                        </motion:SequenceMotionKeyFrame.Template>
+                      </motion:SequenceMotionKeyFrame>
+                    </motion:SequenceMotion>
+                  </motion:MotionPanel.Motion>
 
                   <Border
                     x:Name="VideoSurface" Background="#FF05070B"
@@ -419,8 +410,8 @@
                 Classes="DemoDescription" Text="The Image is measured at every intermediate bound. Author, actions, comments, and TextBox remain their original control instances."/>
             </StackPanel>
             <StackPanel Spacing="8">
-              <TextBlock Text="✓  Live state templates"/>
-              <TextBlock Text="✓  Reversible pose seeking"/>
+              <TextBlock Text="✓  Live keyframe templates"/>
+              <TextBlock Text="✓  Reversible sequence seeking"/>
               <TextBlock Text="✓  Native scroll input"/>
               <TextBlock Text="✓  Stable control identity"/>
             </StackPanel>

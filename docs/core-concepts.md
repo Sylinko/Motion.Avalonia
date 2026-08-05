@@ -1,163 +1,98 @@
 # Core Concepts
 
-[← Getting Started](getting-started.md) · [Documentation](README.md) · [Next: States and Slots →](states-and-slots.md)
-
-Motion.Avalonia is easier to reason about when layout description, motion progress, interpolation, and real content are
-treated as separate concerns.
+[Documentation index](README.md)
 
 ## Stable Targets
 
-A target is a direct `MotionPanel` child with a unique `x:Name`:
+The visible controls are direct `MotionPanel.Children`. Motion never replaces them, so text, selection, focus,
+validation, event handlers, and control-specific state survive every layout change.
 
-```xml
-<motion:MotionPanel>
-  ...
-  <TextBox x:Name="SearchEditor"/>
-  <Border x:Name="Preview"/>
-</motion:MotionPanel>
-```
+Each target must have a unique `x:Name`. That name is the identity shared with `MotionSlot`.
 
-The target remains the same control instance in every state. MotionPanel inserts a stable internal container between
-itself and each target to own animated position, size, presence, and relative Z-order. The target itself keeps its
-logical parent, bindings, input state, focus state, and event subscriptions.
+## Live Layout Sources
 
-## Live State Templates
+`MotionState`, `SequenceMotionKeyFrame`, and `TimelineMotionKeyFrame` each own a `DataTemplate`. MotionPanel builds and retains a
+live hidden host for every source owned by the current motion.
 
-A `MotionState` owns an `IDataTemplate` that describes one layout endpoint:
+These templates are not snapshots. They participate in normal Avalonia measure and arrange, inherit data context and
+resources, and respond to bindings and panel size changes.
 
-```xml
-<motion:MotionState Key="Centered">
-  <motion:MotionState.Template>
-    <DataTemplate>
-      <Grid>
-        <motion:MotionSlot
-          x:Name="SearchEditor"
-          MaxWidth="600"
-          HorizontalAlignment="Center"/>
-      </Grid>
-    </DataTemplate>
-  </motion:MotionState.Template>
-</motion:MotionState>
-```
+## MotionSlot
 
-The template is instantiated once while the state belongs to the panel. It remains connected to the panel's data
-context, resources, and visual lifetime. A state is therefore not a frozen snapshot. Bindings can change, targets can
-change their desired sizes, and a panel resize can produce a different endpoint.
+`MotionSlot` is a proxy with two roles:
 
-Only states referenced by the current pose are measured and arranged for the current frame.
+1. its bounds describe the target's layout endpoint;
+2. its shortcuts, setters, and target styles describe property endpoints.
 
-## Motion Slots
+The slot is not the displayed control. The target is measured to supply the slot's desired size, then the evaluated
+layout is applied to the stable target container.
 
-`MotionSlot` is a proxy, not the content that the user sees. It serves three purposes:
+## Complete States and Sparse Keyframes
 
-1. It measures the real target to obtain an accurate desired size.
-2. It participates in the state template's ordinary Avalonia layout.
-3. It exposes selected property endpoints for the target.
+`StateMotion` treats every `MotionState` as a complete description. A missing target is absent and receives
+`Presence=0`.
 
-The slot's resolved rectangle becomes the target container's rectangle. Slot layout properties such as `Width`,
-`MaxWidth`, `Margin`, alignment, and attached panel properties configure that rectangle.
+`SequenceMotion` and `TimelineMotion` treat their keyframes as sparse. If a keyframe omits a target or property, no key
+is added to that channel. The channel interpolates between its own nearest authored keyframes.
 
-## Motion Poses
+This distinction is intentional:
 
-A `MotionPose` describes what the panel should present now. It contains no timer:
+- states answer “what does the complete interface look like now?”;
+- keyframes answer “which channels receive keys at this coordinate?”.
 
-```csharp
-var settled = MotionPose.State("Centered");
+## Channels and Tracks
 
-var halfway = MotionPose.CreateBlend(
-    MotionPose.State("Centered"),
-    MotionPose.State("Wide"),
-    0.5,
-    new CubicEaseInOut());
-```
+A channel is one property on one destination. Built-in layout channels are:
 
-`MotionPose.State` references one state key. `MotionPose.CreateBlend` recursively combines two poses with normalized
-progress and easing. It can also carry a `MotionEdge` selected by the controller. Because blends can contain other
-blends, an interrupted transition can use the exact current pose as its new source.
+- `Motion.DesiredSize` for the panel;
+- `Motion.Position` for a target container;
+- `Motion.Size` for a target container;
+- `Motion.Presence` for a target container.
 
-## Controllers
+Target properties such as `Opacity`, `Background`, and `RenderTransform` use the same channel model.
 
-An `IMotionController` publishes the current pose. `MotionPanel` does not know whether progress came from elapsed time,
-a scrollbar, a slider, pointer movement, a physics solver, or an external synchronization source.
-
-`BasicMotionController` provides the common time-based state workflow. `SequenceMotionController` is a pure sampler
-that maps externally owned normalized progress across ordered state stops. `TimelineMotionController` maps absolute
-time across authored keyframes and derives from `PlayerDrivenMotionController`. Custom externally driven controllers
-derive from `MotionController` and call `SetCurrentPose`; custom time-based controllers derive from
-`PlayerDrivenMotionController` and override `OnPlayerTick`.
+When a motion is applied, each discovered channel becomes one long-lived track and one Avalonia animation-priority
+binding. Evaluation updates those bindings; it does not search for an interpolator or recreate a binding every frame.
 
 ## Presence
 
-Presence is an internal panel-owned value used when a target exists in only one endpoint:
+Presence is a convenience envelope for entering and leaving targets. It controls container opacity and hit testing.
+It is separate from target `Opacity`, so both can be authored:
 
-```text
-Absent ── presence 0.0
-Halfway ─ presence 0.5
-Present ─ presence 1.0
+```xml
+<motion:MotionSlot
+  x:Name="Preview"
+  motion:Motion.Presence="0.5"
+  Opacity="0.8"/>
 ```
 
-It is applied to the stable target container. It is intentionally separate from `Visual.OpacityProperty`, which belongs
-to the target and can be declared through a shortcut or setter.
+In a complete state, omitting the slot is equivalent to absence. In a sparse keyframe, omission means “no key”.
 
-For a target with `Opacity="0.8"` at half presence, the effective rendered opacity is conceptually:
+## Easing and Interpolation
 
-```text
-container presence × target opacity = 0.5 × 0.8
-```
-
-Separating the values allows a target to preserve its own opacity semantics while still entering and leaving the state
-layout.
-
-## Property Endpoints
-
-Each slot can contribute target property values in two ways:
-
-- a documented shortcut such as `Opacity`, `ClipToBounds`, or `IsEnabled`;
-- an explicit Avalonia `Setter`.
-
-Both forms become the same property endpoint internally and are evaluated with the layout pose. Outputs use
-`BindingPriority.Animation`, so the target's underlying local, styled, inherited, or bound value is not replaced. When
-the motion no longer defines that property, the animation-priority output is removed and the latest base value becomes
-effective again.
-
-## Interpolators
-
-An interpolator converts progress and two endpoint values into the current value:
+Easing remaps temporal progress. A `MotionInterpolator` maps that progress through the property's value space:
 
 ```text
-value = Interpolate(progress, source, target)
+raw segment progress
+        ↓
+      Easing
+        ↓
+MotionInterpolator(source, destination)
+        ↓
+ evaluated property value
 ```
 
-The default `MotionAvaloniaInterpolator` reuses Avalonia's built-in `Animator<T>` implementations where possible.
-Panel-level interpolators can override one target/property pair, optionally only for selected directed edges. The
-typed `MotionLayout` properties bring panel desired size, target position, target size, and target presence through the
-same lookup path.
+The default interpolator reuses Avalonia's typed `Animator<T>` implementations where possible. Overrides may be
+attached to a setter, a slot, a directed edge, a motion, or the panel.
 
-Easing and interpolation are different operations:
+## Ownership
 
-- easing maps progress to progress;
-- interpolation maps two typed values and progress to a value.
+`MotionPanel.Motion` is a logical child. A motion therefore receives normal data context, resource lookup, and logical
+tree lifetime.
 
-## Interruption and Retargeting
-
-When `BasicMotionController` is interrupted, it does not guess the current rectangle and does not force every property
-into a detached snapshot. It retains its current pose as the source of the next blend. Required source states remain
-live, so a resize during the interrupted motion still updates their layout endpoints.
-
-## Real Layout, Not Visual Simulation
-
-MotionPanel applies intermediate width and height to a stable container and performs real layout on the child. This
-means:
-
-- text wraps at its current width;
-- nested grids and panels receive current constraints;
-- hit testing follows the real bounds;
-- rendering remains crisp;
-- layout-dependent controls behave naturally.
-
-This is more expensive than a render-only transform, so render transforms remain preferable for purely visual movement
-that does not need layout participation. MotionPanel exists for cases where real layout is the behavior being animated.
+`StateMotion` and `TimelineMotion` derive from `PlayerDrivenMotion` and own a stable `MotionPlayer`. `SequenceMotion`
+deliberately has no player because its progress belongs to an external slider, scroll viewer, gesture, or solver.
 
 ---
 
-[← Getting Started](getting-started.md) · [Documentation](README.md) · [Next: States and Slots →](states-and-slots.md)
+[Next: States and Slots →](states-and-slots.md)

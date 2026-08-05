@@ -11,20 +11,12 @@ namespace Motion.Avalonia;
 /// Interpolates motion values using Avalonia's registered animators.
 /// </summary>
 /// <remarks>
-/// <see cref="MotionPanel"/> uses a shared instance as its fallback. Add an explicit instance
-/// when a target property needs a property-specific easing or edge filter. Registered
+/// <see cref="MotionPanel"/> uses a shared instance as its fallback. Registered
 /// <see cref="Animator{T}"/> implementations are reused where possible; brushes, effects, and
 /// render transforms receive compatible specialized handling. Unsupported value pairs switch
-/// discretely at halfway.
+/// discretely at halfway. Put an explicit instance in <see cref="MotionInterpolation"/> only
+/// when composing or replacing the fallback is useful to an authoring API.
 /// </remarks>
-/// <example>
-/// <code><![CDATA[
-/// <motion:MotionAvaloniaInterpolator
-///     Target="Card"
-///     Property="CornerRadius"
-///     Easing="CubicEaseOut"/>
-/// ]]></code>
-/// </example>
 public sealed class MotionAvaloniaInterpolator : MotionInterpolator
 {
     internal static MotionAvaloniaInterpolator Default { get; } = new();

@@ -13,8 +13,9 @@ namespace Motion.Avalonia;
 /// Represents the live layout and property proxy for a direct child of a <see cref="MotionPanel"/>.
 /// </summary>
 /// <remarks>
-/// The slot's <see cref="StyledElement.Name"/> is its stable identity and must match the
-/// <c>x:Name</c> of the represented direct child.
+/// The slot's effective Motion identity must match the represented direct child. Set
+/// <see cref="Motion.NameProperty"/> when a dynamic item identity is required; otherwise the
+/// regular <c>x:Name</c> is used.
 ///
 /// Layout properties such as <see cref="Layoutable.Margin"/> and alignment arrange the slot
 /// itself. The following shortcut properties are copied into the target-property endpoint:
@@ -63,6 +64,8 @@ public sealed class MotionSlot : Control
 
     internal event EventHandler? EndpointChanged;
 
+    internal event EventHandler? EndpointStructureChanged;
+
     private static readonly AvaloniaProperty[] ShortcutProperties =
     [
         OpacityProperty,
@@ -96,7 +99,8 @@ public sealed class MotionSlot : Control
         TargetStyles.CollectionChanged += OnTargetStylesChanged;
     }
 
-    internal IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, object?>> CaptureEndpointValues(StyledElement target)
+    internal IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, MotionEndpointValue>> CaptureEndpointValues(
+        StyledElement target)
     {
         EnsureEndpointScope(target);
         return _styleScope!.CaptureValues();
@@ -114,6 +118,12 @@ public sealed class MotionSlot : Control
 
     internal void BindTarget(StyledElement target) => EnsureEndpointScope(target);
 
+    internal void NotifyMotionMetadataChanged()
+    {
+        ReleaseEndpointScope();
+        EndpointChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     internal void DetachHost(MotionPanelHost host)
     {
         if (!ReferenceEquals(_host, host))
@@ -130,7 +140,7 @@ public sealed class MotionSlot : Control
         var values = CaptureEndpointValues(target);
         if (values.TryGetValue(target, out var rootValues) &&
             rootValues.TryGetValue(ZIndexProperty, out var value) &&
-            value is int zIndex)
+            value.Value is int zIndex)
         {
             return zIndex;
         }
@@ -159,7 +169,7 @@ public sealed class MotionSlot : Control
         if (ShortcutPropertySet.Contains(change.Property))
         {
             ReleaseEndpointScope();
-            EndpointChanged?.Invoke(this, EventArgs.Empty);
+            EndpointStructureChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -167,13 +177,13 @@ public sealed class MotionSlot : Control
     {
         ValidateSetters();
         ReleaseEndpointScope();
-        EndpointChanged?.Invoke(this, EventArgs.Empty);
+        EndpointStructureChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnTargetStylesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         ReleaseEndpointScope();
-        EndpointChanged?.Invoke(this, EventArgs.Empty);
+        EndpointStructureChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void EnsureEndpointScope(StyledElement target)
@@ -190,6 +200,7 @@ public sealed class MotionSlot : Control
             TargetStyles,
             CreateRootDefinitions(),
             OnStyleEndpointChanged,
+            OnStyleEndpointStructureChanged,
             OnTargetStructureChanged);
     }
 
@@ -202,7 +213,11 @@ public sealed class MotionSlot : Control
         {
             var property = ValidateSetter(setter);
             properties.Add(property);
-            result.Add(new MotionEndpointDefinition(property, setter.Value));
+            result.Add(
+                new MotionEndpointDefinition(
+                    property,
+                    setter.Value,
+                    Motion.GetSetterMetadata(setter)));
         }
 
         foreach (var property in ShortcutProperties)
@@ -218,7 +233,11 @@ public sealed class MotionSlot : Control
                     $"{nameof(MotionSlot)} '{Name}' defines property '{property}' both directly and with a Setter.");
             }
 
-            result.Add(new MotionEndpointDefinition(property, GetValue(property)));
+            result.Add(
+                new MotionEndpointDefinition(
+                    property,
+                    GetValue(property),
+                    Motion.GetSlotMetadata(this, property)));
         }
 
         return result;
@@ -247,9 +266,12 @@ public sealed class MotionSlot : Control
 
     private void OnStyleEndpointChanged() => EndpointChanged?.Invoke(this, EventArgs.Empty);
 
+    private void OnStyleEndpointStructureChanged() =>
+        EndpointStructureChanged?.Invoke(this, EventArgs.Empty);
+
     private void OnTargetStructureChanged()
     {
         ReleaseEndpointScope();
-        EndpointChanged?.Invoke(this, EventArgs.Empty);
+        EndpointStructureChanged?.Invoke(this, EventArgs.Empty);
     }
 }

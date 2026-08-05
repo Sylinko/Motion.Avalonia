@@ -1,238 +1,157 @@
 # Getting Started
 
-[← Documentation](README.md) · [Next: Core Concepts →](core-concepts.md)
+[Documentation index](README.md) · [Project README](../README.md)
 
-This tutorial builds a two-mode editor. In Quick mode, the editor is centered with a maximum width of 600. In Advanced
-mode, the editor moves left, becomes narrower, and reveals a preview on the right. The same controls survive the entire
-motion.
+This tutorial moves an editor between a centered quick layout and a two-column advanced layout. The controls remain
+the same instances throughout the transition.
 
-## Prerequisites
-
-- An Avalonia 12 application
-- .NET 8, .NET 9, or .NET 10
-- Basic familiarity with Avalonia controls, data templates, and bindings
-
-## 1. Install Motion.Avalonia
-
-```shell
-dotnet add package Motion.Avalonia
-```
-
-Add the namespace to the view that owns the panel:
+## 1. Add MotionPanel
 
 ```xml
-xmlns:motion="using:Motion.Avalonia"
-```
-
-Motion.Avalonia does not require a theme include or application-level service registration.
-
-## 2. Create Stable Target Controls
-
-Start with the real editor and preview controls:
-
-```xml
-<motion:MotionPanel x:Name="EditorMotion">
-  <Border
-    x:Name="Editor"
-    Padding="24"
-    Background="#FF203B56"
-    CornerRadius="16">
-    <TextBox
-      AcceptsReturn="True"
-      Text="Write a prompt..."/>
-  </Border>
-
-  <Border
-    x:Name="Preview"
-    Padding="24"
-    Background="#FF2D2F36"
-    CornerRadius="16">
-    <TextBlock Text="Preview"/>
-  </Border>
+<motion:MotionPanel>
+  <Border x:Name="Editor"/>
+  <Border x:Name="Preview"/>
 </motion:MotionPanel>
 ```
 
-These controls are the actual interactive UI. They are not copied into state templates and are not recreated when the
-mode changes. Their text, focus, selection, validation, subscriptions, and local state remain attached to the same
-instances.
+Targets must be direct children with unique, non-empty names. Their order in XAML does not determine their animated
+position; the active layout source does.
 
-Every direct child must have a non-empty, unique `x:Name`.
+## 2. Add StateMotion
 
-## 3. Add a BasicMotionController
-
-Add a controller before the content controls:
+`StateMotion` owns both the requested state and the complete state definitions:
 
 ```xml
-<motion:MotionPanel.Controller>
-  <motion:BasicMotionController
-    x:Name="EditorController"
-    State="Quick"
-    Duration="0:0:0.4"
-    Easing="CubicEaseInOut"/>
-</motion:MotionPanel.Controller>
+<motion:MotionPanel>
+  <motion:MotionPanel.Motion>
+    <motion:StateMotion
+      x:Name="EditorMotion"
+      State="Quick"
+      Duration="0:0:0.35"
+      Easing="CubicEaseInOut">
+      <!-- states go here -->
+    </motion:StateMotion>
+  </motion:MotionPanel.Motion>
+
+  <Border x:Name="Editor"/>
+  <Border x:Name="Preview"/>
+</motion:MotionPanel>
 ```
 
-`BasicMotionController` owns the requested state and uses its controller-owned `MotionPlayer` to move to it. `Duration`
-and `Easing` are defaults for every state change unless a matching directed edge overrides them.
+`Duration="0"` applies changes immediately. A null or omitted `Easing` is linear.
 
-## 4. Define the Quick State
-
-Add a state collection:
+## 3. Author the Quick state
 
 ```xml
-<motion:MotionPanel.States>
-  <motion:MotionState Key="Quick">
-    <motion:MotionState.Template>
-      <DataTemplate>
-        <Grid>
-          <motion:MotionSlot
-            x:Name="Editor"
-            MaxWidth="600"
-            HorizontalAlignment="Center"
-            VerticalAlignment="Stretch"/>
-        </Grid>
-      </DataTemplate>
-    </motion:MotionState.Template>
-  </motion:MotionState>
-</motion:MotionPanel.States>
-```
-
-The `Grid` is a real, persistent layout tree for this state. The `MotionSlot` named `Editor` asks the panel to measure
-the real `Editor` control with the same `x:Name` and place its resolved bounds at the slot's position.
-
-Properties such as `MaxWidth`, `HorizontalAlignment`, `Margin`, and attached Grid or DockPanel properties configure the
-slot's layout. They are not copied to the real control.
-
-## 5. Define the Advanced State
-
-Add a second state to the same collection:
-
-```xml
-<motion:MotionState Key="Advanced">
-  <motion:MotionState.Template>
-    <DataTemplate>
-      <Grid ColumnDefinitions="420,*" ColumnSpacing="24">
-        <motion:MotionSlot
-          x:Name="Editor"
-          MaxWidth="420"
-          HorizontalAlignment="Stretch"/>
-
-        <motion:MotionSlot
-          Grid.Column="1"
-          x:Name="Preview"/>
-      </Grid>
-    </DataTemplate>
-  </motion:MotionState.Template>
+<motion:MotionState Key="Quick">
+  <DataTemplate>
+    <Grid>
+      <motion:MotionSlot
+        x:Name="Editor"
+        MaxWidth="600"
+        HorizontalAlignment="Center"/>
+    </Grid>
+  </DataTemplate>
 </motion:MotionState>
 ```
 
-The `Editor` slot is now in a different layout tree and the `Preview` slot exists only in this state. During the motion,
-the editor receives real intermediate bounds. Preview presence moves from zero to one.
+The template is live. If the panel resizes, the centered destination changes immediately. `Preview` is omitted, so it
+is absent from this complete state.
 
-## 6. Switch Between States
+## 4. Author the Advanced state
 
-Set the controller state from code:
+```xml
+<motion:MotionState Key="Advanced">
+  <DataTemplate>
+    <DockPanel HorizontalSpacing="24">
+      <motion:MotionSlot
+        x:Name="Editor"
+        MaxWidth="420"
+        DockPanel.Dock="Left"/>
+      <motion:MotionSlot x:Name="Preview"/>
+    </DockPanel>
+  </DataTemplate>
+</motion:MotionState>
+```
+
+Only endpoint constraints such as `MaxWidth` are fixed. The actual position is calculated by `DockPanel`; there is no
+hard-coded animated margin.
+
+## 5. Switch state
 
 ```csharp
-EditorController.State =
-    Equals(EditorController.State, "Quick")
+EditorMotion.State =
+    Equals(EditorMotion.State, "Quick")
         ? "Advanced"
         : "Quick";
 ```
 
-Or bind it:
+The first state presented by a newly attached motion is immediate. Later changes use `Duration` and `Easing`. If a
+transition is interrupted, the next transition begins from the exact result currently on screen.
 
-```xml
-<motion:BasicMotionController
-  State="{Binding EditorMode}"
-  Duration="0:0:0.4"
-  Easing="CubicEaseInOut"/>
-```
+## 6. Add target properties
 
-State keys are compared as objects. If `EditorMode` is an enum or Boolean, use matching values for `MotionState.Key`
-rather than relying on string conversion.
-
-## 7. Add Target Property Motion
-
-A slot can also describe selected properties of the real target. Some common `Control` properties have shortcut syntax:
+Layout properties on `MotionSlot` arrange the slot itself. Selected visual properties are shortcuts for the real
+target:
 
 ```xml
 <motion:MotionSlot
   x:Name="Preview"
   Opacity="0.85"
-  ClipToBounds="True"/>
+  RenderTransform="translate(0px, 8px)"/>
 ```
 
-Other styled properties use setters. `x:SetterTargetType` gives the XAML compiler and IDE the target type:
+Use `Setter` for other styled properties:
 
 ```xml
 <motion:MotionSlot
-  x:SetterTargetType="Border"
   x:Name="Editor"
-  MaxWidth="420">
-  <Setter Property="CornerRadius" Value="8"/>
-  <Setter Property="BorderThickness" Value="2"/>
-  <Setter Property="BorderBrush" Value="#FF7B61FF"/>
+  x:SetterTargetType="Border">
+  <Setter Property="CornerRadius" Value="16"/>
+  <Setter Property="Background" Value="#FF203B56"/>
 </motion:MotionSlot>
 ```
 
-Layout and target properties use the same pose progress. There is no second property-animation clock.
+The values are applied at Avalonia animation priority. Removing or replacing the motion restores the target's
+underlying local, style, or binding value.
 
-## 8. Customize a Directed Edge
-
-Edges are directional. Add them as children of `BasicMotionController`:
+## 7. Customize one direction
 
 ```xml
-<motion:BasicMotionController
-  x:Name="EditorController"
+<motion:StateMotion
   State="Quick"
-  Duration="0:0:0.4"
+  Duration="0:0:0.35"
   Easing="CubicEaseInOut">
-  <motion:MotionEdge
-    From="Quick"
-    To="Advanced"
-    Duration="0:0:0.7"
-    Easing="CubicEaseOut"/>
-  <motion:MotionEdge
-    From="Advanced"
-    To="Quick"
-    Duration="0:0:0.22"
-    Easing="SineEaseOut"/>
-</motion:BasicMotionController>
+  <motion:StateMotion.Edges>
+    <motion:MotionEdge
+      From="Quick"
+      To="Advanced"
+      Duration="0:0:0.55"
+      Easing="CubicEaseOut"/>
+    <motion:MotionEdge
+      From="Advanced"
+      To="Quick"
+      Duration="0:0:0.2"
+      Easing="CubicEaseIn"/>
+  </motion:StateMotion.Edges>
+
+  <!-- MotionState definitions -->
+</motion:StateMotion>
 ```
 
-Routes without a matching edge use the controller defaults. Defining more than one edge for the same `From` and `To`
-pair is a configuration error.
-
-## 9. Try Responsive and Interruptible Motion
-
-Resize the window while the controller is between the two states. Both state templates are laid out again at the new
-panel size, and the current frame is evaluated from those new endpoints.
-
-Switch back before the first transition finishes. `BasicMotionController` uses its current pose as the source of the
-next blend, so the control does not jump back to a previously settled state.
+Edges are directed. An omitted edge value inherits the `StateMotion` default.
 
 ## Complete Example
 
 ```xml
-<motion:MotionPanel x:Name="EditorMotion">
-  <motion:MotionPanel.Controller>
-    <motion:BasicMotionController
-      x:Name="EditorController"
+<motion:MotionPanel>
+  <motion:MotionPanel.Motion>
+    <motion:StateMotion
+      x:Name="EditorMotion"
       State="Quick"
-      Duration="0:0:0.4"
+      Duration="0:0:0.35"
       Easing="CubicEaseInOut">
-      <motion:MotionEdge
-        From="Advanced"
-        To="Quick"
-        Duration="0:0:0.22"
-        Easing="SineEaseOut"/>
-    </motion:BasicMotionController>
-  </motion:MotionPanel.Controller>
-
-  <motion:MotionPanel.States>
-    <motion:MotionState Key="Quick">
-      <motion:MotionState.Template>
+      <motion:MotionState Key="Quick">
         <DataTemplate>
           <Grid>
             <motion:MotionSlot
@@ -241,54 +160,28 @@ next blend, so the control does not jump back to a previously settled state.
               HorizontalAlignment="Center"/>
           </Grid>
         </DataTemplate>
-      </motion:MotionState.Template>
-    </motion:MotionState>
-
-    <motion:MotionState Key="Advanced">
-      <motion:MotionState.Template>
+      </motion:MotionState>
+      <motion:MotionState Key="Advanced">
         <DataTemplate>
-          <Grid ColumnDefinitions="420,*" ColumnSpacing="24">
+          <DockPanel HorizontalSpacing="24">
             <motion:MotionSlot
-              x:SetterTargetType="Border"
               x:Name="Editor"
-              MaxWidth="420">
-              <Setter Property="CornerRadius" Value="8"/>
-            </motion:MotionSlot>
-            <motion:MotionSlot
-              Grid.Column="1"
-              x:Name="Preview"/>
-          </Grid>
+              MaxWidth="420"
+              DockPanel.Dock="Left"/>
+            <motion:MotionSlot x:Name="Preview"/>
+          </DockPanel>
         </DataTemplate>
-      </motion:MotionState.Template>
-    </motion:MotionState>
-  </motion:MotionPanel.States>
+      </motion:MotionState>
+    </motion:StateMotion>
+  </motion:MotionPanel.Motion>
 
-  <Border
-    x:Name="Editor"
-    Padding="24"
-    Background="#FF203B56"
-    CornerRadius="16">
-    <TextBox
-      AcceptsReturn="True"
-      Text="Write a prompt..."/>
-  </Border>
-
-  <Border
-    x:Name="Preview"
-    Padding="24"
-    Background="#FF2D2F36"
-    CornerRadius="16">
-    <TextBlock Text="Preview"/>
-  </Border>
+  <Border x:Name="Editor"/>
+  <Border x:Name="Preview"/>
 </motion:MotionPanel>
 ```
 
-## What to Read Next
+Next:
 
-- Read [Core Concepts](core-concepts.md) for the mental model behind this example.
-- Read [Target Properties](target-properties.md) before adding more shortcuts or setters.
-- Read [Controllers and Poses](controllers-and-poses.md) to replace time with slider or scroll progress.
-
----
-
-[← Documentation](README.md) · [Next: Core Concepts →](core-concepts.md)
+- [Core Concepts](core-concepts.md)
+- [States and Slots](states-and-slots.md)
+- [Motions and Keyframes](motions-and-keyframes.md)

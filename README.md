@@ -13,45 +13,32 @@
 
 </div>
 
-Motion.Avalonia is a motion and interaction framework for Avalonia applications. It lets you describe several live
-layout states with ordinary Avalonia panels, keep the real controls alive, and move between those states with a
-controller-provided pose.
+Motion.Avalonia lets stable Avalonia controls move between unrelated live layouts. You author ordinary panel trees with
+`MotionSlot` placeholders, then choose a motion model that fits the input:
 
-The framework performs real `Measure` and `Arrange` work at intermediate sizes. Text reflows, nested controls lay out at
-their current dimensions, bindings remain live, and a resize immediately changes the motion endpoints. Motion.Avalonia
-does not render controls to bitmaps and does not use scale transforms to imitate layout.
+- `StateMotion` transitions between complete named states;
+- `SequenceMotion` samples sparse keyframes from normalized progress;
+- `TimelineMotion` samples sparse keyframes at absolute times and provides playback.
 
-## Why Motion.Avalonia?
-
-Avalonia transitions are excellent when a control already has a property value to animate. More involved UI motion
-often needs another level of description:
-
-- the same control moves between unrelated panel layouts;
-- several controls share one seekable progress value;
-- state changes can be driven by time, scrolling, a slider, or a gesture;
-- layout and target properties must stay on the same timeline;
-- an interrupted motion must continue from the current visual pose.
-
-Motion.Avalonia separates those concerns. `MotionState` describes endpoints, `MotionController` produces a pose, and
-`MotionInterpolator` decides how individual values are interpolated.
+The framework performs real `Measure` and `Arrange` work. Text reflows at intermediate widths, bindings remain live,
+and resizing immediately changes the endpoints. It does not render controls to bitmaps or use scale transforms to
+imitate layout.
 
 ## Features
 
-- Live, persistent layout state templates
-- Stable target control identity across every state
+- Stable target control identity across every layout
+- Live, responsive `DataTemplate` layout sources
 - Real intermediate measure and arrange
-- Controller-driven and seekable motion
-- Built-in normalized state sequences
-- Absolute-time keyframe timelines with controller-owned playback
-- Layout and styled-property interpolation on one timeline
-- Custom position paths through the same strongly typed interpolation pipeline
-- Directed `MotionEdge` timing overrides
+- Smooth interruption and retargeting for named states
+- Seekable progress and absolute-time keyframes
+- Sparse per-property tracks
+- Layout and styled properties on one interpolation pipeline
+- Directed state-transition timing overrides
 - Strongly typed custom interpolators
 - Reuse of Avalonia's built-in `Animator<T>` implementations
-- Smooth interruption and retargeting
-- Relative Z-order evaluation across nested state layouts
-- Live bindings in state templates and setters
-- Responsive endpoints when the panel size changes
+- Nested target styling through Avalonia selector syntax
+- Relative Z-order evaluation
+- Animation-priority bindings that restore underlying values when motion ends
 - No bitmap snapshots or transform-based pseudo-layout
 
 ## Quick Start
@@ -62,7 +49,7 @@ Install the package:
 dotnet add package Motion.Avalonia
 ```
 
-Add the namespace and define stable controls, a controller, and two state templates:
+Define a `StateMotion` and keep the real controls as direct children:
 
 ```xml
 <UserControl
@@ -71,16 +58,14 @@ Add the namespace and define stable controls, a controller, and two state templa
   xmlns:motion="using:Motion.Avalonia">
 
   <motion:MotionPanel>
-    <motion:MotionPanel.Controller>
-      <motion:BasicMotionController
+    <motion:MotionPanel.Motion>
+      <motion:StateMotion
+        x:Name="EditorMotion"
         State="Quick"
         Duration="0:0:0.35"
-        Easing="CubicEaseInOut"/>
-    </motion:MotionPanel.Controller>
+        Easing="CubicEaseInOut">
 
-    <motion:MotionPanel.States>
-      <motion:MotionState Key="Quick">
-        <motion:MotionState.Template>
+        <motion:MotionState Key="Quick">
           <DataTemplate>
             <Grid>
               <motion:MotionSlot
@@ -89,11 +74,9 @@ Add the namespace and define stable controls, a controller, and two state templa
                 HorizontalAlignment="Center"/>
             </Grid>
           </DataTemplate>
-        </motion:MotionState.Template>
-      </motion:MotionState>
+        </motion:MotionState>
 
-      <motion:MotionState Key="Advanced">
-        <motion:MotionState.Template>
+        <motion:MotionState Key="Advanced">
           <DataTemplate>
             <DockPanel HorizontalSpacing="24">
               <motion:MotionSlot
@@ -103,9 +86,9 @@ Add the namespace and define stable controls, a controller, and two state templa
               <motion:MotionSlot x:Name="Preview"/>
             </DockPanel>
           </DataTemplate>
-        </motion:MotionState.Template>
-      </motion:MotionState>
-    </motion:MotionPanel.States>
+        </motion:MotionState>
+      </motion:StateMotion>
+    </motion:MotionPanel.Motion>
 
     <Border x:Name="Editor"/>
     <Border x:Name="Preview"/>
@@ -113,97 +96,115 @@ Add the namespace and define stable controls, a controller, and two state templa
 </UserControl>
 ```
 
-Three rules define the relationship:
+Change `EditorMotion.State` to `"Advanced"` to begin the transition.
 
-1. Real controls are stable direct children of `MotionPanel`.
-2. Every real target has a unique `x:Name`.
-3. Each `MotionSlot` uses the same `x:Name` as the target it represents.
+Three rules connect templates to real controls:
 
-Set `BasicMotionController.State` to `"Advanced"` to start the motion. Continue with
-[Getting Started](https://github.com/Sylinko/Motion.Avalonia/blob/main/docs/getting-started.md) for a complete, step-by-step example.
+1. Every target is a stable direct child of `MotionPanel`.
+2. Every target has a unique, non-empty `x:Name`.
+3. A `MotionSlot` uses the same `x:Name` as the target it represents.
+
+Continue with [Getting Started](docs/getting-started.md) for a complete example.
+
+## Choose a Motion
+
+### Named application states
+
+Use `StateMotion` when the application selects complete layouts such as compact/expanded, quick/advanced, or
+editing/review. Missing slots are absent from that state.
+
+### Scroll, slider, or gesture progress
+
+Use `SequenceMotion` when another component owns normalized progress:
+
+```xml
+<motion:SequenceMotion Progress="{Binding #ProgressSlider.Value}">
+  <motion:SequenceMotionKeyFrame Cue="0%">
+    <DataTemplate>
+      <motion:MotionSlot x:Name="Card" HorizontalAlignment="Left"/>
+    </DataTemplate>
+  </motion:SequenceMotionKeyFrame>
+  <motion:SequenceMotionKeyFrame Cue="100%" Easing="CubicEaseOut">
+    <DataTemplate>
+      <motion:MotionSlot x:Name="Card" HorizontalAlignment="Right"/>
+    </DataTemplate>
+  </motion:SequenceMotionKeyFrame>
+</motion:SequenceMotion>
+```
+
+Keyframes are sparse: an omitted property receives no key at that Cue.
+
+### Authored time and playback
+
+Use `TimelineMotion` for absolute `KeyTime` values. Bind or assign `Time` to scrub, or call
+`TimelineMotion.Player.Play()` for frame-aligned playback. `Loop` controls wrapping and `Duration` is derived from the
+latest keyframe.
 
 ## How It Works
 
 ```text
-MotionController
-      │
-      ▼
-  MotionPose
-      │
-      ▼
-Required live MotionState templates
-      │
-      ▼
-Layout and property endpoints
-      │
-      ▼
-MotionInterpolator
-      │
-      ▼
-Stable containers and real controls
+MotionPanel targets + live layout sources
+                  │
+                  ▼
+         Motion.Compile(context)
+                  │
+                  ▼
+     Long-lived per-property tracks
+                  │
+                  ▼
+Easing → MotionInterpolator → Animation-priority binding
+                  │
+                  ▼
+      Stable containers and real controls
 ```
 
-State templates remain connected to the logical and visual trees. Only the states required by the current pose are
-measured and arranged. Their resolved bounds, presence, relative Z-order, shortcut properties, and explicit setters are
-then evaluated into the real controls.
+Compiling a motion discovers its layout and property channels once. Progress or time changes update the existing tracks;
+they do not rebuild the target controls. `MotionPanel` remains responsible for measuring live layout sources and
+supplying their current bounds to layout tracks.
 
 ## Documentation
 
 | Chapter | Description |
 |---|---|
-| [Getting Started](https://github.com/Sylinko/Motion.Avalonia/blob/main/docs/getting-started.md) | Build a complete two-mode editor motion |
-| [Core Concepts](https://github.com/Sylinko/Motion.Avalonia/blob/main/docs/core-concepts.md) | Learn the mental model behind states, poses, and stable targets |
-| [States and Slots](https://github.com/Sylinko/Motion.Avalonia/blob/main/docs/states-and-slots.md) | Design live layout endpoints with ordinary Avalonia panels |
-| [Controllers and Poses](https://github.com/Sylinko/Motion.Avalonia/blob/main/docs/controllers-and-poses.md) | Use time, progress, scrolling, or custom inputs |
-| [Target Properties](https://github.com/Sylinko/Motion.Avalonia/blob/main/docs/target-properties.md) | Use shortcuts, setters, bindings, and relative Z-order |
-| [Interpolators](https://github.com/Sylinko/Motion.Avalonia/blob/main/docs/interpolators.md) | Understand default resolution and write typed interpolators |
-| [Recipes](https://github.com/Sylinko/Motion.Avalonia/blob/main/docs/recipes.md) | Apply the framework to common UI motion patterns |
-| [Architecture](https://github.com/Sylinko/Motion.Avalonia/blob/main/docs/architecture.md) | Explore lifetime, layout, output channels, and performance |
-| [Limitations and Troubleshooting](https://github.com/Sylinko/Motion.Avalonia/blob/main/docs/limitations-and-troubleshooting.md) | Understand current scope and diagnose configuration errors |
-| [API Reference](https://github.com/Sylinko/Motion.Avalonia/blob/main/docs/api-reference.md) | Find the purpose and contract of each public type |
-
-The [documentation index](https://github.com/Sylinko/Motion.Avalonia/blob/main/docs/README.md) also provides task-oriented links.
+| [Getting Started](docs/getting-started.md) | Build a complete two-mode editor transition |
+| [Core Concepts](docs/core-concepts.md) | Learn targets, layout sources, channels, and presence |
+| [States and Slots](docs/states-and-slots.md) | Author responsive complete-state layouts |
+| [Motions and Keyframes](docs/motions-and-keyframes.md) | Choose State, Sequence, or Timeline motion |
+| [Target Properties](docs/target-properties.md) | Use shortcuts, setters, bindings, and target styles |
+| [Interpolators](docs/interpolators.md) | Customize timing and value-space interpolation |
+| [Recipes](docs/recipes.md) | Apply the primitives to common UI patterns |
+| [Architecture](docs/architecture.md) | Understand Apply, tracks, layout frames, and lifetime |
+| [Limitations and Troubleshooting](docs/limitations-and-troubleshooting.md) | Diagnose scope and configuration errors |
+| [API Reference](docs/api-reference.md) | Look up public types and properties |
 
 ## Current Scope
 
 Motion.Avalonia currently targets stable direct children of one `MotionPanel`. Cross-window, cross-page, and
 cross-ancestor shared-element transitions are outside the current implementation. Direct Avalonia properties cannot be
-animated. The public API is an early preview and may change while controllers, interpolation, physics, and interaction
-components continue to evolve.
-
-## Roadmap
-
-The project is intended to grow beyond layout morphing. Planned areas include richer player behaviors, physics-based
-motion, pointer and hover interactions, event and property tracks, richer interpolation policies, and higher-level
-animation-state-machine components.
+animated. The API is an early preview and may change as physics, interaction, and higher-level animation systems are
+added.
 
 ## Projects
 
-- `Motion.Avalonia` — reusable controls, controllers, players, poses, and interpolators
+- `Motion.Avalonia` — reusable motion, layout, player, and interpolation primitives
 - `Motion.Avalonia.Demo` — shared cross-platform showcase UI
 - `Motion.Avalonia.Demo.Desktop` — Windows, macOS, and Linux host
 - `Motion.Avalonia.Demo.Android` — Android host
 - `Motion.Avalonia.Demo.iOS` — iPhone and iPad host
 - `Motion.Avalonia.Demo.Browser` — WebAssembly host
-- `Motion.Avalonia.Tests` — automated behavior and lifecycle tests
+- `Motion.Avalonia.Tests` — behavior and lifecycle tests
 
-Run the desktop showcase with:
+Run the desktop showcase:
 
 ```shell
 dotnet run --project src/Motion.Avalonia.Demo.Desktop
 ```
 
-Run the WebAssembly showcase with:
-
-```shell
-dotnet run --project src/Motion.Avalonia.Demo.Browser
-```
-
 ## Contributing
 
-Issues, design discussions, examples, and pull requests are welcome. Because the API is still being shaped, please
-describe the user-facing motion problem as well as the proposed implementation.
+Issues, design discussions, examples, and pull requests are welcome. Describe the user-facing motion problem as well as
+the proposed implementation.
 
 ## License
 
-Motion.Avalonia is distributed under the [MIT License](https://github.com/Sylinko/Motion.Avalonia/blob/main/LICENSE).
+Motion.Avalonia is distributed under the [MIT License](LICENSE).

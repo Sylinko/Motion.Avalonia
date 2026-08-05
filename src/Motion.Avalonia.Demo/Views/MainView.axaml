@@ -16,21 +16,25 @@
         Icon="LayoutDashboard" IsChecked="True"
         Route="overview" ToolTip="Overview"/>
       <shadui:NavigationBarItem
+        x:Name="InteractionMotionNavigationItem" Content="Interactions"
+        Icon="MousePointerClick" Route="interactions"
+        ToolTip="Interaction motion gallery"/>
+      <shadui:NavigationBarItem
         x:Name="LayoutNavigationItem" Content="Layout morphing"
         Icon="AppWindow" Route="layout"
         ToolTip="Layout morphing"/>
       <shadui:NavigationBarItem
-        x:Name="BasicControllerNavigationItem" Content="Basic controller"
-        Icon="SlidersHorizontal" Route="basic-controller"
-        ToolTip="Basic controller"/>
+        x:Name="StateMotionNavigationItem" Content="State motion"
+        Icon="SlidersHorizontal" Route="state-motion"
+        ToolTip="State motion"/>
       <shadui:NavigationBarItem
         x:Name="PropertiesNavigationItem" Content="Target properties"
         Icon="Palette" Route="properties"
         ToolTip="Target properties"/>
       <shadui:NavigationBarItem
-        x:Name="PoseNavigationItem" Content="Controller &amp; pose"
-        Icon="Shapes" Route="pose"
-        ToolTip="Controller and pose"/>
+        x:Name="KeyFrameMotionNavigationItem" Content="Keyframe motion"
+        Icon="Shapes" Route="keyframes"
+        ToolTip="Sequence and timeline motion"/>
     </shadui:NavigationBar>
 
     <Grid
@@ -65,10 +69,11 @@
         x:Name="Pages" Grid.Row="1"
         SelectedIndex="0">
         <views:OverviewPage/>
+        <views:InteractionMotionPage/>
         <views:LayoutMorphingPage/>
-        <views:BasicControllerPage/>
+        <views:StateMotionPage/>
         <views:TargetPropertiesPage/>
-        <views:ControllerPosePage/>
+        <views:KeyFrameMotionPage/>
       </Carousel>
     </Grid>
   </Grid>

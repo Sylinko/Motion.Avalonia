@@ -10,16 +10,20 @@ namespace Motion.Avalonia;
 /// vectors locate the inner control points relative to those live endpoints:
 /// <c>P1 = source + SourceControlOffset</c> and
 /// <c>P2 = destination + TargetControlOffset</c>.
-/// Register this interpolator for <see cref="MotionLayout.PositionProperty"/> to move a layout
+/// Select this interpolator for <see cref="Motion.PositionProperty"/> to move a layout
 /// target along a curved path while its size continues through the normal size interpolator.
 /// </remarks>
 /// <example>
 /// <code><![CDATA[
-/// <motion:CubicBezierMotionInterpolator
+/// <motion:MotionInterpolation
 ///     Target="Satellite"
-///     Property="(motion:MotionLayout.Position)"
-///     SourceControlOffset="120,-80"
-///     TargetControlOffset="-96,64"/>
+///     Property="(motion:Motion.Position)">
+///   <motion:MotionInterpolation.Interpolator>
+///     <motion:CubicBezierMotionInterpolator
+///         SourceControlOffset="120,-80"
+///         TargetControlOffset="-96,64"/>
+///   </motion:MotionInterpolation.Interpolator>
+/// </motion:MotionInterpolation>
 /// ]]></code>
 /// </example>
 public sealed class CubicBezierMotionInterpolator : MotionInterpolator<Point>
@@ -59,7 +63,7 @@ public sealed class CubicBezierMotionInterpolator : MotionInterpolator<Point>
     }
 
     /// <inheritdoc />
-    public override Point Interpolate(double progress, Point oldValue, Point newValue)
+    protected override Point Interpolate(double progress, Point oldValue, Point newValue)
     {
         var inverse = 1 - progress;
         var sourceControl = oldValue + SourceControlOffset;

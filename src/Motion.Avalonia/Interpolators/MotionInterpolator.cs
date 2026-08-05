@@ -1,85 +1,16 @@
 using Avalonia;
-using Avalonia.Animation.Easings;
-using Avalonia.Collections;
 
 namespace Motion.Avalonia;
 
 /// <summary>
-/// Selects and evaluates the interpolation used for one motion value.
+/// Interpolates values in a property's value space.
 /// </summary>
 /// <remarks>
-/// Interpolators are matched by <see cref="Target"/> and <see cref="Property"/>. The property
-/// may identify an ordinary target property or a built-in <see cref="MotionLayout"/> channel.
-/// An edge-specific match takes precedence over a general match whose <see cref="Edges"/>
-/// collection is empty. <see cref="Easing"/> changes progress for this value only.
+/// This type deliberately contains no target, property, timing, or edge selection. Use
+/// <see cref="MotionInterpolation"/> to associate an interpolator with an authored channel.
 /// </remarks>
-/// <example>
-/// This override keeps Avalonia's normal opacity interpolation but gives it a separate curve:
-/// <code><![CDATA[
-/// <motion:MotionPanel.Interpolators>
-///   <motion:MotionAvaloniaInterpolator
-///       Target="Card"
-///       Property="Opacity"
-///       Easing="SineEaseInOut"/>
-/// </motion:MotionPanel.Interpolators>
-/// ]]></code>
-/// </example>
 public abstract class MotionInterpolator : AvaloniaObject
 {
-    /// <summary>
-    /// Defines the <see cref="Target"/> property.
-    /// </summary>
-    public static readonly StyledProperty<string?> TargetProperty =
-        AvaloniaProperty.Register<MotionInterpolator, string?>(nameof(Target));
-
-    /// <summary>
-    /// Defines the <see cref="Property"/> property.
-    /// </summary>
-    public static readonly StyledProperty<AvaloniaProperty?> PropertyProperty =
-        AvaloniaProperty.Register<MotionInterpolator, AvaloniaProperty?>(nameof(Property));
-
-    /// <summary>
-    /// Defines the <see cref="Easing"/> property.
-    /// </summary>
-    public static readonly StyledProperty<Easing?> EasingProperty =
-        AvaloniaProperty.Register<MotionInterpolator, Easing?>(nameof(Easing));
-
-    /// <summary>
-    /// Gets or sets the name of the target control.
-    /// </summary>
-    /// <remarks>
-    /// Omit the target only when <see cref="Property"/> is
-    /// <see cref="MotionLayout.DesiredSizeProperty"/>, which belongs to the panel.
-    /// </remarks>
-    public string? Target
-    {
-        get => GetValue(TargetProperty);
-        set => SetValue(TargetProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the target property or built-in layout channel.
-    /// </summary>
-    public AvaloniaProperty? Property
-    {
-        get => GetValue(PropertyProperty);
-        set => SetValue(PropertyProperty, value);
-    }
-
-    /// <summary>
-    /// Gets or sets an easing override. A null value inherits the pose easing.
-    /// </summary>
-    public Easing? Easing
-    {
-        get => GetValue(EasingProperty);
-        set => SetValue(EasingProperty, value);
-    }
-
-    /// <summary>
-    /// Gets the directed edges on which this interpolator applies. An empty collection matches every edge.
-    /// </summary>
-    public AvaloniaList<MotionEdge> Edges { get; } = [];
-
     internal abstract object? InterpolateCore(
         AvaloniaProperty property,
         double progress,
@@ -95,26 +26,25 @@ public abstract class MotionInterpolator : AvaloniaObject
 /// <code><![CDATA[
 /// public sealed class OvershootDoubleInterpolator : MotionInterpolator<double>
 /// {
-///     public override double Interpolate(double progress, double oldValue, double newValue)
+///     protected override double Interpolate(double progress, double oldValue, double newValue)
 ///     {
 ///         var wave = Math.Sin(progress * Math.PI) * 0.08;
 ///         return oldValue + ((newValue - oldValue) * (progress + wave));
 ///     }
 /// }
 /// ]]></code>
-/// Register the instance in <see cref="MotionPanel.Interpolators"/> with a matching target and
-/// property.
+/// Place the instance in a <see cref="MotionInterpolation"/> to associate it with a property.
 /// </example>
 public abstract class MotionInterpolator<T> : MotionInterpolator
 {
     /// <summary>
-/// Interpolates between two motion values.
+    /// Interpolates between two motion values.
     /// </summary>
     /// <param name="progress">The effective progress. It may be outside zero to one when an easing overshoots.</param>
     /// <param name="oldValue">The source endpoint value.</param>
     /// <param name="newValue">The destination endpoint value.</param>
     /// <returns>The interpolated value.</returns>
-    public abstract T Interpolate(double progress, T oldValue, T newValue);
+    protected abstract T Interpolate(double progress, T oldValue, T newValue);
 
     internal sealed override object? InterpolateCore(AvaloniaProperty property, double progress, object? oldValue, object? newValue)
     {

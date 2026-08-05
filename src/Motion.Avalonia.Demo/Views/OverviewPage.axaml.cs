@@ -50,7 +50,7 @@ public partial class OverviewPage : UserControl
     private void UpdateShowcase(double offset, double progress)
     {
         ShowcaseScrollStage.ScrollOffset = offset;
-        ShowcaseController.Progress = progress;
+        ShowcaseMotion.Progress = progress;
 
         _isSynchronizingProgress = true;
         ShowcaseProgressSlider.Value = progress;

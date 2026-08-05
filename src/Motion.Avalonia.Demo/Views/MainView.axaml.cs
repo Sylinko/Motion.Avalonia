@@ -22,10 +22,11 @@ public partial class MainView : UserControl
 
         Pages.SelectedIndex =
             ReferenceEquals(item, OverviewNavigationItem) ? 0 :
-            ReferenceEquals(item, LayoutNavigationItem) ? 1 :
-            ReferenceEquals(item, BasicControllerNavigationItem) ? 2 :
-            ReferenceEquals(item, PropertiesNavigationItem) ? 3 :
-            ReferenceEquals(item, PoseNavigationItem) ? 4 :
+            ReferenceEquals(item, InteractionMotionNavigationItem) ? 1 :
+            ReferenceEquals(item, LayoutNavigationItem) ? 2 :
+            ReferenceEquals(item, StateMotionNavigationItem) ? 3 :
+            ReferenceEquals(item, PropertiesNavigationItem) ? 4 :
+            ReferenceEquals(item, KeyFrameMotionNavigationItem) ? 5 :
             Pages.SelectedIndex;
     }
 }
