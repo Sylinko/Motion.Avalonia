@@ -210,22 +210,32 @@ public sealed class SequenceMotionTests
     }
 
     [Test]
-    public void SlotEndpointTopology_WhenChangedAfterApply_RecompilesAffectedTracks()
+    public void SlotEndpointValue_WhenChangedAfterApply_PublishesWithoutRecompiling()
     {
         var child = new Border { Name = "Editor" };
-        var sourceSlot = TestMotionFactory.Slot("Editor", 100);
-        var targetSlot = TestMotionFactory.Slot("Editor", 100);
+        MotionSlot? sourceSlot = null;
+        MotionSlot? targetSlot = null;
         var motion = new SequenceMotion { Progress = 0.5 };
-        motion.KeyFrames.Add(TestMotionFactory.Cue(0, () => sourceSlot));
-        motion.KeyFrames.Add(TestMotionFactory.Cue(1, () => targetSlot));
+        motion.KeyFrames.Add(
+            TestMotionFactory.Cue(
+                0,
+                () => sourceSlot = CreateOpacitySlot(0.2)));
+        motion.KeyFrames.Add(
+            TestMotionFactory.Cue(
+                1,
+                () => targetSlot = CreateOpacitySlot(0.6)));
         var panel = TestMotionFactory.Panel(motion, child);
         TestMotionFactory.Layout(panel);
+        var runtime = TestMotionFactory.GetMotionRuntime(panel);
 
-        sourceSlot.Opacity = 0;
-        targetSlot.Opacity = 0.8;
-        TestMotionFactory.Layout(panel);
+        sourceSlot!.Opacity = 0.3;
+        targetSlot!.Opacity = 0.9;
 
-        Assert.That(child.Opacity, Is.EqualTo(0.4).Within(0.001));
+        Assert.Multiple(() =>
+        {
+            Assert.That(child.Opacity, Is.EqualTo(0.6).Within(0.001));
+            Assert.That(TestMotionFactory.GetMotionRuntime(panel), Is.SameAs(runtime));
+        });
     }
 
     [Test]

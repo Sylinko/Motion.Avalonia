@@ -1,20 +1,22 @@
-using Avalonia.Controls.Templates;
-
 namespace Motion.Avalonia;
 
 /// <summary>
-/// Provides one live layout template consumed by a motion panel host.
+/// Creates one live layout realization for each owning motion runtime.
 /// </summary>
 /// <remarks>
 /// States and keyframes intentionally remain distinct concepts. This interface lets custom
-/// motions expose additional live layout templates without merging their evaluation semantics.
+/// motions provide template-backed or computed layouts without exposing their implementation to
+/// the owning motion panel. A source is a reusable definition and must not store one runtime's
+/// mutable layout instance on itself.
 /// </remarks>
 public interface IMotionLayoutSource
 {
     /// <summary>
-    /// Gets the live layout template represented by this source.
+    /// Creates a runtime-owned realization of this layout source.
     /// </summary>
-    IDataTemplate? Template { get; }
+    /// <param name="context">The panel-bound services available to this realization.</param>
+    /// <returns>A new layout whose lifetime is owned by the requesting runtime.</returns>
+    IMotionLayout CreateLayout(MotionCompilationContext context);
 
     /// <summary>
     /// Gets a concise description used by validation diagnostics.

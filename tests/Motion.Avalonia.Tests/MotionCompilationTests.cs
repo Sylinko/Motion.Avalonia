@@ -62,7 +62,7 @@ public sealed class MotionCompilationTests
     }
 
     [Test]
-    public void Runtime_DeclaresSourcesBeforeBuildTracks_AndBuildTracksSeesRealizedHosts()
+    public void Runtime_DeclaresSourcesBeforeBuildTracks_AndBuildTracksSeesRealizedLayouts()
     {
         var child = new Border { Name = "Editor" };
         var source = TestMotionFactory.State("Declared", () => TestMotionFactory.Slot("Editor", 100));
@@ -75,8 +75,60 @@ public sealed class MotionCompilationTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(runtime.HostCountAtConstruction, Is.Zero);
-            Assert.That(runtime.HostCountAtBuildTracks, Is.EqualTo(1));
+            Assert.That(runtime.LayoutCountAtConstruction, Is.Zero);
+            Assert.That(runtime.LayoutCountAtBuildTracks, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void LayoutSource_WhenRuntimeIsCreated_OwnsItsLayoutAndAttachmentLifetime()
+    {
+        var source = new TrackingLayoutSource();
+        var panel = TestMotionFactory.Panel(new DeclaredSourceMotion(source));
+
+        TestMotionFactory.Layout(panel);
+
+        var itemsPanel = panel.ItemsPanelRoot as MotionItemsPanel;
+        var layout = source.Layout;
+        Assert.Multiple(() =>
+        {
+            Assert.That(source.CreateCount, Is.EqualTo(1));
+            Assert.That(layout, Is.Not.Null);
+            Assert.That(layout!.Root.Parent, Is.SameAs(itemsPanel));
+            Assert.That(layout.Root.GetVisualParent(), Is.SameAs(itemsPanel));
+            Assert.That(layout.IsDisposed, Is.False);
+        });
+
+        panel.Motion = null;
+        TestMotionFactory.Layout(panel);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(layout!.IsDisposed, Is.True);
+            Assert.That(layout.Root.Parent, Is.Null);
+            Assert.That(layout.Root.GetVisualParent(), Is.Null);
+        });
+    }
+
+    [Test]
+    public void LayoutSource_WhenRuntimeIsRebuilt_CreatesFreshRuntimeOwnedLayout()
+    {
+        var source = new TrackingLayoutSource();
+        var motion = new DeclaredSourceMotion(source);
+        var panel = TestMotionFactory.Panel(motion);
+        TestMotionFactory.Layout(panel);
+        var first = source.Layout!;
+
+        motion.InvalidateMotion();
+        TestMotionFactory.Layout(panel);
+        var second = source.Layout!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(source.CreateCount, Is.EqualTo(2));
+            Assert.That(second, Is.Not.SameAs(first));
+            Assert.That(first.IsDisposed, Is.True);
+            Assert.That(second.IsDisposed, Is.False);
         });
     }
 
@@ -529,7 +581,7 @@ public sealed class MotionCompilationTests
             new CustomRuntime(context, Value);
     }
 
-    private sealed class DeclaredSourceMotion(MotionState source) : Motion
+    private sealed class DeclaredSourceMotion(IMotionLayoutSource source) : Motion
     {
         protected override MotionRuntime CreateRuntime(MotionCompilationContext context) =>
             new DeclaredSourceRuntime(context, source);
@@ -537,18 +589,88 @@ public sealed class MotionCompilationTests
 
     private sealed class DeclaredSourceRuntime : MotionRuntime
     {
-        public DeclaredSourceRuntime(MotionCompilationContext context, MotionState source) : base(context)
+        public DeclaredSourceRuntime(MotionCompilationContext context, IMotionLayoutSource source) : base(context)
         {
-            HostCountAtConstruction = context.LayoutHosts.Count;
+            LayoutCountAtConstruction = context.Layouts.Count;
             DeclareLayoutSource(source);
         }
 
-        public int HostCountAtConstruction { get; }
+        public int LayoutCountAtConstruction { get; }
 
-        public int HostCountAtBuildTracks { get; private set; }
+        public int LayoutCountAtBuildTracks { get; private set; }
 
         protected override void BuildTracks() =>
-            HostCountAtBuildTracks = CompilationContext.LayoutHosts.Count;
+            LayoutCountAtBuildTracks = CompilationContext.Layouts.Count;
+    }
+
+    private sealed class TrackingLayoutSource : IMotionLayoutSource
+    {
+        public string Description => "tracking layout";
+
+        public int CreateCount { get; private set; }
+
+        public TrackingLayout? Layout { get; private set; }
+
+        public IMotionLayout CreateLayout(MotionCompilationContext context)
+        {
+            CreateCount++;
+            Layout = new TrackingLayout(context);
+            return Layout;
+        }
+    }
+
+    private sealed class TrackingLayout : IMotionLayout
+    {
+        public Border Root { get; } = new();
+
+        public Size DesiredSize => Root.DesiredSize;
+
+        public bool IsMeasureValid => Root.IsMeasureValid;
+
+        public bool IsArrangeValid => Root.IsArrangeValid;
+
+        public bool IsDisposed { get; private set; }
+
+        public event EventHandler? EndpointChanged
+        {
+            add { }
+            remove { }
+        }
+
+        public event EventHandler? EndpointStructureChanged
+        {
+            add { }
+            remove { }
+        }
+
+        private readonly MotionLayoutFrame _frame = new();
+        private readonly IDisposable _attachment;
+
+        public TrackingLayout(MotionCompilationContext context)
+        {
+            _attachment = context.AttachLayoutRoot(Root);
+        }
+
+        public void Measure(Size availableSize) => Root.Measure(availableSize);
+
+        public void Arrange(Rect finalRect)
+        {
+            Root.Arrange(finalRect);
+            _frame.BeginLayoutUpdate(DesiredSize);
+        }
+
+        public MotionLayoutFrame CaptureLayout() => _frame;
+
+        public void Dispose()
+        {
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            IsDisposed = true;
+            _attachment.Dispose();
+        }
     }
 
     private sealed class UndeclaredRequiredSourceMotion(MotionState declared, MotionState undeclared) : Motion

@@ -20,8 +20,7 @@ internal sealed class StateMotionRuntime : MotionRuntime
     private readonly Dictionary<MotionState, Dictionary<MotionChannel, MotionInterpolationMetadata>> _stateMetadata =
         new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<MotionEdge, Dictionary<MotionCompilationContext.InterpolationLookup, MotionInterpolationMetadata>>
-        _edgeInterpolations =
-            new(ReferenceEqualityComparer.Instance);
+        _edgeInterpolations = new(ReferenceEqualityComparer.Instance);
     private readonly List<IStateMotionTrack> _tracks = [];
     private MotionState? _resolvedState;
     private StateTransitionRun? _activeTransition;

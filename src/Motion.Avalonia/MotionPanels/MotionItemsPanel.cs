@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Specialized;
-using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Controls;
 
@@ -23,11 +22,6 @@ namespace Motion.Avalonia;
 /// </remarks>
 public sealed class MotionItemsPanel : Panel
 {
-    static MotionItemsPanel()
-    {
-        Motion.DesiredSizeProperty.Changed.AddClassHandler<MotionItemsPanel>(static (panel, _) => panel.InvalidateHostMeasure());
-    }
-
     internal int TargetCount => _targets.Count;
 
     internal MotionPanel? Owner => TemplatedParent as MotionPanel;
@@ -36,15 +30,17 @@ public sealed class MotionItemsPanel : Panel
 
     private readonly Dictionary<string, TargetEntry> _targets = new(StringComparer.Ordinal);
     private readonly Dictionary<Control, MotionItemContainer> _containers = [];
-    private readonly Dictionary<LayoutHostKey, LayoutHostEntry> _layoutHostPool = [];
-    private readonly Dictionary<MotionPanelHost, LayoutHostEntry> _layoutHostEntries = [];
     private readonly List<IMotionLayoutSource> _requiredLayoutSources = [];
     private readonly HashSet<IMotionLayoutSource> _requiredLayoutSourceSet = [];
     private MotionRuntime? _motionRuntime;
-    private int _targetTopologyVersion;
     private bool _targetMapDirty = true;
     private bool _isMotionDirty = true;
     private bool _ensuringMotionRuntime;
+
+    static MotionItemsPanel()
+    {
+        Motion.DesiredSizeProperty.Changed.AddClassHandler<MotionItemsPanel>(static (panel, _) => panel.InvalidateHostMeasure());
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MotionItemsPanel"/> class.
@@ -62,53 +58,28 @@ public sealed class MotionItemsPanel : Panel
         return target.Child;
     }
 
-    internal MotionPanelHost AcquireLayoutHost(IMotionLayoutSource source)
+    internal IDisposable AttachLayoutRoot(Control root)
     {
-        var key = new LayoutHostKey(source, source.Template, _targetTopologyVersion);
-        if (_layoutHostPool.TryGetValue(key, out var existing))
-        {
-            existing.LeaseCount++;
-            existing.Host.RebindTargets();
-            return existing.Host;
-        }
+        ArgumentNullException.ThrowIfNull(root);
 
-        var host = new MotionPanelHost(this, source);
-        var entry = new LayoutHostEntry(key, host) { LeaseCount = 1, };
-        _layoutHostPool.Add(key, entry);
-        _layoutHostEntries.Add(host, entry);
-        LogicalChildren.Add(host);
-        VisualChildren.Add(host);
+        LogicalChildren.Add(root);
 
         try
         {
-            host.RebindTargets();
-            return host;
+            VisualChildren.Add(root);
+            return new LayoutRootAttachment(this, root);
         }
         catch
         {
-            ReleaseLayoutHost(host);
+            LogicalChildren.Remove(root);
             throw;
         }
     }
 
-    internal void ReleaseLayoutHost(MotionPanelHost host)
+    private void DetachLayoutRoot(Control root)
     {
-        if (!_layoutHostEntries.TryGetValue(host, out var entry) || entry.LeaseCount == 0)
-        {
-            return;
-        }
-
-        entry.LeaseCount--;
-        if (entry.LeaseCount > 0)
-        {
-            return;
-        }
-
-        _layoutHostEntries.Remove(host);
-        _layoutHostPool.Remove(entry.Key);
-        LogicalChildren.Remove(host);
-        VisualChildren.Remove(host);
-        host.Dispose();
+        VisualChildren.Remove(root);
+        LogicalChildren.Remove(root);
     }
 
     internal void InvalidateMotion(Motion motion)
@@ -128,14 +99,13 @@ public sealed class MotionItemsPanel : Panel
     }
 
     /// <summary>
-    /// Invalidates identity-dependent target and layout-host mappings after an attached
+    /// Invalidates identity-dependent target and layout mappings after an attached
     /// <see cref="Motion.NameProperty"/> changes somewhere in this logical tree.
     /// </summary>
     /// <remarks>
-    /// A direct child identity invalidates the target dictionary. Other descendants still advance
-    /// the topology version because a rebuilt layout host may contain a slot or property target
-    /// whose effective identity participates in track-plan lookup. The replacement is deferred
-    /// until the next measure pass.
+    /// A direct child identity invalidates the target dictionary. Descendant identities still
+    /// invalidate the runtime because a replacement layout may resolve a different property
+    /// target. The replacement is deferred until the next measure pass.
     /// </remarks>
     internal void InvalidateMotionIdentity(StyledElement source)
     {
@@ -146,7 +116,6 @@ public sealed class MotionItemsPanel : Panel
             _targetMapDirty = true;
         }
 
-        _targetTopologyVersion++;
         _isMotionDirty = true;
         InvalidateHostMeasure();
     }
@@ -307,7 +276,6 @@ public sealed class MotionItemsPanel : Panel
         }
 
         _targetMapDirty = true;
-        _targetTopologyVersion++;
         _isMotionDirty = true;
         InvalidateHostMeasure();
     }
@@ -495,32 +463,20 @@ public sealed class MotionItemsPanel : Panel
         MotionItemContainer Container
     );
 
-    private readonly struct LayoutHostKey(IMotionLayoutSource source, object? template, int targetTopologyVersion) : IEquatable<LayoutHostKey>
+    private sealed class LayoutRootAttachment(MotionItemsPanel owner, Control root) : IDisposable
     {
-        private readonly IMotionLayoutSource _source = source;
-        private readonly object? _template = template;
-        private readonly int _targetTopologyVersion = targetTopologyVersion;
+        private MotionItemsPanel? _owner = owner;
 
-        public bool Equals(LayoutHostKey other) =>
-            ReferenceEquals(_source, other._source) &&
-            ReferenceEquals(_template, other._template) &&
-            _targetTopologyVersion == other._targetTopologyVersion;
+        public void Dispose()
+        {
+            var currentOwner = _owner;
+            if (currentOwner is null)
+            {
+                return;
+            }
 
-        public override bool Equals(object? obj) => obj is LayoutHostKey other && Equals(other);
-
-        public override int GetHashCode() =>
-            HashCode.Combine(
-                RuntimeHelpers.GetHashCode(_source),
-                _template is null ? 0 : RuntimeHelpers.GetHashCode(_template),
-                _targetTopologyVersion);
-    }
-
-    private sealed class LayoutHostEntry(LayoutHostKey key, MotionPanelHost host)
-    {
-        public LayoutHostKey Key { get; } = key;
-
-        public MotionPanelHost Host { get; } = host;
-
-        public int LeaseCount { get; set; }
+            _owner = null;
+            currentOwner.DetachLayoutRoot(root);
+        }
     }
 }

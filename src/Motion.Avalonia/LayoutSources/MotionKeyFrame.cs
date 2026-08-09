@@ -51,7 +51,8 @@ public abstract class MotionKeyFrame : MotionElement, IMotionLayoutSource
         set => SetValue(EasingProperty, value);
     }
 
-    IDataTemplate? IMotionLayoutSource.Template => Template;
+    IMotionLayout IMotionLayoutSource.CreateLayout(MotionCompilationContext context) =>
+        context.CreateTemplateLayout(Template, ToString() ?? GetType().Name);
 
     string IMotionLayoutSource.Description => ToString() ?? GetType().Name;
 }

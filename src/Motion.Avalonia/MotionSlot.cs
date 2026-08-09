@@ -86,6 +86,7 @@ public sealed class MotionSlot : Control
 
     private static readonly HashSet<AvaloniaProperty> ShortcutPropertySet = [.. ShortcutProperties];
 
+    private readonly HashSet<AvaloniaProperty> _shortcutEndpointProperties = [];
     private MotionPanelHost? _host;
     private MotionStyleScope? _styleScope;
     private StyledElement? _styleTarget;
@@ -95,8 +96,8 @@ public sealed class MotionSlot : Control
     /// </summary>
     public MotionSlot()
     {
-        Setters.CollectionChanged += OnSettersChanged;
-        TargetStyles.CollectionChanged += OnTargetStylesChanged;
+        Setters.CollectionChanged += HandleSettersChanged;
+        TargetStyles.CollectionChanged += HandleTargetStylesChanged;
     }
 
     internal IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, MotionEndpointValue>> CaptureEndpointValues(
@@ -110,7 +111,7 @@ public sealed class MotionSlot : Control
     {
         if (_host is not null && !ReferenceEquals(_host, host))
         {
-            throw new InvalidOperationException($"{nameof(MotionSlot)} '{Name}' already belongs to another state host.");
+            throw new InvalidOperationException($"{nameof(MotionSlot)} '{Name}' already belongs to another layout host.");
         }
 
         _host = host;
@@ -168,19 +169,37 @@ public sealed class MotionSlot : Control
 
         if (ShortcutPropertySet.Contains(change.Property))
         {
+            var wasEndpoint = _shortcutEndpointProperties.Contains(change.Property);
+            var isEndpoint = IsSet(change.Property);
+            if (isEndpoint)
+            {
+                _shortcutEndpointProperties.Add(change.Property);
+            }
+            else
+            {
+                _shortcutEndpointProperties.Remove(change.Property);
+            }
+
             ReleaseEndpointScope();
-            EndpointStructureChanged?.Invoke(this, EventArgs.Empty);
+            if (wasEndpoint != isEndpoint)
+            {
+                EndpointStructureChanged?.Invoke(this, EventArgs.Empty);
+            }
+            else if (isEndpoint)
+            {
+                EndpointChanged?.Invoke(this, EventArgs.Empty);
+            }
         }
     }
 
-    private void OnSettersChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    private void HandleSettersChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         ValidateSetters();
         ReleaseEndpointScope();
         EndpointStructureChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void OnTargetStylesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    private void HandleTargetStylesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         ReleaseEndpointScope();
         EndpointStructureChanged?.Invoke(this, EventArgs.Empty);
@@ -194,14 +213,15 @@ public sealed class MotionSlot : Control
         }
 
         ReleaseEndpointScope();
+        SynchronizeShortcutEndpointProperties();
         _styleTarget = target;
         _styleScope = new MotionStyleScope(
             target,
             TargetStyles,
             CreateRootDefinitions(),
-            OnStyleEndpointChanged,
-            OnStyleEndpointStructureChanged,
-            OnTargetStructureChanged);
+            HandleStyleEndpointChanged,
+            HandleStyleEndpointStructureChanged,
+            HandleTargetStructureChanged);
     }
 
     private IReadOnlyList<MotionEndpointDefinition> CreateRootDefinitions()
@@ -243,6 +263,18 @@ public sealed class MotionSlot : Control
         return result;
     }
 
+    private void SynchronizeShortcutEndpointProperties()
+    {
+        _shortcutEndpointProperties.Clear();
+        foreach (var property in ShortcutProperties)
+        {
+            if (IsSet(property))
+            {
+                _shortcutEndpointProperties.Add(property);
+            }
+        }
+    }
+
     private void ValidateSetters()
     {
         var properties = new HashSet<AvaloniaProperty>();
@@ -264,12 +296,11 @@ public sealed class MotionSlot : Control
         return property;
     }
 
-    private void OnStyleEndpointChanged() => EndpointChanged?.Invoke(this, EventArgs.Empty);
+    private void HandleStyleEndpointChanged() => EndpointChanged?.Invoke(this, EventArgs.Empty);
 
-    private void OnStyleEndpointStructureChanged() =>
-        EndpointStructureChanged?.Invoke(this, EventArgs.Empty);
+    private void HandleStyleEndpointStructureChanged() => EndpointStructureChanged?.Invoke(this, EventArgs.Empty);
 
-    private void OnTargetStructureChanged()
+    private void HandleTargetStructureChanged()
     {
         ReleaseEndpointScope();
         EndpointStructureChanged?.Invoke(this, EventArgs.Empty);

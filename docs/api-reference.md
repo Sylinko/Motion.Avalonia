@@ -15,6 +15,12 @@ The visual and layout host.
 
 Every child requires a unique non-empty `x:Name`.
 
+### MotionItemContainer
+
+`MotionPanel` presents each realized target through a `MotionItemContainer`. The type is public so
+an application can target it from `ItemContainerTheme`; target materialization, child ownership,
+motion layout, and presence composition remain managed by `MotionPanel`.
+
 ## Motion
 
 Abstract base for declarative motion.

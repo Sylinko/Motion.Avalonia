@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Animation;
@@ -33,6 +34,15 @@ internal static class TestMotionFactory
 
         return panel;
     }
+
+    public static MotionPanel Panel(Motion motion, IEnumerable items, IDataTemplate itemTemplate) =>
+        new()
+        {
+            Motion = motion,
+            Template = MotionPanelTemplate,
+            ItemsSource = items,
+            ItemTemplate = itemTemplate,
+        };
 
     public static MotionState State(object? key, Func<Control> build) =>
         new()
@@ -101,11 +111,17 @@ internal static class TestMotionFactory
             throw new InvalidOperationException("The panel has not created its motion items panel.")) ??
         throw new InvalidOperationException("The panel has not prepared its motion runtime.");
 
+    public static MotionCompilationContext GetCompilationContext(MotionRuntime runtime) =>
+        GetCompilationContextCore(runtime);
+
     public static IDisposable Observe<T>(IObservable<T> source, ICollection<T> values) =>
         source.Subscribe(new RecordingObserver<T>(values));
 
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_motionRuntime")]
     private static extern ref MotionRuntime? GetMotionRuntimeField(MotionItemsPanel panel);
+
+    [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "get_CompilationContext")]
+    private static extern MotionCompilationContext GetCompilationContextCore(MotionRuntime runtime);
 
     private sealed class RecordingObserver<T>(ICollection<T> values) : IObserver<T>
     {
@@ -121,8 +137,19 @@ internal static class TestMotionFactory
 
     private sealed class TestTemplate(Func<Control> build) : IDataTemplate
     {
+        private readonly HashSet<Control> _results = new(ReferenceEqualityComparer.Instance);
+
         public bool Match(object? data) => true;
 
-        public Control Build(object? param) => build();
+        public Control Build(object? param)
+        {
+            var result = build();
+            if (!_results.Add(result))
+            {
+                throw new InvalidOperationException("A test data template must create a new control for every Build call.");
+            }
+
+            return result;
+        }
     }
 }

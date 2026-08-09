@@ -29,7 +29,7 @@ internal sealed class MotionStyleProxy : StyledElement, IDisposable
         StyleKeyOverride = target.StyleKey;
         Name = target.Name;
         SynchronizeClasses();
-        target.Classes.CollectionChanged += OnTargetClassesChanged;
+        target.Classes.CollectionChanged += HandleTargetClassesChanged;
     }
 
     public static void ValidateProperty(AvaloniaProperty property)
@@ -100,7 +100,7 @@ internal sealed class MotionStyleProxy : StyledElement, IDisposable
         }
 
         _disposed = true;
-        Target.Classes.CollectionChanged -= OnTargetClassesChanged;
+        Target.Classes.CollectionChanged -= HandleTargetClassesChanged;
 
         foreach (var child in ((ILogical)this).LogicalChildren.OfType<MotionStyleProxy>().ToArray())
         {
@@ -110,8 +110,7 @@ internal sealed class MotionStyleProxy : StyledElement, IDisposable
         LogicalChildren.Clear();
     }
 
-    private void OnTargetClassesChanged(object? sender, NotifyCollectionChangedEventArgs e) =>
-        SynchronizeClasses();
+    private void HandleTargetClassesChanged(object? sender, NotifyCollectionChangedEventArgs e) => SynchronizeClasses();
 
     private void SynchronizeClasses()
     {

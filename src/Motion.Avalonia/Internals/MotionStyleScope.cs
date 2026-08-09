@@ -48,7 +48,7 @@ internal sealed class MotionStyleScope : IDisposable
 
             foreach (var proxy in _proxies.Values)
             {
-                proxy.PropertyChanged += OnProxyPropertyChanged;
+                proxy.PropertyChanged += HandleProxyPropertyChanged;
             }
 
             _root.ApplyStylesRecursively();
@@ -113,12 +113,12 @@ internal sealed class MotionStyleScope : IDisposable
 
         foreach (var children in _logicalChildren)
         {
-            children.CollectionChanged -= OnLogicalChildrenChanged;
+            children.CollectionChanged -= HandleLogicalChildrenChanged;
         }
 
         foreach (var proxy in _proxies.Values)
         {
-            proxy.PropertyChanged -= OnProxyPropertyChanged;
+            proxy.PropertyChanged -= HandleProxyPropertyChanged;
         }
 
         foreach (var channel in _channels.Values)
@@ -142,7 +142,7 @@ internal sealed class MotionStyleScope : IDisposable
         var children = ((ILogical)target).LogicalChildren;
         if (children is INotifyCollectionChanged observable)
         {
-            observable.CollectionChanged += OnLogicalChildrenChanged;
+            observable.CollectionChanged += HandleLogicalChildrenChanged;
             _logicalChildren.Add(observable);
         }
 
@@ -154,7 +154,7 @@ internal sealed class MotionStyleScope : IDisposable
         return result;
     }
 
-    private void OnProxyPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    private void HandleProxyPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
         if (sender is not MotionStyleProxy proxy || !MotionShadowPropertyRegistry.TryGetSource(e.Property, out var property))
         {
@@ -187,7 +187,7 @@ internal sealed class MotionStyleScope : IDisposable
         }
     }
 
-    private void OnLogicalChildrenChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    private void HandleLogicalChildrenChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (!_disposed)
         {

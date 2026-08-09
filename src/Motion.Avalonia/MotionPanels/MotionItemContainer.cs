@@ -14,8 +14,13 @@ namespace Motion.Avalonia;
 /// keeps the control's logical parent unchanged. Position, size, and presence are attached to the
 /// materialized child; this envelope only projects presence into a composited visual opacity and
 /// provides the stable visual boundary used for layout and paint order.
+///
+/// The type is public so applications can target it from an
+/// <see cref="ItemsControl.ItemContainerTheme"/>. Its content and motion lifecycle remain owned
+/// by <see cref="MotionPanel"/>; applications should customize it through normal Avalonia styles
+/// and themes rather than creating or reparenting its generated child.
 /// </remarks>
-internal sealed class MotionItemContainer : ContentPresenter
+public sealed class MotionItemContainer : ContentPresenter
 {
     private Control? _directChild;
 
@@ -89,7 +94,7 @@ internal sealed class MotionItemContainer : ContentPresenter
     /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)
     {
-        if (_directChild is { } child)
+        if (MotionChild is { } child)
         {
             child.Measure(availableSize);
             return default;
@@ -101,7 +106,7 @@ internal sealed class MotionItemContainer : ContentPresenter
     /// <inheritdoc />
     protected override Size ArrangeOverride(Size finalSize)
     {
-        if (_directChild is { } child)
+        if (MotionChild is { } child)
         {
             child.Arrange(new Rect(finalSize));
             return finalSize;

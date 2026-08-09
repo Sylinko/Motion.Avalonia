@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using Avalonia.VisualTree;
 
 namespace Motion.Avalonia;
@@ -8,15 +9,14 @@ namespace Motion.Avalonia;
 /// Hosts one live motion layout source and captures its layout and property endpoints into one
 /// reusable frame.
 /// </summary>
-internal sealed class MotionPanelHost : Decorator, IDisposable
+internal sealed class MotionPanelHost : Decorator, IMotionLayout
 {
-    public IMotionLayoutSource LayoutSource { get; }
+    public event EventHandler? EndpointChanged;
 
-    internal event EventHandler? EndpointChanged;
-
-    internal event EventHandler? EndpointStructureChanged;
+    public event EventHandler? EndpointStructureChanged;
 
     private readonly MotionItemsPanel _owner;
+    private readonly string _description;
     private readonly List<MotionSlot> _slots = [];
     private readonly Dictionary<MotionSlot, SlotEntry> _slotEntries = [];
     private readonly Dictionary<MotionSlot, int> _slotZIndices = [];
@@ -27,24 +27,45 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
     private bool _targetsDirty = true;
     private bool _slotOrderDirty = true;
     private bool _propertyValuesDirty = true;
+    private IDisposable? _attachment;
+    private bool _disposed;
     private long _layoutFrameVersion = 1;
     private long _capturedLayoutFrameVersion;
 
-    public MotionPanelHost(MotionItemsPanel owner, IMotionLayoutSource layoutSource)
+    private MotionPanelHost(MotionCompilationContext context, IDataTemplate? template, string description)
     {
-        _owner = owner;
-        LayoutSource = layoutSource;
-        _layoutFrame = new MotionLayoutFrame(owner.TargetCount);
+        _owner = context.Panel;
+        _description = description;
+        _layoutFrame = new MotionLayoutFrame(context.TargetCount);
         Opacity = 0;
         IsHitTestVisible = false;
         Focusable = false;
-        Rebuild();
+        Build(template, context.DataContext);
     }
 
-    public void Rebuild()
+    internal static IMotionLayout Create(MotionCompilationContext context, IDataTemplate? template, string description)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentException.ThrowIfNullOrWhiteSpace(description);
+
+        var result = new MotionPanelHost(context, template, description);
+        try
+        {
+            result._attachment = context.AttachLayoutRoot(result);
+            result.RebindTargets();
+            return result;
+        }
+        catch
+        {
+            result.Dispose();
+            throw;
+        }
+    }
+
+    private void Build(IDataTemplate? template, object? dataContext)
     {
         UnsubscribeSlots();
-        Child = LayoutSource.Template?.Build(_owner.DataContext);
+        Child = template?.Build(dataContext);
         SubscribeSlots();
         InvalidateMeasure();
     }
@@ -68,14 +89,14 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
             if (string.IsNullOrWhiteSpace(name))
             {
                 throw new InvalidOperationException(
-                    $"Every {nameof(MotionSlot)} in {LayoutSource.Description} must specify a non-empty {nameof(Motion)} identity " +
+                    $"Every {nameof(MotionSlot)} in {_description} must specify a non-empty {nameof(Motion)} identity " +
                     $"({nameof(Motion.NameProperty)} or x:Name).");
             }
 
             if (!_slotNames.Add(name))
             {
                 throw new InvalidOperationException(
-                    $"{LayoutSource.Description} contains more than one {nameof(MotionSlot)} with Motion identity '{name}'.");
+                    $"{_description} contains more than one {nameof(MotionSlot)} with Motion identity '{name}'.");
             }
 
             var target = _owner.ResolveTarget(name);
@@ -96,7 +117,7 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
         if (!_slotEntries.TryGetValue(slot, out var entry))
         {
             throw new InvalidOperationException(
-                $"{nameof(MotionSlot)} '{Motion.GetEffectiveName(slot) ?? slot.Name}' is not registered with its state host.");
+                $"{nameof(MotionSlot)} '{Motion.GetEffectiveName(slot) ?? slot.Name}' is not registered with its layout host.");
         }
 
         entry.Target.Measure(availableSize);
@@ -129,7 +150,7 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
         foreach (var slot in _orderedSlots)
         {
             var entry = _slotEntries[slot];
-            _layoutFrame.EntriesBuffer.Add(
+            _layoutFrame.AddLayoutEntry(
                 entry.Name,
                 new MotionLayoutEntry(
                     GetLayoutBounds(entry),
@@ -143,15 +164,29 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
         return _layoutFrame;
     }
 
-    /// <summary>
-    /// Invalidates the reusable frame without capturing it immediately.
-    /// </summary>
-    internal void InvalidateLayoutFrame() => _layoutFrameVersion++;
+    void IMotionLayout.Arrange(Rect finalRect)
+    {
+        InvalidateLayoutFrame();
+        Arrange(finalRect);
+    }
 
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
         UnsubscribeSlots();
+        _attachment?.Dispose();
+        _attachment = null;
     }
+
+    /// <summary>
+    /// Invalidates the reusable frame without capturing it immediately.
+    /// </summary>
+    private void InvalidateLayoutFrame() => _layoutFrameVersion++;
 
     private void EnsureSlotOrder()
     {
@@ -188,8 +223,7 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
             if (!_layoutFrame.TryAddPropertyTarget(pair.Key, out var values))
             {
                 throw new InvalidOperationException(
-                    $"{LayoutSource.Description} defines motion properties for target " +
-                    $"'{pair.Key.Name ?? pair.Key.GetType().Name}' more than once.");
+                    $"{_description} defines motion properties for target '{pair.Key.Name ?? pair.Key.GetType().Name}' more than once.");
             }
 
             foreach (var property in pair.Value)
@@ -271,7 +305,7 @@ internal sealed class MotionPanelHost : Decorator, IDisposable
         if (current != this)
         {
             throw new InvalidOperationException(
-                $"{nameof(MotionSlot)} '{Motion.GetEffectiveName(slot) ?? slot.Name}' is not a descendant of its state host.");
+                $"{nameof(MotionSlot)} '{Motion.GetEffectiveName(slot) ?? slot.Name}' is not a descendant of its layout host.");
         }
 
         return [.. result];

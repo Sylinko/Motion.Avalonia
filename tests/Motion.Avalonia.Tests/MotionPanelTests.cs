@@ -371,7 +371,7 @@ public sealed class MotionPanelTests
     }
 
     [Test]
-    public void StateTemplate_WhenReplaced_RebuildsOnlyTheChangedLayoutSource()
+    public void StateTemplate_WhenReplaced_RebuildsRuntimeWithReplacementLayout()
     {
         var child = new Border { Name = "Editor" };
         var state = TestMotionFactory.State(

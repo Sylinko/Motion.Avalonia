@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 
 namespace Motion.Avalonia;
 
@@ -10,9 +11,10 @@ namespace Motion.Avalonia;
 /// <remarks>
 /// The runtime owns every animation-priority binding created for the motion. Evaluation changes
 /// publish directly through the existing tracks; structural changes dispose the graph and prepare
-/// a replacement runtime. Layout sources are declared first, realized by the owning panel, and
-/// only then converted into tracks. Derive from this type when a custom <see cref="Motion"/> needs
-/// runtime-owned behavior without taking ownership of the host lifecycle.
+/// a replacement runtime. Layout sources are declared first, create their own runtime layouts
+/// through the compilation context, and are only then converted into tracks. Derive from this type
+/// when a custom <see cref="Motion"/> needs runtime-owned behavior without taking ownership of the
+/// panel lifecycle.
 /// </remarks>
 public class MotionRuntime : IDisposable
 {
@@ -20,8 +22,9 @@ public class MotionRuntime : IDisposable
     /// Gets the panel-bound compilation context used by this runtime.
     /// </summary>
     /// <remarks>
-    /// The context exposes only host-neutral target, layout, and interpolation services. The
-    /// panel still owns the runtime's prepare, commit, and disposal sequence.
+    /// The context exposes target, layout hosting, and interpolation services without exposing the
+    /// concrete motion panel implementation. The panel still owns the runtime's prepare, commit,
+    /// and disposal sequence.
     /// </remarks>
     protected internal MotionCompilationContext CompilationContext { get; }
 
@@ -35,7 +38,7 @@ public class MotionRuntime : IDisposable
     private readonly List<MotionTrack> _tracks = [];
     private readonly List<IMotionLayoutSource> _declaredLayoutSources = [];
     private readonly HashSet<IMotionLayoutSource> _declaredLayoutSourceSet = new(ReferenceEqualityComparer.Instance);
-    private IReadOnlyList<MotionPanelHost> _layoutHosts = [];
+    private IReadOnlyList<IMotionLayout> _layouts = [];
     private readonly Motion _motion;
     private readonly List<Func<IDisposable>> _activationFactories = [];
     private Action<Action<IMotionLayoutSource>>? _requiredLayoutSourceProvider;
@@ -69,8 +72,8 @@ public class MotionRuntime : IDisposable
     /// </summary>
     /// <param name="source">The layout source to register.</param>
     /// <remarks>
-    /// Declaration records an existing definition object only. It does not build a template host or
-    /// create a track. Sources must be declared before the runtime factory returns.
+    /// Declaration records an existing definition object only. It does not create a runtime layout
+    /// or a track. Sources must be declared before the runtime factory returns.
     /// </remarks>
     protected void DeclareLayoutSource(IMotionLayoutSource source) => DeclareLayoutSources([source]);
 
@@ -113,7 +116,7 @@ public class MotionRuntime : IDisposable
     /// <remarks>
     /// Track construction is intentionally available only from <see cref="BuildTracks"/>. The
     /// runtime first declares and realizes every layout source, so a track can resolve its target
-    /// and channel manifest without creating a host as a side effect.
+    /// and channel manifest without creating a layout as a side effect.
     /// </remarks>
     /// <typeparam name="TTrack">The concrete track type.</typeparam>
     /// <param name="track">The track to register.</param>
@@ -198,15 +201,15 @@ public class MotionRuntime : IDisposable
     /// Completes the two-phase runtime construction controlled by the owning motion.
     /// </summary>
     /// <remarks>
-    /// The declaration set is closed first. The panel then realizes every declared source through
-    /// the compilation context. Only after realization succeeds is the derived runtime allowed to
-    /// build tracks and read layout frames.
+    /// The declaration set is closed first. Each source then creates its layout through the
+    /// compilation context. Only after every realization succeeds is the derived runtime allowed
+    /// to build tracks and read layout frames.
     /// </remarks>
     internal void Build()
     {
         EnsureDefinitionMutable();
         CompilationContext.RealizeLayoutSources(_declaredLayoutSources);
-        _layoutHosts = [.. CompilationContext.LayoutHosts];
+        _layouts = [.. CompilationContext.Layouts];
 
         _isBuildingTracks = true;
         try
@@ -229,8 +232,8 @@ public class MotionRuntime : IDisposable
     /// </summary>
     /// <remarks>
     /// This is the second construction phase of one runtime object. It is intentionally separate
-    /// from source declaration so a runtime cannot create a template host as a side effect of
-    /// creating a track. The default implementation permits an empty runtime.
+    /// from source declaration so a runtime cannot create a layout as a side effect of creating a
+    /// track. The default implementation permits an empty runtime.
     /// </remarks>
     protected virtual void BuildTracks() { }
 
@@ -314,7 +317,7 @@ public class MotionRuntime : IDisposable
             throw new InvalidOperationException("A motion runtime can only be committed once.");
         }
 
-        SubscribeLayoutHosts();
+        SubscribeLayouts();
         foreach (var track in Tracks)
         {
             track.EnablePublication();
@@ -332,7 +335,7 @@ public class MotionRuntime : IDisposable
                 track.DisablePublication();
             }
 
-            UnsubscribeLayoutHosts();
+            UnsubscribeLayouts();
             throw;
         }
     }
@@ -411,7 +414,7 @@ public class MotionRuntime : IDisposable
         _isCommitted = false;
         try
         {
-            UnsubscribeLayoutHosts();
+            UnsubscribeLayouts();
             for (var i = _activationResources.Count - 1; i >= 0; i--)
             {
                 _activationResources[i].Dispose();
@@ -474,27 +477,27 @@ public class MotionRuntime : IDisposable
         }
     }
 
-    private void SubscribeLayoutHosts()
+    private void SubscribeLayouts()
     {
-        foreach (var host in _layoutHosts)
+        foreach (var layout in _layouts)
         {
-            host.EndpointChanged += OnLayoutHostEndpointChanged;
-            host.EndpointStructureChanged += OnLayoutHostEndpointStructureChanged;
+            layout.EndpointChanged += OnLayoutEndpointChanged;
+            layout.EndpointStructureChanged += OnLayoutEndpointStructureChanged;
         }
     }
 
-    private void UnsubscribeLayoutHosts()
+    private void UnsubscribeLayouts()
     {
-        foreach (var host in _layoutHosts)
+        foreach (var layout in _layouts)
         {
-            host.EndpointChanged -= OnLayoutHostEndpointChanged;
-            host.EndpointStructureChanged -= OnLayoutHostEndpointStructureChanged;
+            layout.EndpointChanged -= OnLayoutEndpointChanged;
+            layout.EndpointStructureChanged -= OnLayoutEndpointStructureChanged;
         }
     }
 
-    private void OnLayoutHostEndpointChanged(object? sender, EventArgs e) => Publish();
+    private void OnLayoutEndpointChanged(object? sender, EventArgs e) => Publish();
 
-    private void OnLayoutHostEndpointStructureChanged(object? sender, EventArgs e) => _motion.InvalidateHost();
+    private void OnLayoutEndpointStructureChanged(object? sender, EventArgs e) => _motion.InvalidateHost();
 
     private static ITrackTypeDispatcher GetTrackTypeDispatcher(Type propertyType)
     {
@@ -530,7 +533,7 @@ public sealed class MotionCompilationContext
     private readonly MotionItemsPanel _panel;
     private readonly Motion _motion;
     private readonly Dictionary<InterpolationLookup, MotionInterpolationMetadata> _motionInterpolations = [];
-    private readonly Dictionary<IMotionLayoutSource, MotionPanelHost> _layoutHosts = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<IMotionLayoutSource, IMotionLayout> _layouts = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<IMotionLayoutSource, Size> _measuredSizes = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<IMotionLayoutSource, Size> _capturedLayoutSizes = new(ReferenceEqualityComparer.Instance);
     private bool _hasPresentedLayoutSources;
@@ -547,7 +550,48 @@ public sealed class MotionCompilationContext
 
     internal Motion Motion => _motion;
 
-    internal IReadOnlyCollection<MotionPanelHost> LayoutHosts => _layoutHosts.Values;
+    internal MotionItemsPanel Panel => _panel;
+
+    internal int TargetCount => _panel.TargetCount;
+
+    internal IReadOnlyCollection<IMotionLayout> Layouts => _layouts.Values;
+
+    /// <summary>
+    /// Gets the data context inherited by layout roots attached to the owning panel.
+    /// </summary>
+    public object? DataContext => _panel.DataContext;
+
+    /// <summary>
+    /// Creates the built-in live layout implementation for an Avalonia data template.
+    /// </summary>
+    /// <param name="template">The template whose control tree supplies layout slots.</param>
+    /// <param name="description">A concise description used by validation diagnostics.</param>
+    /// <returns>A runtime-owned attached layout.</returns>
+    public IMotionLayout CreateTemplateLayout(
+        IDataTemplate? template,
+        string description)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentException.ThrowIfNullOrWhiteSpace(description);
+        return MotionPanelHost.Create(this, template, description);
+    }
+
+    /// <summary>
+    /// Attaches a custom layout root to the owning panel's logical and visual trees.
+    /// </summary>
+    /// <remarks>
+    /// The attached root inherits the panel's Avalonia context and presentation source, including
+    /// resources, theme, visual-tree lifetime, and layout scaling. The returned lifetime must be
+    /// disposed by the <see cref="IMotionLayout"/> that requested the attachment.
+    /// </remarks>
+    /// <param name="root">The unattached layout root.</param>
+    /// <returns>A lifetime that removes the root from both trees.</returns>
+    public IDisposable AttachLayoutRoot(Control root)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(root);
+        return _panel.AttachLayoutRoot(root);
+    }
 
     /// <summary>
     /// Realizes the declared live layout templates used by the motion runtime.
@@ -577,21 +621,17 @@ public sealed class MotionCompilationContext
 
         foreach (var source in sources)
         {
-            var host = _panel.AcquireLayoutHost(source);
+            var layout = source.CreateLayout(this) ??
+                throw new InvalidOperationException($"{source.Description} returned a null motion layout.");
             try
             {
-                _layoutHosts.Add(source, host);
+                _layouts.Add(source, layout);
             }
             catch
             {
-                _panel.ReleaseLayoutHost(host);
+                layout.Dispose();
                 throw;
             }
-        }
-
-        foreach (var host in _layoutHosts.Values)
-        {
-            host.RebindTargets();
         }
     }
 
@@ -602,12 +642,12 @@ public sealed class MotionCompilationContext
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(source);
-        if (!_layoutHosts.TryGetValue(source, out var host))
+        if (!_layouts.TryGetValue(source, out var layout))
         {
             throw new InvalidOperationException($"{source.Description} is not registered with the current motion compilation.");
         }
 
-        return host.CaptureLayout();
+        return layout.CaptureLayout();
     }
 
     /// <summary>
@@ -628,9 +668,9 @@ public sealed class MotionCompilationContext
         }
 
         _disposed = true;
-        foreach (var pair in _layoutHosts.ToArray())
+        foreach (var pair in _layouts.ToArray())
         {
-            RemoveLayoutHost(pair.Key, pair.Value);
+            RemoveLayout(pair.Key, pair.Value);
         }
 
         _measuredSizes.Clear();
@@ -703,9 +743,9 @@ public sealed class MotionCompilationContext
         _measuredSizes.Clear();
         foreach (var source in sources)
         {
-            var host = GetLayoutHost(source);
-            host.Measure(availableSize);
-            _measuredSizes.Add(source, host.DesiredSize);
+            var layout = GetLayout(source);
+            layout.Measure(availableSize);
+            _measuredSizes.Add(source, layout.DesiredSize);
         }
     }
 
@@ -713,10 +753,9 @@ public sealed class MotionCompilationContext
     {
         foreach (var source in sources)
         {
-            var host = GetLayoutHost(source);
-            host.InvalidateLayoutFrame();
-            host.Arrange(new Rect(finalSize));
-            host.CaptureLayout();
+            var layout = GetLayout(source);
+            layout.Arrange(new Rect(finalSize));
+            layout.CaptureLayout();
             _capturedLayoutSizes[source] = finalSize;
         }
 
@@ -733,9 +772,9 @@ public sealed class MotionCompilationContext
 
         foreach (var source in sources)
         {
-            var host = GetLayoutHost(source);
-            if (!host.IsMeasureValid ||
-                !host.IsArrangeValid ||
+            var layout = GetLayout(source);
+            if (!layout.IsMeasureValid ||
+                !layout.IsArrangeValid ||
                 !_measuredSizes.ContainsKey(source) ||
                 !_capturedLayoutSizes.TryGetValue(source, out var capturedSize) ||
                 capturedSize != _presentedLayoutSourceSize)
@@ -747,17 +786,17 @@ public sealed class MotionCompilationContext
         return true;
     }
 
-    private MotionPanelHost GetLayoutHost(IMotionLayoutSource source) =>
-        _layoutHosts.TryGetValue(source, out var host) ?
-            host :
+    private IMotionLayout GetLayout(IMotionLayoutSource source) =>
+        _layouts.TryGetValue(source, out var layout) ?
+            layout :
             throw new InvalidOperationException($"{source.Description} is not registered with the current motion compilation.");
 
-    private void RemoveLayoutHost(IMotionLayoutSource source, MotionPanelHost host)
+    private void RemoveLayout(IMotionLayoutSource source, IMotionLayout layout)
     {
-        _layoutHosts.Remove(source);
+        _layouts.Remove(source);
         _capturedLayoutSizes.Remove(source);
         _measuredSizes.Remove(source);
-        _panel.ReleaseLayoutHost(host);
+        layout.Dispose();
     }
 
     internal static void BuildInterpolationIndex(
@@ -809,7 +848,7 @@ public sealed class MotionCompilationContext
     /// </summary>
     /// <remarks>
     /// The lookup is intentionally scoped to one runtime and stores only authoring metadata; it
-    /// does not retain a LayoutHost or a live target reference.
+    /// does not retain a layout realization or a live target reference.
     /// </remarks>
     [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
     internal readonly record struct InterpolationLookup(

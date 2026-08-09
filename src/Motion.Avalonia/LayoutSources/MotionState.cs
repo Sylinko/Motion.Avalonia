@@ -8,8 +8,9 @@ namespace Motion.Avalonia;
 /// Describes one complete live layout state owned by <see cref="StateMotion"/>.
 /// </summary>
 /// <remarks>
-/// The template is instantiated once while the owning motion belongs to a panel. Its bindings and
-/// responsive layout remain active even while another state is presented.
+/// Each runtime creates its own template realization. That realization remains live for the
+/// runtime lifetime, so its bindings and responsive layout remain active even while another state
+/// is presented.
 /// </remarks>
 /// <example>
 /// <code><![CDATA[
@@ -61,7 +62,8 @@ public sealed class MotionState : MotionElement, IMotionLayoutSource
         set => SetValue(TemplateProperty, value);
     }
 
-    IDataTemplate? IMotionLayoutSource.Template => Template;
+    IMotionLayout IMotionLayoutSource.CreateLayout(MotionCompilationContext context) =>
+        context.CreateTemplateLayout(Template, $"state '{Key}'");
 
     string IMotionLayoutSource.Description => $"state '{Key}'";
 }

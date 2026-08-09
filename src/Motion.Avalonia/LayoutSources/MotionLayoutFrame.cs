@@ -6,7 +6,7 @@ namespace Motion.Avalonia;
 /// Contains one evaluated layout source's panel layout and real-element property endpoints.
 /// </summary>
 /// <remarks>
-/// Instances own reusable dictionaries. Callers may retain a frame until the owning host captures
+/// Instances own reusable dictionaries. Callers may retain a frame until the owning layout captures
 /// it again, but must not treat its read-only views as immutable collections.
 /// </remarks>
 public sealed class MotionLayoutFrame
@@ -26,25 +26,48 @@ public sealed class MotionLayoutFrame
     /// </summary>
     public IReadOnlyDictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, MotionEndpointValue>> PropertyValues => _propertyValues;
 
-    internal Dictionary<string, MotionLayoutEntry> EntriesBuffer => _entries;
-
     private readonly Dictionary<string, MotionLayoutEntry> _entries;
     private readonly Dictionary<StyledElement, IReadOnlyDictionary<AvaloniaProperty, MotionEndpointValue>> _propertyValues = [];
     private readonly Dictionary<StyledElement, Dictionary<AvaloniaProperty, MotionEndpointValue>> _propertyValueBuffers = [];
     private readonly List<Dictionary<AvaloniaProperty, MotionEndpointValue>> _activePropertyValueBuffers = [];
 
-    internal MotionLayoutFrame(int targetCapacity = 0)
+    /// <summary>
+    /// Initializes a reusable layout frame.
+    /// </summary>
+    /// <param name="targetCapacity">The expected number of named layout targets.</param>
+    public MotionLayoutFrame(int targetCapacity = 0)
     {
         _entries = new Dictionary<string, MotionLayoutEntry>(targetCapacity, StringComparer.Ordinal);
     }
 
-    internal void BeginLayoutUpdate(Size desiredSize)
+    /// <summary>
+    /// Starts a layout update while retaining the frame's reusable storage.
+    /// </summary>
+    /// <param name="desiredSize">The desired size produced by the current measure pass.</param>
+    public void BeginLayoutUpdate(Size desiredSize)
     {
         DesiredSize = desiredSize;
         _entries.Clear();
     }
 
-    internal void BeginPropertyValuesUpdate()
+    /// <summary>
+    /// Adds one named layout endpoint to the current layout update.
+    /// </summary>
+    /// <param name="name">The effective Motion identity of the target.</param>
+    /// <param name="entry">The evaluated layout endpoint.</param>
+    public void AddLayoutEntry(string name, MotionLayoutEntry entry)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (!_entries.TryAdd(name, entry))
+        {
+            throw new InvalidOperationException($"The motion layout frame already contains target '{name}'.");
+        }
+    }
+
+    /// <summary>
+    /// Starts a target-property update while retaining the frame's reusable storage.
+    /// </summary>
+    public void BeginPropertyValuesUpdate()
     {
         foreach (var values in _activePropertyValueBuffers)
         {
@@ -53,6 +76,29 @@ public sealed class MotionLayoutFrame
 
         _activePropertyValueBuffers.Clear();
         _propertyValues.Clear();
+    }
+
+    /// <summary>
+    /// Adds one target-property endpoint to the current property update.
+    /// </summary>
+    /// <param name="target">The real target element.</param>
+    /// <param name="property">The target property represented by the endpoint.</param>
+    /// <param name="value">The endpoint value and interpolation metadata.</param>
+    public void AddPropertyValue(
+        StyledElement target,
+        AvaloniaProperty property,
+        MotionEndpointValue value)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(property);
+
+        var values = GetOrAddPropertyTarget(target);
+        if (!values.TryAdd(property, value))
+        {
+            throw new InvalidOperationException(
+                $"The motion layout frame already contains property '{property}' for target " +
+                $"'{target.Name ?? target.GetType().Name}'.");
+        }
     }
 
     internal bool TryAddPropertyTarget(StyledElement target, out Dictionary<AvaloniaProperty, MotionEndpointValue> values)
@@ -93,7 +139,10 @@ public sealed class MotionLayoutFrame
         _activePropertyValueBuffers.Clear();
     }
 
-    internal void Clear()
+    /// <summary>
+    /// Clears every layout and property endpoint retained by this frame.
+    /// </summary>
+    public void Clear()
     {
         DesiredSize = default;
         _entries.Clear();
