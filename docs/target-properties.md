@@ -131,11 +131,11 @@ Or use slot-local interpolation metadata for shortcut and layout channels:
 
 ```xml
 <motion:MotionSlot x:Name="Card">
-  <motion:Motion.Interpolations>
+  <motion:MotionSlot.Interpolations>
     <motion:MotionInterpolation
       Property="(Visual.Opacity)"
       Easing="SineEaseOut"/>
-  </motion:Motion.Interpolations>
+  </motion:MotionSlot.Interpolations>
 </motion:MotionSlot>
 ```
 

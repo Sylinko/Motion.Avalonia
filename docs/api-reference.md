@@ -41,7 +41,6 @@ Attached members:
 | `Motion.Presence` | MotionSlot / container | Enter/leave envelope |
 | `Motion.Easing` | Setter | Incoming property easing |
 | `Motion.Interpolator` | Setter | Incoming value interpolator |
-| `Motion.Interpolations` | MotionSlot | Slot-local property metadata |
 
 ## Compilation
 
@@ -196,6 +195,7 @@ Named layout and property proxy.
 |---|---|
 | `Name` | Target identity |
 | `Setters` | Root target endpoint setters and XAML content |
+| `Interpolations` | Slot-local property interpolation metadata |
 | `TargetStyles` | Selector-based endpoint styles for the target subtree |
 
 See [Target Properties](target-properties.md) for shortcut properties.

@@ -42,6 +42,42 @@ public sealed class LayoutInterpolationTests
     }
 
     [Test]
+    public void PositionTrack_WhenSlotInterpolatorIsConfigured_UsesValueSpaceCurve()
+    {
+        var child = new Border { Name = "Editor" };
+        var motion = new SequenceMotion { Progress = 0.5 };
+        motion.KeyFrames.Add(
+            TestMotionFactory.Cue(
+                0,
+                () => TestMotionFactory.Slot("Editor", 100, HorizontalAlignment.Left)));
+        motion.KeyFrames.Add(
+            TestMotionFactory.Cue(
+                1,
+                () =>
+                {
+                    var slot = TestMotionFactory.Slot("Editor", 100, HorizontalAlignment.Right);
+                    slot.Interpolations.Add(
+                        new MotionInterpolation
+                        {
+                            Property = Motion.PositionProperty,
+                            Interpolator = new CubicBezierMotionInterpolator
+                            {
+                                SourceControlOffset = new Vector(0, 100),
+                                TargetControlOffset = new Vector(0, 100),
+                            },
+                        });
+                    return slot;
+                }));
+        var panel = TestMotionFactory.Panel(motion, child);
+
+        TestMotionFactory.Layout(panel, new Size(400, 200));
+
+        Assert.That(
+            TestMotionFactory.GetPresentedBounds(child).Position,
+            Is.EqualTo(new Point(150, 75)));
+    }
+
+    [Test]
     public void MotionName_WhenPropertyInterpolationUsesTheAttachedIdentity_MatchesTheRule()
     {
         var child = new Border { Name = "LegacyName" };
@@ -253,6 +289,18 @@ public sealed class LayoutInterpolationTests
         Assert.That(
             TestMotionFactory.GetMotionContainer(child).Opacity,
             Is.EqualTo(0.5).Within(0.001));
+    }
+
+    [Test]
+    public void MotionSlot_WhenPresenceIsNotAuthored_UsesFullyPresentEndpoint()
+    {
+        var slot = new MotionSlot();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Motion.GetPresence(slot), Is.EqualTo(1));
+            Assert.That(Motion.GetPresence(new Border()), Is.Zero);
+        });
     }
 
     [Test]

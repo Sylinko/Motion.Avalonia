@@ -1,8 +1,6 @@
-using System.Collections.Specialized;
 using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Animation.Easings;
-using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Styling;
@@ -53,7 +51,6 @@ public abstract partial class Motion
     }
 
     private static readonly ConditionalWeakTable<Setter, SetterMetadata> SetterMetadataTable = new();
-    private static readonly ConditionalWeakTable<MotionSlot, SlotMetadata> SlotMetadataTable = new();
 
     /// <summary>
     /// Gets the optional Motion identity attached to a styled element.
@@ -175,38 +172,6 @@ public abstract partial class Motion
         metadata.Interpolator = new Optional<MotionInterpolator?>(value);
     }
 
-    /// <summary>
-    /// Gets property-specific interpolation metadata for a slot.
-    /// </summary>
-    public static AvaloniaList<MotionInterpolation> GetInterpolations(MotionSlot slot)
-    {
-        ArgumentNullException.ThrowIfNull(slot);
-        return SlotMetadataTable.GetValue(slot, static owner => new SlotMetadata(owner)).Interpolations;
-    }
-
-    /// <summary>
-    /// Gets the explicit presence authored on a slot, or one when no value is set.
-    /// </summary>
-    public static double GetPresence(MotionSlot slot) =>
-        SlotMetadataTable.TryGetValue(slot, out var metadata) && metadata.HasPresence ? metadata.Presence : 1;
-
-    /// <summary>
-    /// Sets the slot's container-level presence endpoint.
-    /// </summary>
-    public static void SetPresence(MotionSlot slot, double value)
-    {
-        ArgumentNullException.ThrowIfNull(slot);
-        if (!double.IsFinite(value))
-        {
-            throw new ArgumentOutOfRangeException(nameof(value), "Presence must be finite.");
-        }
-
-        var metadata = SlotMetadataTable.GetValue(slot, static owner => new SlotMetadata(owner));
-        metadata.HasPresence = true;
-        metadata.Presence = value;
-        slot.NotifyMotionMetadataChanged();
-    }
-
     internal static bool IsLayoutProperty(AvaloniaProperty property) =>
         property == DesiredSizeProperty ||
         property == PositionProperty ||
@@ -226,79 +191,10 @@ public abstract partial class Motion
         return new MotionInterpolationMetadata(metadata.Easing, metadata.Interpolator);
     }
 
-    internal static MotionInterpolationMetadata GetSlotMetadata(MotionSlot slot, AvaloniaProperty property)
-    {
-        if (!SlotMetadataTable.TryGetValue(slot, out var metadata))
-        {
-            return default;
-        }
-
-        MotionInterpolation? match = null;
-        foreach (var interpolation in metadata.Interpolations)
-        {
-            if (interpolation.Property != property)
-            {
-                continue;
-            }
-
-            if (match is not null)
-            {
-                throw new InvalidOperationException(
-                    $"{nameof(MotionSlot)} '{slot.Name}' contains more than one interpolation for property '{property}'.");
-            }
-
-            match = interpolation;
-        }
-
-        return match?.GetEndpointMetadata() ?? default;
-    }
-
-    internal static double GetAuthoredPresence(MotionSlot slot) => GetPresence(slot);
-
     private sealed class SetterMetadata
     {
         public Optional<Easing?> Easing { get; set; }
 
         public Optional<MotionInterpolator?> Interpolator { get; set; }
-    }
-
-    private sealed class SlotMetadata
-    {
-        public AvaloniaList<MotionInterpolation> Interpolations { get; } = [];
-
-        public bool HasPresence { get; set; }
-
-        public double Presence { get; set; } = 1;
-
-        private readonly MotionSlot _owner;
-        private readonly HashSet<MotionInterpolation> _attachedInterpolations = [];
-
-        public SlotMetadata(MotionSlot owner)
-        {
-            _owner = owner;
-            Interpolations.CollectionChanged += OnCollectionChanged;
-        }
-
-        private void OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        {
-            foreach (var interpolation in _attachedInterpolations.Where(item => !Interpolations.Contains(item)).ToArray())
-            {
-                interpolation.PropertyChanged -= OnInterpolationChanged;
-                _attachedInterpolations.Remove(interpolation);
-            }
-
-            foreach (var interpolation in Interpolations)
-            {
-                if (_attachedInterpolations.Add(interpolation))
-                {
-                    interpolation.PropertyChanged += OnInterpolationChanged;
-                }
-            }
-
-            _owner.NotifyMotionMetadataChanged();
-        }
-
-        private void OnInterpolationChanged(object? sender, AvaloniaPropertyChangedEventArgs e) =>
-            _owner.NotifyMotionMetadataChanged();
     }
 }

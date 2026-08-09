@@ -127,7 +127,7 @@ public sealed class MotionItemsPanel : Panel
             return true;
         }
 
-        return source.VisualParent is MotionItemContainer container && Children.Contains(container);
+        return source.GetValue(VisualParentProperty) is MotionItemContainer container && Children.Contains(container);
     }
 
     internal AvaloniaObject ResolveTrackDestination(MotionChannel channel)

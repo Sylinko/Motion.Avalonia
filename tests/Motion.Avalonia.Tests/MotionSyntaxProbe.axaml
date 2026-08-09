@@ -15,9 +15,9 @@
               <motion:MotionSlot
                 x:Name="Target" motion:Motion.Presence="0"
                 x:SetterTargetType="Border">
-                <motion:Motion.Interpolations>
+                <motion:MotionSlot.Interpolations>
                   <motion:MotionInterpolation Property="(Visual.Opacity)"/>
-                </motion:Motion.Interpolations>
+                </motion:MotionSlot.Interpolations>
                 <Setter motion:Motion.Easing="{x:Null}" Property="Opacity" Value="0"/>
               </motion:MotionSlot>
             </Grid>

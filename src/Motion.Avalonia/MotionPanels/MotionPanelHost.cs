@@ -154,10 +154,10 @@ internal sealed class MotionPanelHost : Decorator, IMotionLayout
                 entry.Name,
                 new MotionLayoutEntry(
                     GetLayoutBounds(entry),
-                    Motion.GetAuthoredPresence(slot),
-                    Motion.GetSlotMetadata(slot, Motion.PositionProperty),
-                    Motion.GetSlotMetadata(slot, Motion.SizeProperty),
-                    Motion.GetSlotMetadata(slot, Motion.PresenceProperty)));
+                    Motion.GetPresence(slot),
+                    slot.GetInterpolationMetadata(Motion.PositionProperty),
+                    slot.GetInterpolationMetadata(Motion.SizeProperty),
+                    slot.GetInterpolationMetadata(Motion.PresenceProperty)));
         }
 
         _capturedLayoutFrameVersion = captureVersion;
@@ -235,7 +235,7 @@ internal sealed class MotionPanelHost : Decorator, IMotionLayout
             {
                 var metadata = values.TryGetValue(ZIndexProperty, out var endpoint) ?
                     endpoint.Metadata :
-                    Motion.GetSlotMetadata(entry.Slot, ZIndexProperty);
+                    entry.Slot.GetInterpolationMetadata(ZIndexProperty);
                 values[ZIndexProperty] = new MotionEndpointValue(relativeZIndex, metadata);
             }
         }
@@ -247,7 +247,7 @@ internal sealed class MotionPanelHost : Decorator, IMotionLayout
                 ZIndexProperty,
                 new MotionEndpointValue(
                     relativeZIndex,
-                    Motion.GetSlotMetadata(entry.Slot, ZIndexProperty)));
+                    entry.Slot.GetInterpolationMetadata(ZIndexProperty)));
         }
     }
 

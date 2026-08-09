@@ -32,8 +32,9 @@ A `MotionInterpolation` selects one property channel:
 ```
 
 Motion-level entries require `Target` for target channels. Omit `Target` for the panel-wide
-`Motion.DesiredSize` channel or for a slot-local entry. Motion-level entries are compile-time
-authoring data: changing the collection or an entry does not alter an existing compiled motion.
+`Motion.DesiredSize` channel. Slot-local entries belong to `MotionSlot.Interpolations`, where the
+slot supplies the target identity. Motion-level entries are compile-time authoring data: changing
+the collection or an entry does not alter an existing compiled motion.
 
 ## Layout Channels
 

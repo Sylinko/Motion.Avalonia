@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
@@ -49,6 +50,16 @@ public sealed class MotionSlot : Control
     public AvaloniaList<Setter> Setters { get; } = new();
 
     /// <summary>
+    /// Gets property-specific interpolation metadata for this slot's target and layout channels.
+    /// </summary>
+    /// <remarks>
+    /// The collection is created only when first accessed. Entries have an implicit target and
+    /// therefore normally specify only <see cref="MotionInterpolation.Property"/>.
+    /// </remarks>
+    public AvaloniaList<MotionInterpolation> Interpolations =>
+        _interpolations ??= CreateInterpolations();
+
+    /// <summary>
     /// Gets an obsolete alias for <see cref="TargetStyles"/>.
     /// </summary>
     /// <remarks>
@@ -87,9 +98,16 @@ public sealed class MotionSlot : Control
     private static readonly HashSet<AvaloniaProperty> ShortcutPropertySet = [.. ShortcutProperties];
 
     private readonly HashSet<AvaloniaProperty> _shortcutEndpointProperties = [];
+    private AvaloniaList<MotionInterpolation>? _interpolations;
+    private HashSet<MotionInterpolation>? _observedInterpolations;
     private MotionPanelHost? _host;
     private MotionStyleScope? _styleScope;
     private StyledElement? _styleTarget;
+
+    static MotionSlot()
+    {
+        Motion.PresenceProperty.OverrideDefaultValue<MotionSlot>(1);
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MotionSlot"/> class.
@@ -104,7 +122,7 @@ public sealed class MotionSlot : Control
         StyledElement target)
     {
         EnsureEndpointScope(target);
-        return _styleScope!.CaptureValues();
+        return _styleScope.CaptureValues();
     }
 
     internal void AttachHost(MotionPanelHost host)
@@ -115,14 +133,36 @@ public sealed class MotionSlot : Control
         }
 
         _host = host;
+        SynchronizeInterpolationSubscriptions();
     }
 
     internal void BindTarget(StyledElement target) => EnsureEndpointScope(target);
 
-    internal void NotifyMotionMetadataChanged()
+    internal MotionInterpolationMetadata GetInterpolationMetadata(AvaloniaProperty property)
     {
-        ReleaseEndpointScope();
-        EndpointChanged?.Invoke(this, EventArgs.Empty);
+        MotionInterpolation? match = null;
+        if (_interpolations is null)
+        {
+            return default;
+        }
+
+        foreach (var interpolation in _interpolations)
+        {
+            if (interpolation.Property != property)
+            {
+                continue;
+            }
+
+            if (match is not null)
+            {
+                throw new InvalidOperationException(
+                    $"{nameof(MotionSlot)} '{Name}' contains more than one interpolation for property '{property}'.");
+            }
+
+            match = interpolation;
+        }
+
+        return match?.GetEndpointMetadata() ?? default;
     }
 
     internal void DetachHost(MotionPanelHost host)
@@ -133,6 +173,7 @@ public sealed class MotionSlot : Control
         }
 
         ReleaseEndpointScope();
+        ClearInterpolationSubscriptions();
         _host = null;
     }
 
@@ -166,6 +207,17 @@ public sealed class MotionSlot : Control
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+
+        if (change.Property == Motion.PresenceProperty)
+        {
+            if (!double.IsFinite((double)change.NewValue!))
+            {
+                throw new ArgumentOutOfRangeException(nameof(change), "Presence must be finite.");
+            }
+
+            EndpointChanged?.Invoke(this, EventArgs.Empty);
+            return;
+        }
 
         if (ShortcutPropertySet.Contains(change.Property))
         {
@@ -205,6 +257,7 @@ public sealed class MotionSlot : Control
         EndpointStructureChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    [MemberNotNull(nameof(_styleScope), nameof(_styleTarget))]
     private void EnsureEndpointScope(StyledElement target)
     {
         if (_styleScope is not null && ReferenceEquals(_styleTarget, target))
@@ -257,7 +310,7 @@ public sealed class MotionSlot : Control
                 new MotionEndpointDefinition(
                     property,
                     GetValue(property),
-                    Motion.GetSlotMetadata(this, property)));
+                    GetInterpolationMetadata(property)));
         }
 
         return result;
@@ -294,6 +347,66 @@ public sealed class MotionSlot : Control
         var property = setter.Property ?? throw new InvalidOperationException($"{nameof(MotionSlot)} contains a Setter without a Property.");
         MotionStyleProxy.ValidateProperty(property);
         return property;
+    }
+
+    private AvaloniaList<MotionInterpolation> CreateInterpolations()
+    {
+        var result = new AvaloniaList<MotionInterpolation>();
+        result.CollectionChanged += HandleInterpolationsChanged;
+        return result;
+    }
+
+    private void HandleInterpolationsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        SynchronizeInterpolationSubscriptions();
+        NotifyInterpolationMetadataChanged();
+    }
+
+    private void SynchronizeInterpolationSubscriptions()
+    {
+        if (_host is null || _interpolations is null)
+        {
+            return;
+        }
+
+        _observedInterpolations ??= [];
+        foreach (var interpolation in _observedInterpolations.Where(item => !_interpolations.Contains(item)).ToArray())
+        {
+            interpolation.PropertyChanged -= HandleInterpolationChanged;
+            _observedInterpolations.Remove(interpolation);
+        }
+
+        foreach (var interpolation in _interpolations)
+        {
+            if (_observedInterpolations.Add(interpolation))
+            {
+                interpolation.PropertyChanged += HandleInterpolationChanged;
+            }
+        }
+    }
+
+    private void ClearInterpolationSubscriptions()
+    {
+        if (_observedInterpolations is null)
+        {
+            return;
+        }
+
+        foreach (var interpolation in _observedInterpolations)
+        {
+            interpolation.PropertyChanged -= HandleInterpolationChanged;
+        }
+
+        _observedInterpolations.Clear();
+    }
+
+    private void HandleInterpolationChanged(object? sender, AvaloniaPropertyChangedEventArgs e) =>
+        NotifyInterpolationMetadataChanged();
+
+    private void NotifyInterpolationMetadataChanged()
+    {
+        ReleaseEndpointScope();
+        EndpointChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void HandleStyleEndpointChanged() => EndpointChanged?.Invoke(this, EventArgs.Empty);

@@ -8,9 +8,10 @@ namespace Motion.Avalonia;
 /// Selects timing and value interpolation for one motion property.
 /// </summary>
 /// <remarks>
-/// Global entries match by <see cref="Target"/> and <see cref="Property"/>. Entries attached to
-/// a <see cref="MotionSlot"/> already have an implicit target and normally specify only the
-/// property. A missing easing falls through to the next scope and ultimately resolves to linear.
+/// Global entries match by <see cref="Target"/> and <see cref="Property"/>. Entries in
+/// <see cref="MotionSlot.Interpolations"/> already have an implicit target and normally specify
+/// only the property. A missing easing falls through to the next scope and ultimately resolves to
+/// linear.
 /// </remarks>
 public sealed class MotionInterpolation : AvaloniaObject
 {
