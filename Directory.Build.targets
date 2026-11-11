@@ -1,0 +1,8 @@
+﻿<Project>
+  <!-- Motion is currently built into Everywhere's desktop application, so .NET 11+ can use Runtime Async.
+       Reassess this opt-in before publishing a WebAssembly-compatible package: that runtime does not support it.
+       Older targets retain their existing async compilation model. -->
+  <PropertyGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETCoreApp' And $([MSBuild]::VersionGreaterThanOrEquals('$(TargetFrameworkVersion)', '11.0'))">
+    <Features>$(Features);runtime-async=on</Features>
+  </PropertyGroup>
+</Project>
