@@ -8,6 +8,7 @@
     <Description>A declarative motion and interaction framework for Avalonia.</Description>
     <PackageTags>avalonia;animation;motion;layout;physics;interaction</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageProjectUrl>https://github.com/Sylinko/Motion.Avalonia</PackageProjectUrl>
     <RepositoryUrl>https://github.com/Sylinko/Motion.Avalonia</RepositoryUrl>
@@ -29,6 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\..\img\icon.png" Pack="true" PackagePath="\" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

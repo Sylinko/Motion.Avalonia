@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="https://raw.githubusercontent.com/Sylinko/Motion.Avalonia/main/img/icon.png" alt="Motion.Avalonia Logo" width="128" height="128" />
+
 # Motion.Avalonia
 
 **Declarative, seekable, real-layout motion for Avalonia**
