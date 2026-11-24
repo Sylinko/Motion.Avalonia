@@ -1,0 +1,134 @@
+name: Publish NuGet Package
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest
+    environment: nuget
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      CONFIGURATION: Release
+      OUTPUT_DIR: ${{ github.workspace }}/out
+      PROJECTS: |
+        src/Motion.Avalonia/Motion.Avalonia.csproj
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Prepare release metadata
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          $version = $env:RELEASE_TAG -replace '^v', ''
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw "Release tag is required."
+          }
+
+          $numericVersion = ($version -split '[-+]')[0]
+          $versionParts = @($numericVersion -split '\.')
+          if ($versionParts.Count -lt 3 -or $versionParts.Count -gt 4 -or ($versionParts | Where-Object { $_ -notmatch '^\d+$' })) {
+            throw "Release tag '$($env:RELEASE_TAG)' must resolve to a numeric version such as v1.2.3."
+          }
+
+          while ($versionParts.Count -lt 4) {
+            $versionParts += '0'
+          }
+
+          $assemblyVersion = $versionParts -join '.'
+          "PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "ASSEMBLY_VERSION=$assemblyVersion" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Restore dependencies
+        shell: pwsh
+        run: |
+          $projects = $env:PROJECTS -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+          foreach ($project in $projects) {
+            dotnet restore $project
+          }
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $projects = $env:PROJECTS -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+          $versionProperties = @(
+            "-p:Version=$env:PACKAGE_VERSION"
+            "-p:PackageVersion=$env:PACKAGE_VERSION"
+            "-p:AssemblyVersion=$env:ASSEMBLY_VERSION"
+            "-p:FileVersion=$env:ASSEMBLY_VERSION"
+            "-p:InformationalVersion=$env:PACKAGE_VERSION"
+            "-p:IncludeSourceRevisionInInformationalVersion=false"
+          )
+
+          foreach ($project in $projects) {
+            dotnet build $project --configuration $env:CONFIGURATION --no-restore @versionProperties
+          }
+
+      - name: Pack
+        shell: pwsh
+        run: |
+          $year = (Get-Date).Year
+          if ($year -eq 2026) {
+            $copyright = "Copyright 2026 Sylinko"
+          } else {
+            $copyright = "Copyright 2026-$year Sylinko"
+          }
+
+          $projects = $env:PROJECTS -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+          $versionProperties = @(
+            "-p:Version=$env:PACKAGE_VERSION"
+            "-p:PackageVersion=$env:PACKAGE_VERSION"
+            "-p:AssemblyVersion=$env:ASSEMBLY_VERSION"
+            "-p:FileVersion=$env:ASSEMBLY_VERSION"
+            "-p:InformationalVersion=$env:PACKAGE_VERSION"
+            "-p:IncludeSourceRevisionInInformationalVersion=false"
+          )
+
+          $release = (Get-Content -LiteralPath $env:GITHUB_EVENT_PATH -Raw -Encoding utf8 | ConvertFrom-Json).release
+          $releaseNotes = $release.body
+          if ([string]::IsNullOrWhiteSpace($releaseNotes) -or $releaseNotes.Length -gt 35000) {
+            $releaseNotes = $release.html_url
+          }
+
+          $env:PackageReleaseNotes = $releaseNotes.Replace('%', '%25').Replace('@', '%40')
+
+          $packProperties = $versionProperties + @(
+            "-p:Copyright=$copyright"
+            "-p:IncludeSymbols=true"
+            "-p:SymbolPackageFormat=snupkg"
+          )
+
+          foreach ($project in $projects) {
+            dotnet pack $project --configuration $env:CONFIGURATION --no-build @packProperties -o $env:OUTPUT_DIR
+          }
+
+      - name: NuGet login (OIDC -> temp API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Publish to NuGet
+        shell: pwsh
+        run: |
+          $packages = @(Get-ChildItem -Path $env:OUTPUT_DIR -Filter "*.*nupkg")
+          if ($packages.Count -eq 0) { throw 'No nupkg files found!' }
+          foreach ($pkg in $packages) {
+            dotnet nuget push $pkg.FullName --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+          }

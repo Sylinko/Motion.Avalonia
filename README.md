@@ -5,7 +5,7 @@
 **Declarative, seekable, real-layout motion for Avalonia**
 
 <p>
-  <img alt=".NET 8, 9, and 10" src="https://img.shields.io/badge/.NET-8%20%7C%209%20%7C%2010-512BD4">
+  <img alt=".NET 8, 10, and 11" src="https://img.shields.io/badge/.NET-8%20%7C%2010%20%7C%2011-512BD4">
   <img alt="Avalonia 12" src="https://img.shields.io/badge/Avalonia-12-8B44AC">
   <img alt="Status: early preview" src="https://img.shields.io/badge/status-early%20preview-orange">
   <a href="https://github.com/Sylinko/Motion.Avalonia/blob/main/LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue"></a>

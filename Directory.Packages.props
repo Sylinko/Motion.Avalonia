@@ -2,7 +2,9 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
-    <AvaloniaVersion>12.1.6</AvaloniaVersion>
+    <AvaloniaVersion>12.0.0</AvaloniaVersion>
+    <!-- Keep published libraries and tests on 12.0.0; Demo and ShadUI require a newer Avalonia host. -->
+    <AvaloniaVersion Condition="$([System.String]::Copy('$(MSBuildProjectName)').StartsWith('Motion.Avalonia.Demo')) Or '$(MSBuildProjectName)' == 'ShadUI'">12.1.6</AvaloniaVersion>
     <SkiaSharpVersion>4.155.0</SkiaSharpVersion>
   </PropertyGroup>
 
