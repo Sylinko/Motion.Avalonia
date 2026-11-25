@@ -11,11 +11,14 @@
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="Avalonia.Skia" />
+    <PackageReference Include="SkiaSharp" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\ClassicDiagnostics.Avalonia\src\ClassicDiagnostics.Avalonia.csproj" />
     <ProjectReference Include="..\..\3rd\shad-ui\src\ShadUI\ShadUI.csproj" />
+    <ProjectReference Include="..\..\3rd\shad-ui\src\Tabler.Avalonia\Tabler.Avalonia.csproj" />
     <ProjectReference Include="..\Motion.Avalonia\Motion.Avalonia.csproj" />
   </ItemGroup>
 

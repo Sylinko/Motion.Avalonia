@@ -1,44 +1,78 @@
 <UserControl
   x:Class="Motion.Avalonia.Demo.Views.OverviewPage" xmlns="https://github.com/avaloniaui"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:Motion.Avalonia.Demo.Controls"
-  xmlns:lucide="clr-namespace:Lucide.Avalonia;assembly=Lucide.Avalonia" xmlns:motion="using:Motion.Avalonia"
-  xmlns:shadui="clr-namespace:ShadUI.Controls;assembly=ShadUI">
+  xmlns:motion="using:Motion.Avalonia" xmlns:shadui="clr-namespace:ShadUI;assembly=ShadUI"
+  xmlns:tabler="clr-namespace:Tabler.Avalonia;assembly=Tabler.Avalonia">
   <UserControl.Styles>
     <Style Selector="Button.VideoChrome">
       <Setter Property="Foreground" Value="White"/>
-      <Setter Property="shadui:ButtonAssist.IconSize" Value="20"/>
+      <Setter Property="shadui:ButtonAssist.IconSize" Value="18"/>
     </Style>
 
     <Style Selector="Button.ShowcaseAction">
       <Setter Property="Width" Value="40"/>
-      <Setter Property="Foreground" Value="#FF6A737D"/>
-      <Setter Property="shadui:ButtonAssist.IconSize" Value="20"/>
+      <Setter Property="Height" Value="40"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Foreground" Value="#F2FFFFFF"/>
+      <Setter Property="shadui:ButtonAssist.IconSize" Value="19"/>
     </Style>
 
     <Style Selector="Button.ShowcaseAction.Like">
-      <Setter Property="Foreground" Value="#FFFF435A"/>
+      <Setter Property="Foreground" Value="#FFFF6B8A"/>
     </Style>
 
-    <Style Selector="Border.ShowcaseComment">
-      <Setter Property="MaxWidth" Value="280"/>
-      <Setter Property="Padding" Value="12,8"/>
-      <Setter Property="HorizontalAlignment" Value="Left"/>
-      <Setter Property="Background" Value="#FFE4E7EB"/>
-      <Setter Property="CornerRadius" Value="12"/>
+    <Style Selector="TextBlock.CommentAuthor">
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="#99FFFFFF"/>
     </Style>
 
-    <Style Selector="Border.ShowcaseComment.Alternate">
-      <Setter Property="Background" Value="#FFDDE1E5"/>
-    </Style>
-
-    <Style Selector="TextBlock.ShowcaseCommentText">
-      <Setter Property="Foreground" Value="#FF27313B"/>
+    <Style Selector="TextBlock.CommentBody">
+      <Setter Property="FontSize" Value="13.5"/>
+      <Setter Property="LineHeight" Value="19"/>
+      <Setter Property="Foreground" Value="#EBFFFFFF"/>
       <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 
-    <Style Selector="Run.ShowcaseCommentAuthor">
-      <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Foreground" Value="#FF16729A"/>
+    <Style Selector="TextBlock.CommentMeta">
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="Foreground" Value="#73FFFFFF"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="tabler|TablerIcon.CommentMeta">
+      <Setter Property="Size" Value="14"/>
+      <Setter Property="StrokeWidth" Value="1.8"/>
+      <Setter Property="Foreground" Value="#73FFFFFF"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="Border.CommentAvatar">
+      <Setter Property="Width" Value="32"/>
+      <Setter Property="Height" Value="32"/>
+      <Setter Property="CornerRadius" Value="16"/>
+      <Setter Property="VerticalAlignment" Value="Top"/>
+    </Style>
+
+    <Style Selector="TextBlock.CommentAvatarText">
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <Style Selector="Border.LevelBadge">
+      <Setter Property="Padding" Value="4,0"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="CornerRadius" Value="3"/>
+      <Setter Property="Background" Value="#33FF6B8A"/>
+    </Style>
+
+    <Style Selector="Border.LevelBadge TextBlock">
+      <Setter Property="FontSize" Value="9"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="#FFFF8FA8"/>
     </Style>
   </UserControl.Styles>
 
@@ -59,20 +93,20 @@
 
       <controls:DemoExample
         Title="Scroll-driven short video" HorizontalContentAlignment="Stretch"
-        Description="The hidden ScrollViewer supplies native wheel, touchpad, and slider progress. Its first stop is an immersive player, the middle stop reveals the conversation, and the final stop replaces the video with a Continue playing control.">
+        Description="The hidden ScrollViewer supplies native wheel, touchpad, and slider progress. The video starts full screen, then docks above the discussion, and finally collapses into a small Continue playing preview in the header.">
         <Grid
-          ColumnDefinitions="*,Auto,*" ColumnSpacing="24">
+          ColumnDefinitions="*,Auto,*" ColumnSpacing="28">
           <StackPanel
             Grid.Column="0" MaxWidth="256"
-            VerticalAlignment="Center" Spacing="16">
+            VerticalAlignment="Center" Spacing="18">
             <StackPanel Spacing="4">
               <TextBlock
                 FontSize="12" FontWeight="SemiBold"
                 Foreground="{DynamicResource PrimaryColor}"
-                Text="SCROLL PROGRESS"/>
+                LetterSpacing="0.8" Text="SCROLL PROGRESS"/>
               <TextBlock
                 x:Name="ShowcaseProgressLabel" FontFamily="Cascadia Mono,Consolas"
-                FontSize="24" FontWeight="SemiBold"
+                FontSize="28" FontWeight="SemiBold"
                 Text="0.00"/>
               <TextBlock
                 x:Name="ShowcaseStateLabel"
@@ -80,19 +114,24 @@
                 Text="Immersive"/>
             </StackPanel>
 
-            <StackPanel Spacing="4">
+            <StackPanel Spacing="6">
               <Slider
                 x:Name="ShowcaseProgressSlider" LargeChange="0.1"
                 Maximum="1" Minimum="0"
                 SmallChange="0.01" ValueChanged="OnShowcaseProgressSliderValueChanged"/>
-              <DockPanel>
+              <Grid ColumnDefinitions="*,*,*">
                 <TextBlock
-                  Classes="Muted" DockPanel.Dock="Left"
-                  FontSize="12" Text="Video"/>
+                  Classes="Muted" Grid.Column="0"
+                  FontSize="11" Text="Video"/>
                 <TextBlock
-                  Classes="Muted" DockPanel.Dock="Right"
-                  FontSize="12" Text="Discussion"/>
-              </DockPanel>
+                  Classes="Muted" Grid.Column="1"
+                  FontSize="11" Text="Reveal"
+                  TextAlignment="Center"/>
+                <TextBlock
+                  Classes="Muted" Grid.Column="2"
+                  FontSize="11" Text="Discussion"
+                  TextAlignment="Right"/>
+              </Grid>
             </StackPanel>
 
             <TextBlock
@@ -101,304 +140,598 @@
             <StackPanel Spacing="8">
               <Button
                 Classes="Secondary"
-                shadui:ButtonAssist.Icon="{LucideIconContent Play}"
+                shadui:ButtonAssist.Icon="{tabler:TablerIconContent PlayerPlay}"
                 Click="OnImmersiveClick" Content="Back to video"/>
               <Button
                 Classes="Primary"
-                shadui:ButtonAssist.Icon="{LucideIconContent MessageCircle}"
+                shadui:ButtonAssist.Icon="{tabler:TablerIconContent MessageCircle}"
                 Click="OnDiscussionClick" Content="Open discussion"/>
             </StackPanel>
           </StackPanel>
 
-          <Border
-            Grid.Column="1" Width="392"
-            Height="704" Background="#FF05070B"
-            BoxShadow="0 24 70 0 #59000000" ClipToBounds="True"
-            CornerRadius="24">
-            <ScrollViewer
-              x:Name="ShowcaseScrollViewer" HorizontalScrollBarVisibility="Disabled"
-              ScrollChanged="OnShowcaseScrollChanged" VerticalScrollBarVisibility="Hidden">
-              <controls:PinnedScrollStage
-                x:Name="ShowcaseScrollStage" TransitionDistance="920"
-                ViewportHeight="704">
-                <motion:MotionPanel
-                  x:Name="ShowcasePanel" ClipToBounds="True">
-                  <motion:MotionPanel.Motion>
-                    <motion:SequenceMotion x:Name="ShowcaseMotion">
-                      <motion:SequenceMotionKeyFrame Cue="0%">
-                        <motion:SequenceMotionKeyFrame.Template>
-                          <DataTemplate>
-                            <Panel>
-                              <motion:MotionSlot x:Name="VideoSurface"/>
-                              <motion:MotionSlot
-                                x:Name="DiscussionSurface" Height="0"
-                                VerticalAlignment="Bottom" Opacity="0"/>
-                              <motion:MotionSlot
-                                x:Name="AuthorBar" MaxWidth="256"
-                                Margin="16" HorizontalAlignment="Left"
-                                VerticalAlignment="Top" x:SetterTargetType="Border">
-                                <Setter Property="CornerRadius" Value="16"/>
-                                <Setter Property="BorderThickness" Value="1"/>
-                              </motion:MotionSlot>
-                              <StackPanel
-                                Width="48" Margin="0,0,12,72"
-                                HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                Orientation="Vertical">
-                                <motion:MotionSlot
-                                  x:Name="LikeButton" Width="48"
-                                  Height="48"/>
-                                <motion:MotionSlot
-                                  x:Name="ShareButton" Width="48"
-                                  Height="48"/>
-                                <motion:MotionSlot
-                                  x:Name="MoreButton" Width="48"
-                                  Height="48"/>
-                              </StackPanel>
-                              <motion:MotionSlot
-                                x:Name="CommentComposer" Height="52"
-                                Margin="12" HorizontalAlignment="Stretch"
-                                VerticalAlignment="Bottom"/>
-                              <motion:MotionSlot
-                                x:Name="ScrollHint" Margin="0,0,0,72"
-                                HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
-                            </Panel>
-                          </DataTemplate>
-                        </motion:SequenceMotionKeyFrame.Template>
-                      </motion:SequenceMotionKeyFrame>
+          <!-- The outer frame casts the shadow; the inner frame clips the screen (a clipping SmoothBorder draws no shadow). -->
+          <shadui:SmoothBorder
+            Grid.Column="1" Width="396"
+            Height="712" Background="#FF07080C"
+            BoxShadow="0 24 64 0 #59000000" CornerRadius="36"
+            CornerSmoothing="0.6">
+            <shadui:SmoothBorder
+              BackgroundSizing="InnerBorderEdge" BorderBrush="#33FFFFFF"
+              BorderThickness="1.5" ClipToBounds="True"
+              CornerRadius="36" CornerSmoothing="0.6">
+              <!-- A bare template: ShadUI's ScrollEdgeFadeBehavior would fade the phone screen edges. -->
+              <ScrollViewer
+                x:Name="ShowcaseScrollViewer" HorizontalScrollBarVisibility="Disabled"
+                ScrollChanged="OnShowcaseScrollChanged" VerticalScrollBarVisibility="Hidden">
+                <ScrollViewer.Template>
+                  <ControlTemplate TargetType="ScrollViewer">
+                    <ScrollContentPresenter
+                      Name="PART_ContentPresenter" CanHorizontallyScroll="False"
+                      CanVerticallyScroll="True"
+                      Content="{TemplateBinding Content}"
+                      ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                  </ControlTemplate>
+                </ScrollViewer.Template>
 
-                      <motion:SequenceMotionKeyFrame
-                        Cue="58%" Easing="CubicEaseOut">
-                        <motion:SequenceMotionKeyFrame.Template>
-                          <DataTemplate>
-                            <Grid RowDefinitions="312,*,64">
-                              <motion:MotionSlot
-                                x:Name="ContinuePlayback" Grid.Row="0"
-                                Opacity="0"/>
-                              <motion:MotionSlot
-                                x:Name="VideoSurface" Grid.Row="0"
-                                MaxWidth="224" HorizontalAlignment="Center"/>
-                              <motion:MotionSlot
-                                x:Name="DiscussionSurface" Grid.Row="1"
-                                Grid.RowSpan="2"/>
-                              <motion:MotionSlot
-                                x:Name="AuthorBar" Grid.Row="1"
-                                Height="56" VerticalAlignment="Top"
-                                x:SetterTargetType="Border">
-                                <Setter Property="CornerRadius" Value="0"/>
-                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                              </motion:MotionSlot>
-                              <motion:MotionSlot
-                                x:Name="CommentList" Grid.Row="1"
-                                Margin="8,64,8,8"/>
-                              <DockPanel Grid.Row="2">
+                <controls:PinnedScrollStage
+                  x:Name="ShowcaseScrollStage" TransitionDistance="920"
+                  ViewportHeight="712">
+                  <motion:MotionPanel
+                    x:Name="ShowcasePanel" ClipToBounds="True">
+                    <motion:MotionPanel.Motion>
+                      <motion:SequenceMotion x:Name="ShowcaseMotion">
+                        <!-- Immersive: full-screen video with glass chrome floating on top. -->
+                        <motion:SequenceMotionKeyFrame Cue="0%">
+                          <motion:SequenceMotionKeyFrame.Template>
+                            <DataTemplate>
+                              <Panel>
+                                <motion:MotionSlot x:Name="VideoSurface"/>
+                                <motion:MotionSlot
+                                  x:Name="HeaderScrim" Height="56"
+                                  VerticalAlignment="Top" Opacity="0"/>
+                                <motion:MotionSlot
+                                  x:Name="ContinuePlayback" Height="56"
+                                  Margin="0,-56,0,0" VerticalAlignment="Top"
+                                  Opacity="0"/>
+                                <motion:MotionSlot
+                                  x:Name="DiscussionSurface" Height="0"
+                                  VerticalAlignment="Bottom"/>
+                                <motion:MotionSlot
+                                  x:Name="AuthorBar" MaxWidth="276"
+                                  Margin="16,18,16,0" HorizontalAlignment="Left"
+                                  VerticalAlignment="Top" x:SetterTargetType="shadui:SmoothBorder">
+                                  <Setter Property="CornerRadius" Value="26"/>
+                                  <Setter Property="BorderThickness" Value="1"/>
+                                </motion:MotionSlot>
                                 <StackPanel
-                                  DockPanel.Dock="Right" Margin="0,8,8,8"
-                                  Orientation="Horizontal">
+                                  Width="40" Margin="0,0,14,80"
+                                  HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                  Spacing="12">
                                   <motion:MotionSlot
-                                    x:Name="LikeButton" Width="48"
-                                    Height="48"/>
+                                    x:Name="LikeButton" Width="40"
+                                    Height="40"/>
                                   <motion:MotionSlot
-                                    x:Name="ShareButton" Width="48"
-                                    Height="48"/>
+                                    x:Name="ShareButton" Width="40"
+                                    Height="40"/>
                                   <motion:MotionSlot
-                                    x:Name="MoreButton" Width="48"
-                                    Height="48"/>
+                                    x:Name="MoreButton" Width="40"
+                                    Height="40"/>
                                 </StackPanel>
                                 <motion:MotionSlot
-                                  x:Name="CommentComposer" Margin="8"/>
-                              </DockPanel>
-                            </Grid>
-                          </DataTemplate>
-                        </motion:SequenceMotionKeyFrame.Template>
-                      </motion:SequenceMotionKeyFrame>
-
-                      <motion:SequenceMotionKeyFrame
-                        Cue="100%" Easing="CubicEaseInOut">
-                        <motion:SequenceMotionKeyFrame.Template>
-                          <DataTemplate>
-                            <Grid RowDefinitions="56,56,*,64">
-                              <motion:MotionSlot x:Name="ContinuePlayback"/>
-                              <motion:MotionSlot
-                                x:Name="DiscussionSurface" Grid.Row="1"
-                                Grid.RowSpan="3"/>
-                              <motion:MotionSlot
-                                x:Name="AuthorBar" Grid.Row="1"
-                                x:SetterTargetType="Border">
-                                <Setter Property="CornerRadius" Value="0"/>
-                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                              </motion:MotionSlot>
-                              <motion:MotionSlot
-                                x:Name="CommentList" Grid.Row="2"
-                                Margin="8"/>
-                              <DockPanel Grid.Row="3">
-                                <StackPanel
-                                  DockPanel.Dock="Right" Margin="0,8,8,8"
-                                  Orientation="Horizontal">
-                                  <motion:MotionSlot
-                                    x:Name="LikeButton" Width="48"
-                                    Height="48"/>
-                                  <motion:MotionSlot
-                                    x:Name="ShareButton" Width="48"
-                                    Height="48"/>
-                                  <motion:MotionSlot
-                                    x:Name="MoreButton" Width="48"
-                                    Height="48"/>
-                                </StackPanel>
+                                  x:Name="CommentList" Height="360"
+                                  Margin="0,0,0,-360" VerticalAlignment="Bottom"
+                                  Opacity="0"/>
                                 <motion:MotionSlot
-                                  x:Name="CommentComposer" Margin="8"/>
-                              </DockPanel>
-                            </Grid>
-                          </DataTemplate>
-                        </motion:SequenceMotionKeyFrame.Template>
-                      </motion:SequenceMotionKeyFrame>
-                    </motion:SequenceMotion>
-                  </motion:MotionPanel.Motion>
+                                  x:Name="CommentComposer" Height="46"
+                                  Margin="14,0,14,16" VerticalAlignment="Bottom"/>
+                                <motion:MotionSlot
+                                  x:Name="ScrollHint" Margin="0,0,0,76"
+                                  HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                                  Opacity="1"/>
+                              </Panel>
+                            </DataTemplate>
+                          </motion:SequenceMotionKeyFrame.Template>
+                        </motion:SequenceMotionKeyFrame>
 
-                  <Border
-                    x:Name="VideoSurface" Background="#FF05070B"
-                    ClipToBounds="True">
-                    <Image
-                      Source="/Assets/short-video-frame.png" Stretch="UniformToFill"/>
-                  </Border>
+                        <!-- Reveal: the video docks at the top, flush against the discussion sheet. -->
+                        <motion:SequenceMotionKeyFrame
+                          Cue="58%" Easing="CubicEaseOut">
+                          <motion:SequenceMotionKeyFrame.Template>
+                            <DataTemplate>
+                              <Grid RowDefinitions="236,*,64">
+                                <motion:MotionSlot
+                                  x:Name="VideoSurface" Grid.Row="0"/>
+                                <motion:MotionSlot
+                                  x:Name="HeaderScrim" Grid.Row="0"
+                                  Opacity="0"/>
+                                <motion:MotionSlot
+                                  x:Name="ContinuePlayback" Grid.Row="0"
+                                  Height="56" VerticalAlignment="Top"
+                                  Opacity="0"/>
+                                <motion:MotionSlot
+                                  x:Name="DiscussionSurface" Grid.Row="1"
+                                  Grid.RowSpan="2"/>
+                                <motion:MotionSlot
+                                  x:Name="AuthorBar" Grid.Row="1"
+                                  Height="60" VerticalAlignment="Top"
+                                  x:SetterTargetType="shadui:SmoothBorder">
+                                  <Setter Property="CornerRadius" Value="0"/>
+                                  <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                </motion:MotionSlot>
+                                <motion:MotionSlot
+                                  x:Name="CommentList" Grid.Row="1"
+                                  Margin="0,60,0,0" Opacity="1"/>
+                                <motion:MotionSlot
+                                  x:Name="ScrollHint" Grid.Row="1"
+                                  HorizontalAlignment="Center" VerticalAlignment="Top"
+                                  Opacity="0"/>
+                                <DockPanel Grid.Row="2">
+                                  <StackPanel
+                                    DockPanel.Dock="Right" Margin="0,0,12,0"
+                                    VerticalAlignment="Center" Orientation="Horizontal"
+                                    Spacing="6">
+                                    <motion:MotionSlot
+                                      x:Name="LikeButton" Width="40"
+                                      Height="40"/>
+                                    <motion:MotionSlot
+                                      x:Name="ShareButton" Width="40"
+                                      Height="40"/>
+                                    <motion:MotionSlot
+                                      x:Name="MoreButton" Width="40"
+                                      Height="40"/>
+                                  </StackPanel>
+                                  <motion:MotionSlot
+                                    x:Name="CommentComposer" Height="42"
+                                    Margin="12,0,8,0" VerticalAlignment="Center"/>
+                                </DockPanel>
+                              </Grid>
+                            </DataTemplate>
+                          </motion:SequenceMotionKeyFrame.Template>
+                        </motion:SequenceMotionKeyFrame>
 
-                  <Border
-                    x:Name="DiscussionSurface" Background="#FFF8FAFC"/>
+                        <!-- Discussion: the video collapses into a small preview inside the header. -->
+                        <motion:SequenceMotionKeyFrame
+                          Cue="100%" Easing="CubicEaseInOut">
+                          <motion:SequenceMotionKeyFrame.Template>
+                            <DataTemplate>
+                              <Grid RowDefinitions="56,60,*,64">
+                                <motion:MotionSlot
+                                  x:Name="VideoSurface" Grid.Row="0"
+                                  Width="132" HorizontalAlignment="Center"/>
+                                <motion:MotionSlot
+                                  x:Name="HeaderScrim" Grid.Row="0"
+                                  Opacity="1"/>
+                                <motion:MotionSlot
+                                  x:Name="ContinuePlayback" Grid.Row="0"
+                                  Opacity="1"/>
+                                <motion:MotionSlot
+                                  x:Name="DiscussionSurface" Grid.Row="1"
+                                  Grid.RowSpan="3"/>
+                                <motion:MotionSlot
+                                  x:Name="AuthorBar" Grid.Row="1"
+                                  x:SetterTargetType="shadui:SmoothBorder">
+                                  <Setter Property="CornerRadius" Value="0"/>
+                                  <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                </motion:MotionSlot>
+                                <motion:MotionSlot
+                                  x:Name="CommentList" Grid.Row="2"
+                                  Opacity="1"/>
+                                <motion:MotionSlot
+                                  x:Name="ScrollHint" Grid.Row="1"
+                                  HorizontalAlignment="Center" VerticalAlignment="Top"
+                                  Opacity="0"/>
+                                <DockPanel Grid.Row="3">
+                                  <StackPanel
+                                    DockPanel.Dock="Right" Margin="0,0,12,0"
+                                    VerticalAlignment="Center" Orientation="Horizontal"
+                                    Spacing="6">
+                                    <motion:MotionSlot
+                                      x:Name="LikeButton" Width="40"
+                                      Height="40"/>
+                                    <motion:MotionSlot
+                                      x:Name="ShareButton" Width="40"
+                                      Height="40"/>
+                                    <motion:MotionSlot
+                                      x:Name="MoreButton" Width="40"
+                                      Height="40"/>
+                                  </StackPanel>
+                                  <motion:MotionSlot
+                                    x:Name="CommentComposer" Height="42"
+                                    Margin="12,0,8,0" VerticalAlignment="Center"/>
+                                </DockPanel>
+                              </Grid>
+                            </DataTemplate>
+                          </motion:SequenceMotionKeyFrame.Template>
+                        </motion:SequenceMotionKeyFrame>
+                      </motion:SequenceMotion>
+                    </motion:MotionPanel.Motion>
 
-                  <DockPanel
-                    x:Name="ContinuePlayback" Background="#FF20242A"
-                    HorizontalSpacing="12">
-                    <Button
-                      Classes="Ghost Compact Uniform Rounded VideoChrome" DockPanel.Dock="Left"
-                      Width="40" Margin="16,0,0,0"
-                      shadui:ButtonAssist.Icon="{LucideIconContent ArrowLeft}"
-                      ToolTip.Tip="Back"/>
+                    <!-- The simulated video frame: one Image measured at every intermediate bound. -->
+                    <Border
+                      x:Name="VideoSurface" Background="Black"
+                      ClipToBounds="True">
+                      <Image
+                        Source="/Assets/short-video-frame.png" Stretch="UniformToFill"/>
+                    </Border>
 
-                    <Button
-                      Classes="Ghost Compact Uniform Rounded VideoChrome" DockPanel.Dock="Right"
-                      Width="40" Margin="0,0,16,0"
-                      shadui:ButtonAssist.Icon="{LucideIconContent EllipsisVertical}"
-                      ToolTip.Tip="More"/>
+                    <!-- Dark frosted scrim that fades in from Reveal (58%) over the collapsing video preview. -->
+                    <Border
+                      x:Name="HeaderScrim" BackdropEffect="blur(14)"
+                      BackdropEffectCache="Volatile" Background="#990A0C12"
+                      IsHitTestVisible="False"/>
 
-                    <Button
-                      Classes="Ghost VideoChrome" HorizontalContentAlignment="Center"
-                      shadui:ButtonAssist.Icon="{LucideIconContent Play}"
-                      Content="Continue playing" CornerRadius="0"
-                      FontSize="16" FontWeight="SemiBold"/>
-                  </DockPanel>
+                    <Border
+                      x:Name="DiscussionSurface" Background="#FF0F1117"
+                      BorderBrush="#14FFFFFF" BorderThickness="0,1,0,0"/>
 
-                  <Border
-                    x:Name="CommentList" Background="Transparent">
-                    <StackPanel Spacing="8">
-                      <Border Classes="ShowcaseComment">
-                        <TextBlock Classes="ShowcaseCommentText">
-                          <Run
-                            Classes="ShowcaseCommentAuthor" Text="Cloud Atlas: "/>
-                          <Run Text="This transition feels so natural."/>
-                        </TextBlock>
-                      </Border>
-                      <Border
-                        Classes="ShowcaseComment Alternate" MaxWidth="300">
-                        <TextBlock Classes="ShowcaseCommentText">
-                          <Run
-                            Classes="ShowcaseCommentAuthor" Text="Mika: "/>
-                          <Run Text="The player never lost its identity."/>
-                        </TextBlock>
-                      </Border>
-                      <Border
-                        Classes="ShowcaseComment" MaxWidth="260">
-                        <TextBlock Classes="ShowcaseCommentText">
-                          <Run
-                            Classes="ShowcaseCommentAuthor" Text="Old Deer: "/>
-                          <Run Text="Scroll back—the whole motion is reversible."/>
-                        </TextBlock>
-                      </Border>
-                      <Border
-                        Classes="ShowcaseComment Alternate" MaxWidth="288">
-                        <TextBlock Classes="ShowcaseCommentText">
-                          <Run
-                            Classes="ShowcaseCommentAuthor" Text="Autumn: "/>
-                          <Run Text="No snapshots, just live layout."/>
-                        </TextBlock>
-                      </Border>
-                    </StackPanel>
-                  </Border>
-
-                  <Border
-                    x:Name="AuthorBar" Padding="8"
-                    Background="#EDFFFFFF" BorderBrush="#24000000">
-                    <Grid ColumnDefinitions="Auto,Auto,*,Auto">
-                      <Border
-                        Width="36" Height="36"
-                        Background="#FFBBD8EF" ClipToBounds="True"
-                        CornerRadius="18">
-                        <Image
-                          Source="/Assets/short-video-frame.png" Stretch="UniformToFill"/>
-                      </Border>
-                      <StackPanel
-                        Grid.Column="1" Margin="8,0"
-                        VerticalAlignment="Center" Spacing="2">
-                        <TextBlock
-                          FontSize="12" FontWeight="SemiBold"
-                          Foreground="#FF161A20" Text="Mira in motion"/>
-                        <TextBlock
-                          FontSize="12" Foreground="#FF68717C"
-                          Text="@mira.layout"/>
-                      </StackPanel>
+                    <!-- Header chrome drawn over the frosted scrim and collapsed video preview. -->
+                    <Grid
+                      x:Name="ContinuePlayback" ColumnDefinitions="Auto,*,Auto">
                       <Button
-                        Classes="Primary" Grid.Column="3"
-                        Height="32" MinWidth="72"
-                        Padding="12,0" VerticalAlignment="Center"
-                        Content="+ Follow"
-                        CornerRadius="{DynamicResource FullCornerRadius}"/>
+                        Classes="Ghost Compact Uniform Rounded VideoChrome" Grid.Column="0"
+                        Width="36" Margin="8,0,0,0"
+                        shadui:ButtonAssist.Icon="{tabler:TablerIconContent ChevronLeft}"
+                        Click="OnImmersiveClick" ToolTip.Tip="Back to video"/>
+                      <Button
+                        Classes="Ghost VideoChrome" Grid.Column="1"
+                        Padding="10,4" HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        shadui:ButtonAssist.Icon="{tabler:TablerIconContent PlayerPlay}"
+                        shadui:ButtonAssist.IconSize="14" Click="OnImmersiveClick"
+                        Content="Continue playing" CornerRadius="14"
+                        FontSize="13" FontWeight="SemiBold"/>
+                      <Button
+                        Classes="Ghost Compact Uniform Rounded VideoChrome" Grid.Column="2"
+                        Width="36" Margin="0,0,8,0"
+                        shadui:ButtonAssist.Icon="{tabler:TablerIconContent DotsVertical}"
+                        ToolTip.Tip="More"/>
                     </Grid>
-                  </Border>
 
-                  <Button
-                    x:Name="LikeButton" Classes="Ghost Rounded ShowcaseAction Like"
-                    shadui:ButtonAssist.Icon="{LucideIconContent Heart}"
-                    ToolTip.Tip="Like"/>
-                  <Button
-                    x:Name="ShareButton" Classes="Ghost Rounded ShowcaseAction"
-                    shadui:ButtonAssist.Icon="{LucideIconContent Share2}"
-                    ToolTip.Tip="Share"/>
-                  <Button
-                    x:Name="MoreButton" Classes="Ghost Rounded ShowcaseAction"
-                    shadui:ButtonAssist.Icon="{LucideIconContent Ellipsis}"
-                    ToolTip.Tip="More"/>
+                    <Border
+                      x:Name="CommentList" Padding="16,10,16,0"
+                      ClipToBounds="True">
+                      <StackPanel Spacing="14">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <StackPanel
+                            Orientation="Horizontal" Spacing="6">
+                            <TextBlock
+                              FontSize="13" FontWeight="SemiBold"
+                              Foreground="#F0FFFFFF" Text="Comments"/>
+                            <TextBlock
+                              VerticalAlignment="Center" FontSize="12"
+                              Foreground="#80FFFFFF" Text="1,662"/>
+                          </StackPanel>
+                          <StackPanel
+                            Grid.Column="1" Orientation="Horizontal"
+                            Spacing="4">
+                            <tabler:TablerIcon
+                              Classes="CommentMeta" Kind="SortDescending"/>
+                            <TextBlock
+                              Classes="CommentMeta" Text="Top"/>
+                          </StackPanel>
+                        </Grid>
 
-                  <Border
-                    x:Name="CommentComposer" Padding="8"
-                    Background="#E9FFFFFF" BorderBrush="#33000000"
-                    BorderThickness="1" CornerRadius="16">
-                    <Grid ColumnDefinitions="*,Auto">
-                      <TextBox
-                        VerticalContentAlignment="Center" Background="Transparent"
-                        BorderThickness="0" Foreground="#FF20252B"
-                        PlaceholderText="Say something..." SelectionBrush="#556835A5"/>
-                      <lucide:LucideIcon
-                        Grid.Column="1" VerticalAlignment="Center"
-                        Foreground="#FF7D858F" Kind="Smile"
-                        Size="18" StrokeWidth="1.8"/>
-                    </Grid>
-                  </Border>
+                        <Grid
+                          ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                          <Border
+                            Classes="CommentAvatar" Background="#FF6D7CF7">
+                            <TextBlock
+                              Classes="CommentAvatarText" Text="CA"/>
+                          </Border>
+                          <StackPanel
+                            Grid.Column="1" Spacing="5">
+                            <StackPanel
+                              Orientation="Horizontal" Spacing="6">
+                              <TextBlock
+                                Classes="CommentAuthor" Text="Cloud Atlas"/>
+                              <Border Classes="LevelBadge">
+                                <TextBlock Text="LV6"/>
+                              </Border>
+                            </StackPanel>
+                            <TextBlock
+                              Classes="CommentBody" Text="The player just slides into the header and keeps playing. Zero snapping, even when I scrub backwards."/>
+                            <Grid ColumnDefinitions="*,Auto">
+                              <TextBlock
+                                Classes="CommentMeta" Text="2m ago · Reply"/>
+                              <StackPanel
+                                Grid.Column="1" Orientation="Horizontal"
+                                Spacing="5">
+                                <tabler:TablerIcon
+                                  Classes="CommentMeta" Kind="ThumbUp"/>
+                                <TextBlock
+                                  Classes="CommentMeta" Text="132"/>
+                                <tabler:TablerIcon
+                                  Classes="CommentMeta" Margin="8,0,0,0"
+                                  Kind="ThumbDown"/>
+                              </StackPanel>
+                            </Grid>
+                            <Border
+                              Padding="10,8" Background="#0DFFFFFF"
+                              CornerRadius="8">
+                              <StackPanel Spacing="6">
+                                <TextBlock
+                                  FontSize="12" Foreground="#C7FFFFFF"
+                                  TextWrapping="Wrap">
+                                  <Run
+                                    Foreground="#FF9AB8FF" Text="Mika:"/>
+                                  <Run Text="Same control instance the whole way, that's the trick."/>
+                                </TextBlock>
+                                <TextBlock
+                                  FontSize="12" Foreground="#FF9AB8FF"
+                                  Text="View 16 replies ›"/>
+                              </StackPanel>
+                            </Border>
+                          </StackPanel>
+                        </Grid>
 
-                  <Border
-                    x:Name="ScrollHint" Padding="12,8"
-                    Background="#8A10151B" CornerRadius="16">
-                    <StackPanel
-                      Orientation="Horizontal" Spacing="8">
-                      <lucide:LucideIcon
-                        VerticalAlignment="Center" Kind="Mouse"
-                        Size="12" StrokeWidth="1.8"/>
-                      <TextBlock
-                        VerticalAlignment="Center" FontSize="11"
-                        Foreground="White" Text="Scroll for comments"/>
-                    </StackPanel>
-                  </Border>
-                </motion:MotionPanel>
-              </controls:PinnedScrollStage>
-            </ScrollViewer>
-          </Border>
+                        <Border
+                          Height="1" Margin="42,0,0,0"
+                          Background="#0FFFFFFF"/>
+
+                        <Grid
+                          ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                          <Border
+                            Classes="CommentAvatar" Background="#FF10B981">
+                            <TextBlock
+                              Classes="CommentAvatarText" Text="OD"/>
+                          </Border>
+                          <StackPanel
+                            Grid.Column="1" Spacing="5">
+                            <StackPanel
+                              Orientation="Horizontal" Spacing="6">
+                              <TextBlock
+                                Classes="CommentAuthor" Text="Old Deer"/>
+                              <Border Classes="LevelBadge">
+                                <TextBlock Text="LV5"/>
+                              </Border>
+                            </StackPanel>
+                            <TextBlock
+                              Classes="CommentBody" Text="Scroll halfway and stop: every element sits at a real intermediate layout."/>
+                            <Grid ColumnDefinitions="*,Auto">
+                              <TextBlock
+                                Classes="CommentMeta" Text="14m ago · Reply"/>
+                              <StackPanel
+                                Grid.Column="1" Orientation="Horizontal"
+                                Spacing="5">
+                                <tabler:TablerIcon
+                                  Classes="CommentMeta" Kind="ThumbUp"/>
+                                <TextBlock
+                                  Classes="CommentMeta" Text="26"/>
+                                <tabler:TablerIcon
+                                  Classes="CommentMeta" Margin="8,0,0,0"
+                                  Kind="ThumbDown"/>
+                              </StackPanel>
+                            </Grid>
+                          </StackPanel>
+                        </Grid>
+
+                        <Border
+                          Height="1" Margin="42,0,0,0"
+                          Background="#0FFFFFFF"/>
+
+                        <Grid
+                          ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                          <Border
+                            Classes="CommentAvatar" Background="#FFF59E0B">
+                            <TextBlock
+                              Classes="CommentAvatarText" Text="AU"/>
+                          </Border>
+                          <StackPanel
+                            Grid.Column="1" Spacing="5">
+                            <StackPanel
+                              Orientation="Horizontal" Spacing="6">
+                              <TextBlock
+                                Classes="CommentAuthor" Text="Autumn"/>
+                              <Border Classes="LevelBadge">
+                                <TextBlock Text="LV4"/>
+                              </Border>
+                            </StackPanel>
+                            <TextBlock
+                              Classes="CommentBody" Text="What's the frame budget on this?"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                              <TextBlock
+                                Classes="CommentMeta" Text="24m ago · Reply"/>
+                              <StackPanel
+                                Grid.Column="1" Orientation="Horizontal"
+                                Spacing="5">
+                                <tabler:TablerIcon
+                                  Classes="CommentMeta" Kind="ThumbUp"/>
+                                <tabler:TablerIcon
+                                  Classes="CommentMeta" Margin="8,0,0,0"
+                                  Kind="ThumbDown"/>
+                              </StackPanel>
+                            </Grid>
+                          </StackPanel>
+                        </Grid>
+
+                        <Border
+                          Height="1" Margin="42,0,0,0"
+                          Background="#0FFFFFFF"/>
+
+                        <Grid
+                          ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                          <Border
+                            Classes="CommentAvatar" Background="#FFEC4899">
+                            <TextBlock
+                              Classes="CommentAvatarText" Text="LN"/>
+                          </Border>
+                          <StackPanel
+                            Grid.Column="1" Spacing="5">
+                            <StackPanel
+                              Orientation="Horizontal" Spacing="6">
+                              <TextBlock
+                                Classes="CommentAuthor" Text="Linnea"/>
+                              <Border Classes="LevelBadge">
+                                <TextBlock Text="LV6"/>
+                              </Border>
+                            </StackPanel>
+                            <TextBlock
+                              Classes="CommentBody" Text="SmoothBorder plus live backdrop blur makes every pill feel native."/>
+                            <Grid ColumnDefinitions="*,Auto">
+                              <TextBlock
+                                Classes="CommentMeta" Text="38m ago · Reply"/>
+                              <StackPanel
+                                Grid.Column="1" Orientation="Horizontal"
+                                Spacing="5">
+                                <tabler:TablerIcon
+                                  Classes="CommentMeta" Kind="ThumbUp"/>
+                                <TextBlock
+                                  Classes="CommentMeta" Text="9"/>
+                                <tabler:TablerIcon
+                                  Classes="CommentMeta" Margin="8,0,0,0"
+                                  Kind="ThumbDown"/>
+                              </StackPanel>
+                            </Grid>
+                          </StackPanel>
+                        </Grid>
+
+                        <Border
+                          Height="1" Margin="42,0,0,0"
+                          Background="#0FFFFFFF"/>
+
+                        <Grid
+                          ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                          <Border
+                            Classes="CommentAvatar" Background="#FF38BDF8">
+                            <TextBlock
+                              Classes="CommentAvatarText" Text="SR"/>
+                          </Border>
+                          <StackPanel
+                            Grid.Column="1" Spacing="5">
+                            <StackPanel
+                              Orientation="Horizontal" Spacing="6">
+                              <TextBlock
+                                Classes="CommentAuthor" Text="Sora"/>
+                              <Border Classes="LevelBadge">
+                                <TextBlock Text="LV3"/>
+                              </Border>
+                            </StackPanel>
+                            <TextBlock
+                              Classes="CommentBody" Text="Zero bitmap snapshots—just Cue keyframes."/>
+                            <Grid ColumnDefinitions="*,Auto">
+                              <TextBlock
+                                Classes="CommentMeta" Text="1h ago · Reply"/>
+                              <StackPanel
+                                Grid.Column="1" Orientation="Horizontal"
+                                Spacing="5">
+                                <tabler:TablerIcon
+                                  Classes="CommentMeta" Kind="ThumbUp"/>
+                                <TextBlock
+                                  Classes="CommentMeta" Text="4"/>
+                                <tabler:TablerIcon
+                                  Classes="CommentMeta" Margin="8,0,0,0"
+                                  Kind="ThumbDown"/>
+                              </StackPanel>
+                            </Grid>
+                          </StackPanel>
+                        </Grid>
+                      </StackPanel>
+                    </Border>
+
+                    <shadui:SmoothBorder
+                      x:Name="AuthorBar" Classes="GlassFrame">
+                      <Border
+                        Classes="Glass Thin" Padding="10,8">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                          <Border
+                            Width="36" Height="36"
+                            Background="#FFBBD8EF" BorderBrush="#52FFFFFF"
+                            BorderThickness="1" ClipToBounds="True"
+                            CornerRadius="18">
+                            <Image
+                              Source="/Assets/short-video-frame.png" Stretch="UniformToFill"/>
+                          </Border>
+                          <StackPanel
+                            Grid.Column="1" Margin="10,0"
+                            VerticalAlignment="Center" Spacing="1">
+                            <TextBlock
+                              FontSize="12.5" FontWeight="SemiBold"
+                              Foreground="White" Text="Mira in motion"/>
+                            <TextBlock
+                              FontSize="11.5" Foreground="#A8FFFFFF"
+                              Text="@mira.layout"/>
+                          </StackPanel>
+                          <Button
+                            Classes="Primary" Grid.Column="2"
+                            Height="30" MinWidth="74"
+                            Padding="12,0" VerticalAlignment="Center"
+                            Content="+ Follow"
+                            CornerRadius="{DynamicResource FullCornerRadius}"/>
+                        </Grid>
+                      </Border>
+                    </shadui:SmoothBorder>
+
+                    <shadui:SmoothBorder
+                      x:Name="LikeButton" Classes="GlassFrame"
+                      CornerRadius="20">
+                      <Border Classes="Glass Thin">
+                        <Button
+                          Classes="Ghost Rounded ShowcaseAction Like"
+                          shadui:ButtonAssist.Icon="{tabler:TablerIconContent Heart}"
+                          ToolTip.Tip="Like"/>
+                      </Border>
+                    </shadui:SmoothBorder>
+                    <shadui:SmoothBorder
+                      x:Name="ShareButton" Classes="GlassFrame"
+                      CornerRadius="20">
+                      <Border Classes="Glass Thin">
+                        <Button
+                          Classes="Ghost Rounded ShowcaseAction"
+                          shadui:ButtonAssist.Icon="{tabler:TablerIconContent Share}"
+                          ToolTip.Tip="Share"/>
+                      </Border>
+                    </shadui:SmoothBorder>
+                    <shadui:SmoothBorder
+                      x:Name="MoreButton" Classes="GlassFrame"
+                      CornerRadius="20">
+                      <Border Classes="Glass Thin">
+                        <Button
+                          Classes="Ghost Rounded ShowcaseAction"
+                          shadui:ButtonAssist.Icon="{tabler:TablerIconContent Dots}"
+                          ToolTip.Tip="More"/>
+                      </Border>
+                    </shadui:SmoothBorder>
+
+                    <shadui:SmoothBorder
+                      x:Name="CommentComposer" Classes="GlassFrame"
+                      CornerRadius="21">
+                      <Border
+                        Classes="Glass Thin" Padding="14,0,12,0">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <TextBox
+                            VerticalContentAlignment="Center" Background="Transparent"
+                            BorderThickness="0" Foreground="White"
+                            PlaceholderText="Say something nice..." SelectionBrush="#667C5CFF"/>
+                          <tabler:TablerIcon
+                            Grid.Column="1" VerticalAlignment="Center"
+                            Foreground="#B8FFFFFF" Kind="MoodSmile"
+                            Size="18" StrokeWidth="1.8"/>
+                        </Grid>
+                      </Border>
+                    </shadui:SmoothBorder>
+
+                    <shadui:SmoothBorder
+                      x:Name="ScrollHint" Classes="GlassFrame"
+                      CornerRadius="16">
+                      <Border
+                        Classes="Glass Thin" Padding="12,7">
+                        <StackPanel
+                          Orientation="Horizontal" Spacing="7">
+                          <tabler:TablerIcon
+                            VerticalAlignment="Center" Foreground="#EEFFFFFF"
+                            Kind="Mouse" Size="13"
+                            StrokeWidth="1.8"/>
+                          <TextBlock
+                            VerticalAlignment="Center" FontSize="11.5"
+                            Foreground="#F5FFFFFF" Text="Scroll for comments"/>
+                        </StackPanel>
+                      </Border>
+                    </shadui:SmoothBorder>
+                  </motion:MotionPanel>
+                </controls:PinnedScrollStage>
+              </ScrollViewer>
+            </shadui:SmoothBorder>
+          </shadui:SmoothBorder>
 
           <StackPanel
             Grid.Column="2" MaxWidth="256"

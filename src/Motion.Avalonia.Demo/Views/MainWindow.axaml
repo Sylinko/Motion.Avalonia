@@ -1,9 +1,51 @@
-<Window
+<shadui:ShadWindow
   x:Class="Motion.Avalonia.Demo.Views.MainWindow" xmlns="https://github.com/avaloniaui"
-  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:views="using:Motion.Avalonia.Demo.Views"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:shadui="clr-namespace:ShadUI;assembly=ShadUI"
+  xmlns:tabler="clr-namespace:Tabler.Avalonia;assembly=Tabler.Avalonia"
+  xmlns:views="using:Motion.Avalonia.Demo.Views"
   Title="Motion.Avalonia" Width="1180"
   Height="800" MinWidth="860"
-  MinHeight="620" Icon="/Assets/avalonia-logo.ico"
+  MinHeight="620" Background="{DynamicResource DialogBackgroundColor}"
+  Icon="/Assets/avalonia-logo.ico" TransparencyLevelHint="None"
   WindowStartupLocation="CenterScreen">
-  <views:MainView/>
-</Window>
+  <shadui:ShadWindow.TitleBarContent>
+    <DockPanel LastChildFill="True">
+      <DockPanel.Margin>
+        <OnPlatform
+          x:TypeArguments="Thickness" Linux="16,0"
+          Windows="16,0,148,0" macOS="76,0,16,0"/>
+      </DockPanel.Margin>
+      <StackPanel
+        DockPanel.Dock="Right" VerticalAlignment="Center"
+        Orientation="Horizontal" Spacing="8">
+        <Border
+          Padding="10,4" VerticalAlignment="Center"
+          Background="{DynamicResource SecondaryColor}"
+          CornerRadius="12" IsHitTestVisible="False">
+          <TextBlock
+            FontSize="11" FontWeight="SemiBold"
+            Text="LAYOUT MOTION LAB"/>
+        </Border>
+        <Button
+          Classes="Ghost Compact Uniform Rounded"
+          Width="30" Height="30"
+          Click="OnThemeToggleClick" ToolTip.Tip="Switch Light / Dark theme">
+          <tabler:TablerIcon
+            x:Name="ThemeToggleIcon" Kind="SunMoon"
+            Size="17" StrokeWidth="1.8"/>
+        </Button>
+      </StackPanel>
+      <StackPanel
+        VerticalAlignment="Center" IsHitTestVisible="False"
+        Orientation="Horizontal" Spacing="8">
+        <PathIcon
+          Width="16" Height="16"
+          Data="{x:Static shadui:Icons.Logo}"/>
+        <TextBlock
+          FontWeight="SemiBold" Text="Motion.Avalonia"/>
+      </StackPanel>
+    </DockPanel>
+  </shadui:ShadWindow.TitleBarContent>
+  <views:MainView ShowHeader="False"/>
+</shadui:ShadWindow>

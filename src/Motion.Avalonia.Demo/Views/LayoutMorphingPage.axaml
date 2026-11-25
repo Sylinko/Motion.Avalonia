@@ -1,7 +1,23 @@
 <UserControl
   x:Class="Motion.Avalonia.Demo.Views.LayoutMorphingPage" xmlns="https://github.com/avaloniaui"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:Motion.Avalonia.Demo.Controls"
-  xmlns:motion="using:Motion.Avalonia">
+  xmlns:motion="using:Motion.Avalonia" xmlns:shadui="clr-namespace:ShadUI;assembly=ShadUI"
+  xmlns:tabler="clr-namespace:Tabler.Avalonia;assembly=Tabler.Avalonia">
+  <UserControl.Styles>
+    <Style Selector="shadui|SmoothBorder.GlassCard">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BackgroundSizing" Value="InnerBorderEdge"/>
+      <Setter Property="BorderBrush" Value="#4DFFFFFF"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="20"/>
+      <Setter Property="CornerSmoothing" Value="0.6"/>
+      <Setter Property="ClipToBounds" Value="True"/>
+    </Style>
+
+    <Style Selector="shadui|SmoothBorder.GlassCard.Accent">
+      <Setter Property="BorderBrush" Value="#5CB4C6FC"/>
+    </Style>
+  </UserControl.Styles>
 
   <ScrollViewer>
     <StackPanel
@@ -20,103 +36,268 @@
 
       <controls:DemoExample
         Title="Natural reflow and responsive destinations" HorizontalContentAlignment="Stretch"
-        Description="Change both the state and the available width. The article and metrics controls move between a centered stack and a wide grid while their content is measured and arranged at every intermediate size.">
-        <StackPanel Spacing="16">
-          <Grid ColumnDefinitions="Auto,*,Auto">
+        Description="Toggle the layout state or drag the max-width slider. The top width ruler marks the active container width while both frosted-glass cards reflow over a live flowing ribbon wallpaper.">
+        <StackPanel Spacing="18">
+          <Grid
+            ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
             <Button
               x:Name="LayoutModeButton" Classes="Primary"
+              shadui:ButtonAssist.Icon="{tabler:TablerIconContent LayoutColumns}"
               Click="OnLayoutModeButtonClick" Content="Use wide layout"/>
-            <Slider
-              x:Name="ViewportWidthSlider" Grid.Column="1"
-              MinWidth="180" Margin="16,0"
-              VerticalAlignment="Center" Maximum="1000"
-              Minimum="560" ValueChanged="OnViewportWidthChanged"
-              Value="900"/>
-            <TextBlock
-              x:Name="ViewportWidthLabel" Grid.Column="2"
-              MinWidth="72" VerticalAlignment="Center"
-              Text="900 px" TextAlignment="Right"/>
+
+            <shadui:SmoothBorder
+              Grid.Column="1" Padding="14,6"
+              Background="{DynamicResource CardBackgroundColor}"
+              BorderBrush="{DynamicResource BorderColor}"
+              BorderThickness="1" CornerRadius="14"
+              CornerSmoothing="0.6">
+              <Grid
+                ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <StackPanel
+                  VerticalAlignment="Center" Orientation="Horizontal"
+                  Spacing="6">
+                  <tabler:TablerIcon
+                    VerticalAlignment="Center"
+                    Foreground="{DynamicResource PrimaryColor}"
+                    Kind="ArrowsHorizontal" Size="15"
+                    StrokeWidth="2"/>
+                  <TextBlock
+                    VerticalAlignment="Center" FontSize="12"
+                    FontWeight="SemiBold"
+                    Foreground="{DynamicResource MutedColor}"
+                    Text="MAX WIDTH"/>
+                </StackPanel>
+
+                <Slider
+                  x:Name="ViewportWidthSlider" Grid.Column="1"
+                  MinWidth="180" VerticalAlignment="Center"
+                  Maximum="960" Minimum="520"
+                  ValueChanged="OnViewportWidthChanged" Value="860"/>
+
+                <shadui:SmoothBorder
+                  Grid.Column="2" Padding="10,4"
+                  VerticalAlignment="Center"
+                  Background="{DynamicResource SecondaryColor}"
+                  CornerRadius="8" CornerSmoothing="0.6">
+                  <TextBlock
+                    x:Name="ViewportWidthLabel" MinWidth="56"
+                    FontFamily="Cascadia Mono,Consolas" FontSize="12.5"
+                    FontWeight="SemiBold" Text="860 px"
+                    TextAlignment="Center"/>
+                </shadui:SmoothBorder>
+              </Grid>
+            </shadui:SmoothBorder>
+
+            <StackPanel
+              Grid.Column="2" Orientation="Horizontal"
+              Spacing="6">
+              <Button
+                Classes="Outline Compact" Click="OnPresetNarrowClick"
+                Content="560"/>
+              <Button
+                Classes="Outline Compact" Click="OnPresetMediumClick"
+                Content="740"/>
+              <Button
+                Classes="Outline Compact" Click="OnPresetWideClick"
+                Content="920"/>
+            </StackPanel>
           </Grid>
 
-          <Border
-            x:Name="ResponsiveViewport" Width="900"
-            Padding="16" HorizontalAlignment="Center"
-            Background="{DynamicResource WindowBackgroundColor}"
-            CornerRadius="8">
-            <motion:MotionPanel
-              x:Name="ResponsivePanel" Height="360"
-              ClipToBounds="True">
-              <motion:MotionPanel.Motion>
-                <motion:StateMotion
-                  x:Name="ResponsiveMotion" Easing="CubicEaseInOut"
-                  State="Stacked" Duration="0:0:0.5">
-                  <motion:MotionState Key="Stacked">
-                    <motion:MotionState.Template>
-                      <DataTemplate>
-                        <StackPanel
-                          MaxWidth="472" HorizontalAlignment="Center"
-                          Spacing="16">
-                          <motion:MotionSlot x:Name="ArticleCard"/>
-                          <motion:MotionSlot x:Name="MetricsCard"/>
+          <!-- Flowing chromatic ribbons wallpaper stage -->
+          <shadui:SmoothBorder
+            BorderBrush="#33FFFFFF" BorderThickness="1"
+            ClipToBounds="True"
+            CornerRadius="24" CornerSmoothing="0.6">
+            <Panel>
+              <controls:ShaderWallpaper Pattern="ChromaticRibbons" Speed="0.8"/>
+
+              <StackPanel
+                Margin="20,18,20,24" HorizontalAlignment="Center"
+                Spacing="12">
+                <!-- Prominent visual width ruler synced to ResponsiveViewport -->
+                <Grid
+                  x:Name="ViewportRuler" Width="860"
+                  ColumnDefinitions="Auto,*,Auto,*,Auto">
+                  <Border
+                    Grid.Column="0" Width="2"
+                    Height="12" VerticalAlignment="Center"
+                    Background="#E6FFFFFF" CornerRadius="1"/>
+                  <Border
+                    Grid.Column="1" Height="1.5"
+                    Margin="6,0" VerticalAlignment="Center"
+                    Background="#80FFFFFF"/>
+                  <shadui:SmoothBorder
+                    Grid.Column="2" Background="Transparent"
+                    BackgroundSizing="InnerBorderEdge" BorderBrush="#66FFFFFF"
+                    BorderThickness="1" ClipToBounds="True"
+                    CornerRadius="14" CornerSmoothing="0.6">
+                    <Border
+                      Padding="12,4" BackdropEffect="blur(24)" BackdropEffectCache="Volatile"
+                      Background="#590B1020">
+                      <StackPanel
+                        Orientation="Horizontal" Spacing="8">
+                        <tabler:TablerIcon
+                          VerticalAlignment="Center" Foreground="#FF93C5FD"
+                          Kind="ArrowsHorizontal" Size="13"
+                          StrokeWidth="2"/>
+                        <TextBlock
+                          x:Name="RulerWidthLabel" VerticalAlignment="Center"
+                          FontFamily="Cascadia Mono,Consolas" FontSize="11.5"
+                          FontWeight="SemiBold" Foreground="White"
+                          Text="860 px"/>
+                        <Border
+                          Width="1" Height="10"
+                          VerticalAlignment="Center" Background="#4DFFFFFF"/>
+                        <TextBlock
+                          x:Name="RulerModeLabel" VerticalAlignment="Center"
+                          FontSize="11" FontWeight="SemiBold"
+                          Foreground="#FFBAE6FD" Text="STACKED"/>
+                      </StackPanel>
+                    </Border>
+                  </shadui:SmoothBorder>
+                  <Border
+                    Grid.Column="3" Height="1.5"
+                    Margin="6,0" VerticalAlignment="Center"
+                    Background="#80FFFFFF"/>
+                  <Border
+                    Grid.Column="4" Width="2"
+                    Height="12" VerticalAlignment="Center"
+                    Background="#E6FFFFFF" CornerRadius="1"/>
+                </Grid>
+
+                <!-- Borderless width host synced to ViewportRuler -->
+                <Panel
+                  x:Name="ResponsiveViewport" Width="860"
+                  Margin="0,8,0,0" HorizontalAlignment="Center">
+                  <motion:MotionPanel
+                    x:Name="ResponsivePanel"
+                    ClipToBounds="True">
+                    <motion:MotionPanel.Motion>
+                      <motion:StateMotion
+                        x:Name="ResponsiveMotion" Easing="CubicEaseInOut"
+                        State="Stacked" Duration="0:0:0.5">
+                        <motion:MotionState Key="Stacked">
+                          <motion:MotionState.Template>
+                            <DataTemplate>
+                              <StackPanel
+                                MaxWidth="492" HorizontalAlignment="Center"
+                                VerticalAlignment="Center" Spacing="18">
+                                <motion:MotionSlot x:Name="ArticleCard"/>
+                                <motion:MotionSlot x:Name="MetricsCard"/>
+                              </StackPanel>
+                            </DataTemplate>
+                          </motion:MotionState.Template>
+                        </motion:MotionState>
+                        <motion:MotionState Key="Wide">
+                          <motion:MotionState.Template>
+                            <DataTemplate>
+                              <Grid
+                                VerticalAlignment="Center" ColumnDefinitions="1.75*,1*"
+                                ColumnSpacing="18">
+                                <motion:MotionSlot x:Name="ArticleCard"/>
+                                <motion:MotionSlot
+                                  x:Name="MetricsCard" Grid.Column="1"/>
+                              </Grid>
+                            </DataTemplate>
+                          </motion:MotionState.Template>
+                        </motion:MotionState>
+                      </motion:StateMotion>
+                    </motion:MotionPanel.Motion>
+
+                    <shadui:SmoothBorder
+                      x:Name="ArticleCard" Classes="GlassCard">
+                      <Border
+                        Padding="24" BackdropEffect="blur(24)" BackdropEffectCache="Volatile"
+                        Background="#4C0B1124">
+                        <StackPanel Spacing="14">
+                          <shadui:SmoothBorder
+                            Padding="10,4" HorizontalAlignment="Left"
+                            Background="#2E38BDF8" BorderBrush="#597DD3FC"
+                            BorderThickness="1" CornerRadius="10"
+                            CornerSmoothing="0.6">
+                            <TextBlock
+                              FontSize="10.5" FontWeight="SemiBold"
+                              Foreground="#FFE0F2FE" LetterSpacing="0.8"
+                              Text="LIVE REFLOW"/>
+                          </shadui:SmoothBorder>
+
+                          <TextBlock
+                            FontSize="21" FontWeight="SemiBold"
+                            Foreground="White" Text="A layout is more than a rectangle"
+                            TextWrapping="Wrap"/>
+
+                          <TextBlock
+                            FontSize="13.5" Foreground="#E6EEF8FF"
+                            LineHeight="21" Text="As this card changes width, the paragraph wraps into a different number of lines. MotionPanel gives the real control its intermediate bounds, so typography and child layout remain crisp instead of being visually scaled."
+                            TextWrapping="Wrap"/>
+
+                          <StackPanel
+                            Margin="0,4,0,0" Orientation="Horizontal"
+                            Spacing="10">
+                            <Button
+                              Classes="Primary" Content="Continue"/>
+                            <Button
+                              Classes="Secondary" Background="#28FFFFFF"
+                              BorderBrush="#42FFFFFF" BorderThickness="1"
+                              Content="Learn more" Foreground="White"/>
+                          </StackPanel>
                         </StackPanel>
-                      </DataTemplate>
-                    </motion:MotionState.Template>
-                  </motion:MotionState>
-                  <motion:MotionState Key="Wide">
-                    <motion:MotionState.Template>
-                      <DataTemplate>
-                        <Grid
-                          ColumnDefinitions="2*,*" ColumnSpacing="16">
-                          <motion:MotionSlot x:Name="ArticleCard"/>
-                          <motion:MotionSlot
-                            x:Name="MetricsCard" Grid.Column="1"/>
-                        </Grid>
-                      </DataTemplate>
-                    </motion:MotionState.Template>
-                  </motion:MotionState>
-                </motion:StateMotion>
-              </motion:MotionPanel.Motion>
+                      </Border>
+                    </shadui:SmoothBorder>
 
-              <Border
-                x:Name="ArticleCard" Padding="24"
-                Background="{DynamicResource CardBackgroundColor}"
-                BorderBrush="{DynamicResource BorderColor}"
-                BorderThickness="1" CornerRadius="12">
-                <StackPanel Spacing="12">
-                  <TextBlock
-                    FontSize="20" FontWeight="SemiBold"
-                    Text="A layout is more than a rectangle"/>
-                  <TextBlock
-                    LineHeight="20" Text="As this card changes width, the paragraph wraps into a different number of lines. MotionPanel gives the real control its intermediate bounds, so typography and child layout remain crisp instead of being visually scaled."
-                    TextWrapping="Wrap"/>
-                  <StackPanel
-                    Orientation="Horizontal" Spacing="8">
-                    <Button
-                      Classes="Primary" Content="Continue"/>
-                    <Button
-                      Classes="Secondary" Content="Learn more"/>
-                  </StackPanel>
-                </StackPanel>
-              </Border>
+                    <shadui:SmoothBorder
+                      x:Name="MetricsCard" Classes="GlassCard Accent">
+                      <Border
+                        Padding="24" BackdropEffect="blur(24)" BackdropEffectCache="Volatile"
+                        Background="#48151332">
+                        <StackPanel Spacing="14">
+                          <StackPanel
+                            Orientation="Horizontal" Spacing="8">
+                            <tabler:TablerIcon
+                              VerticalAlignment="Center" Foreground="#FFC7D2FE"
+                              Kind="Gauge" Size="16"
+                              StrokeWidth="2"/>
+                            <TextBlock
+                              VerticalAlignment="Center" FontSize="11.5"
+                              FontWeight="SemiBold" Foreground="#FFE0E7FF"
+                              LetterSpacing="0.8" Text="LIVE MEASURE"/>
+                          </StackPanel>
 
-              <Border
-                x:Name="MetricsCard" Padding="24"
-                Background="{DynamicResource SecondaryColor}"
-                CornerRadius="12">
-                <StackPanel Spacing="16">
-                  <TextBlock
-                    FontSize="14" FontWeight="SemiBold"
-                    Text="LIVE MEASURE"/>
-                  <TextBlock
-                    FontSize="38" FontWeight="SemiBold"
-                    Text="60 FPS"/>
-                  <TextBlock
-                    Foreground="{DynamicResource MutedColor}"
-                    Text="No bitmap snapshots&#10;No fake scaling&#10;No fixed offsets"/>
-                </StackPanel>
-              </Border>
-            </motion:MotionPanel>
-          </Border>
+                          <StackPanel
+                            Orientation="Horizontal" Spacing="8">
+                            <TextBlock
+                              x:Name="FpsValueLabel" MinWidth="54"
+                              FontFamily="Cascadia Mono,Consolas" FontSize="40"
+                              FontWeight="Bold" Foreground="White"
+                              Text="--"/>
+                            <TextBlock
+                              Margin="0,0,0,7" VerticalAlignment="Bottom"
+                              FontSize="16" FontWeight="SemiBold"
+                              Foreground="#FFBAE6FD" Text="FPS"/>
+                          </StackPanel>
+
+                          <Border
+                            Height="1" Background="#33FFFFFF"/>
+
+                          <StackPanel Spacing="6">
+                            <TextBlock
+                              FontSize="12.5" Foreground="#ECF4FFFF"
+                              Text="✓  No bitmap snapshots"/>
+                            <TextBlock
+                              FontSize="12.5" Foreground="#ECF4FFFF"
+                              Text="✓  No fake visual scaling"/>
+                            <TextBlock
+                              FontSize="12.5" Foreground="#ECF4FFFF"
+                              Text="✓  No fixed offsets"/>
+                          </StackPanel>
+                        </StackPanel>
+                      </Border>
+                    </shadui:SmoothBorder>
+                  </motion:MotionPanel>
+                </Panel>
+              </StackPanel>
+            </Panel>
+          </shadui:SmoothBorder>
         </StackPanel>
       </controls:DemoExample>
     </StackPanel>

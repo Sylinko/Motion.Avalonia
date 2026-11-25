@@ -2,6 +2,7 @@
   x:Class="Motion.Avalonia.Demo.Views.MainView" xmlns="https://github.com/avaloniaui"
   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:shadui="clr-namespace:ShadUI;assembly=ShadUI"
+  xmlns:tabler="clr-namespace:Tabler.Avalonia;assembly=Tabler.Avalonia"
   xmlns:views="using:Motion.Avalonia.Demo.Views" d:DesignHeight="800"
   d:DesignWidth="1180" mc:Ignorable="d">
 
@@ -16,34 +17,23 @@
         Icon="LayoutDashboard" IsChecked="True"
         Route="overview" ToolTip="Overview"/>
       <shadui:NavigationBarItem
-        x:Name="InteractionMotionNavigationItem" Content="Interactions"
-        Icon="MousePointerClick" Route="interactions"
-        ToolTip="Interaction motion gallery"/>
-      <shadui:NavigationBarItem
         x:Name="LayoutNavigationItem" Content="Layout morphing"
         Icon="AppWindow" Route="layout"
         ToolTip="Layout morphing"/>
       <shadui:NavigationBarItem
-        x:Name="StateMotionNavigationItem" Content="State motion"
-        Icon="SlidersHorizontal" Route="state-motion"
-        ToolTip="State motion"/>
-      <shadui:NavigationBarItem
-        x:Name="PropertiesNavigationItem" Content="Target properties"
-        Icon="Palette" Route="properties"
-        ToolTip="Target properties"/>
-      <shadui:NavigationBarItem
         x:Name="KeyFrameMotionNavigationItem" Content="Keyframe motion"
-        Icon="Shapes" Route="keyframes"
+        Icon="Timeline" Route="keyframes"
         ToolTip="Sequence and timeline motion"/>
     </shadui:NavigationBar>
 
     <Grid
       Grid.Column="1" RowDefinitions="Auto,*">
       <Border
+        x:Name="HeaderBar"
         Padding="24,16"
         BorderBrush="{DynamicResource BorderColor}"
         BorderThickness="0,0,0,1">
-        <Grid ColumnDefinitions="*,Auto">
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
           <StackPanel
             Orientation="Horizontal" Spacing="8">
             <PathIcon
@@ -56,12 +46,21 @@
           </StackPanel>
           <Border
             Grid.Column="1" Padding="12,4"
+            VerticalAlignment="Center"
             Background="{DynamicResource SecondaryColor}"
             CornerRadius="12">
             <TextBlock
               FontSize="12" FontWeight="SemiBold"
               Text="LAYOUT MOTION LAB"/>
           </Border>
+          <Button
+            x:Name="ThemeToggleButton" Classes="Ghost Compact Uniform Rounded"
+            Grid.Column="2" Width="32" Height="32"
+            Click="OnThemeToggleClick" ToolTip.Tip="Switch Light / Dark theme">
+            <tabler:TablerIcon
+              x:Name="ThemeToggleIcon" Kind="SunMoon"
+              Size="18" StrokeWidth="1.8"/>
+          </Button>
         </Grid>
       </Border>
 
@@ -69,10 +68,7 @@
         x:Name="Pages" Grid.Row="1"
         SelectedIndex="0">
         <views:OverviewPage/>
-        <views:InteractionMotionPage/>
         <views:LayoutMorphingPage/>
-        <views:StateMotionPage/>
-        <views:TargetPropertiesPage/>
         <views:KeyFrameMotionPage/>
       </Carousel>
     </Grid>

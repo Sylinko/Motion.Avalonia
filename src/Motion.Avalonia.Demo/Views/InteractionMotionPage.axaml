@@ -29,15 +29,16 @@
       <Setter Property="Foreground" Value="#FF132D46"/>
     </Style>
 
-    <Style Selector="Border.MotionFeatureBadge">
+    <Style Selector="shadui|SmoothBorder.MotionFeatureBadge">
       <Setter Property="Padding" Value="12,8"/>
       <Setter Property="Background" Value="#0F4A9EF1"/>
       <Setter Property="BorderBrush" Value="#264A9EF1"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="CornerSmoothing" Value="0.6"/>
     </Style>
 
-    <Style Selector="Border.MotionFeatureBadge TextBlock">
+    <Style Selector="shadui|SmoothBorder.MotionFeatureBadge TextBlock">
       <Setter Property="FontSize" Value="12"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="Foreground" Value="#FF6B86A0"/>
@@ -63,9 +64,10 @@
         Title="Upload lifecycle" HorizontalContentAlignment="Stretch"
         Description="Click the control to simulate an upload. StateMotion owns the semantic phases, a nested looping TimelineMotion drives the falling arrow, and TargetStyles animate the moon, craters, and hand-drawn completion stroke.">
         <StackPanel Spacing="24">
-          <Border
+          <shadui:SmoothBorder
             Height="440" Background="#FFEAF4FD"
-            ClipToBounds="True" CornerRadius="16">
+            ClipToBounds="True" CornerRadius="22"
+            CornerSmoothing="0.6">
             <Panel>
               <Ellipse
                 Width="360" Height="360"
@@ -79,9 +81,10 @@
               <StackPanel
                 HorizontalAlignment="Center" VerticalAlignment="Center"
                 Spacing="20">
-                <Border
+                <shadui:SmoothBorder
                   Width="560" Height="152"
-                  BoxShadow="0 20 56 0 #260B426F" CornerRadius="32">
+                  BoxShadow="0 20 56 0 #260B426F" CornerRadius="32"
+                  CornerSmoothing="0.6">
                   <Button
                     x:Name="UploadButton" Classes="UploadShowcase NoScale"
                     Click="OnUploadButtonClick" ToolTip.Tip="Start or replay the upload animation">
@@ -437,17 +440,17 @@
                       <TextBlock
                         x:Name="CompleteLabel" Classes="UploadLabel"
                         Text="Complete!"/>
-                      <Border
+                      <shadui:SmoothBorder
                         x:Name="PercentBadge" Padding="16,10"
                         Background="#FFF0F4F7" CornerRadius="18"
-                        IsHitTestVisible="False">
+                        CornerSmoothing="0.6" IsHitTestVisible="False">
                         <TextBlock
                           FontSize="24" FontWeight="SemiBold"
                           Foreground="#FF17324A" Text="100%"/>
-                      </Border>
+                      </shadui:SmoothBorder>
                     </motion:MotionPanel>
                   </Button>
-                </Border>
+                </shadui:SmoothBorder>
 
                 <TextBlock
                   HorizontalAlignment="Center" FontSize="12"
@@ -455,26 +458,26 @@
                   Text="CLICK TO START · CLICK AGAIN TO REPLAY"/>
               </StackPanel>
             </Panel>
-          </Border>
+          </shadui:SmoothBorder>
 
           <UniformGrid
             ColumnSpacing="12" Columns="4">
-            <Border Classes="MotionFeatureBadge">
+            <shadui:SmoothBorder Classes="MotionFeatureBadge">
               <TextBlock
                 Text="STATE MOTION" TextAlignment="Center"/>
-            </Border>
-            <Border Classes="MotionFeatureBadge">
+            </shadui:SmoothBorder>
+            <shadui:SmoothBorder Classes="MotionFeatureBadge">
               <TextBlock
                 Text="LOOPING TIMELINE" TextAlignment="Center"/>
-            </Border>
-            <Border Classes="MotionFeatureBadge">
+            </shadui:SmoothBorder>
+            <shadui:SmoothBorder Classes="MotionFeatureBadge">
               <TextBlock
                 Text="NESTED TARGETS" TextAlignment="Center"/>
-            </Border>
-            <Border Classes="MotionFeatureBadge">
+            </shadui:SmoothBorder>
+            <shadui:SmoothBorder Classes="MotionFeatureBadge">
               <TextBlock
                 Text="STROKE REVEAL" TextAlignment="Center"/>
-            </Border>
+            </shadui:SmoothBorder>
           </UniformGrid>
         </StackPanel>
       </controls:DemoExample>

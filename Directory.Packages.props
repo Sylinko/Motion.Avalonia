@@ -3,9 +3,9 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
     <AvaloniaVersion>12.0.0</AvaloniaVersion>
-    <!-- Keep published libraries and tests on 12.0.0; Demo and ShadUI require a newer Avalonia host. -->
-    <AvaloniaVersion Condition="$([System.String]::Copy('$(MSBuildProjectName)').StartsWith('Motion.Avalonia.Demo')) Or '$(MSBuildProjectName)' == 'ShadUI'">12.1.6</AvaloniaVersion>
-    <SkiaSharpVersion>4.155.0</SkiaSharpVersion>
+    <!-- Keep published libraries and tests on 12.0.0; Demo and ShadUI use 12.2.0 for BackdropEffect and latest controls. -->
+    <AvaloniaVersion Condition="$([System.String]::Copy('$(MSBuildProjectName)').StartsWith('Motion.Avalonia.Demo')) Or '$(MSBuildProjectName)' == 'ShadUI' Or '$(MSBuildProjectName)' == 'Tabler.Avalonia'">12.2.0</AvaloniaVersion>
+    <SkiaSharpVersion>4.156.0</SkiaSharpVersion>
   </PropertyGroup>
 
   <ItemGroup Label="Common">
@@ -25,11 +25,10 @@
     <PackageVersion Include="Avalonia.Skia" Version="$(AvaloniaVersion)" />
     <PackageVersion Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
     <PackageVersion Include="Avalonia.Themes.Simple" Version="$(AvaloniaVersion)" />
-    <PackageVersion Include="Lucide.Avalonia" Version="0.1.61" />
     <PackageVersion Include="SkiaSharp" Version="$(SkiaSharpVersion)" />
     <PackageVersion Include="Xamarin.AndroidX.AppCompat" Version="1.8.0" />
     <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.2.0.3" />
-    <PackageVersion Include="Xaml.Behaviors.Avalonia" Version="12.1.5" />
+    <PackageVersion Include="Xaml.Behaviors.Avalonia" Version="12.2.0" />
   </ItemGroup>
 
   <ItemGroup Label="ShadUI">

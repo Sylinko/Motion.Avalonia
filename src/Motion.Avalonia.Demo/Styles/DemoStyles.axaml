@@ -1,11 +1,40 @@
 <Styles
   xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-  xmlns:controls="using:Motion.Avalonia.Demo.Controls">
+  xmlns:controls="using:Motion.Avalonia.Demo.Controls" xmlns:shadui="clr-namespace:ShadUI;assembly=ShadUI">
 
   <Styles.Resources>
     <x:Double x:Key="DemoPageMaxWidth">1120</x:Double>
     <Thickness x:Key="DemoPageMargin">32,28,32,48</Thickness>
   </Styles.Resources>
+
+  <!--
+    Frosted glass is composed from two elements:
+    - shadui:SmoothBorder.GlassFrame owns the continuous-corner outline, the hairline highlight, and clips its child;
+    - Border.Glass (its child) samples and blurs what is behind it and adds a light tint.
+
+    BackdropEffectCache must be Volatile: page content lives inside ScrollViewers whose edge fade applies an
+    OpacityMask while scrolled, and Avalonia's default (retained) backdrop sampling silently draws nothing inside
+    such an intermediate layer. Volatile re-reads the backdrop every frame, which the animated wallpapers need anyway.
+  -->
+  <Style Selector="shadui|SmoothBorder.GlassFrame">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BackgroundSizing" Value="InnerBorderEdge"/>
+    <Setter Property="BorderBrush" Value="#3DFFFFFF"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerSmoothing" Value="0.6"/>
+    <Setter Property="ClipToBounds" Value="True"/>
+  </Style>
+
+  <Style Selector="Border.Glass">
+    <Setter Property="BackdropEffect" Value="blur(24)"/>
+    <Setter Property="BackdropEffectCache" Value="Volatile"/>
+    <Setter Property="Background" Value="#33101420"/>
+  </Style>
+
+  <Style Selector="Border.Glass.Thin">
+    <Setter Property="BackdropEffect" Value="blur(16)"/>
+    <Setter Property="Background" Value="#4D0C1018"/>
+  </Style>
 
   <Style Selector="TextBlock.DemoEyebrow">
     <Setter Property="FontSize" Value="12"/>
