@@ -2,18 +2,23 @@
 
 <img src="https://raw.githubusercontent.com/Sylinko/Motion.Avalonia/main/img/icon.png" alt="Motion.Avalonia Logo" width="128" height="128" />
 
-# Motion.Avalonia
+<h1>Motion.Avalonia</h1>
 
 **Declarative, seekable, real-layout motion for Avalonia**
 
-<p>
-  <img alt=".NET 8, 10, and 11" src="https://img.shields.io/badge/.NET-8%20%7C%2010%20%7C%2011-512BD4">
-  <img alt="Avalonia 12" src="https://img.shields.io/badge/Avalonia-12-8B44AC">
-  <img alt="Status: early preview" src="https://img.shields.io/badge/status-early%20preview-orange">
-  <a href="https://github.com/Sylinko/Motion.Avalonia/blob/main/LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue"></a>
+<p align="center">
+  <a href="https://www.nuget.org/packages/Motion.Avalonia/"><img src="https://img.shields.io/nuget/v/Motion.Avalonia.svg?style=flat-square" alt="NuGet"></a>
+  <a href="https://dotnet.microsoft.com/"><img src="https://img.shields.io/badge/.NET-8.0%20%7C%2010.0%20%7C%2011.0-512BD4.svg?style=flat-square" alt=".NET 8, .NET 10, and .NET 11"></a>
+  <a href="https://avaloniaui.net/"><img src="https://img.shields.io/badge/Avalonia-12%2B-8B44AC.svg?style=flat-square" alt="Avalonia 12+"></a>
+  <img alt="Status: early preview" src="https://img.shields.io/badge/status-early%20preview-orange?style=flat-square">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="MIT License"></a>
 </p>
 
+English | [简体中文](README.zh-CN.md)
+
 </div>
+
+---
 
 Motion.Avalonia lets stable Avalonia controls move between unrelated live layouts. You author ordinary panel trees with
 `MotionSlot` placeholders, then choose a motion model that fits the input:
@@ -42,10 +47,11 @@ imitate layout.
 - Relative Z-order evaluation
 - Animation-priority bindings that restore underlying values when motion ends
 - No bitmap snapshots or transform-based pseudo-layout
+- Targets `net8.0`, `net10.0`, and `net11.0` against Avalonia `12.0.0+`
 
 ## Quick Start
 
-Install the package:
+Install the NuGet package:
 
 ```shell
 dotnet add package Motion.Avalonia
@@ -186,7 +192,9 @@ cross-ancestor shared-element transitions are outside the current implementation
 animated. The API is an early preview and may change as physics, interaction, and higher-level animation systems are
 added.
 
-## Projects
+## Projects & Build
+
+Building requires **.NET SDK 11.0.100** (or a later `11.0.1xx` patch). All NuGet dependencies resolve directly from `nuget.org` via `NuGet.config`.
 
 - `Motion.Avalonia` — reusable motion, layout, player, and interpolation primitives
 - `Motion.Avalonia.Demo` — shared cross-platform showcase UI
@@ -196,10 +204,19 @@ added.
 - `Motion.Avalonia.Demo.Browser` — WebAssembly host
 - `Motion.Avalonia.Tests` — behavior and lifecycle tests
 
-Run the desktop showcase:
+Build the library and run tests:
 
 ```shell
-dotnet run --project src/Motion.Avalonia.Demo.Desktop
+dotnet restore tests/Motion.Avalonia.Tests/Motion.Avalonia.Tests.csproj --configfile NuGet.config
+dotnet build src/Motion.Avalonia/Motion.Avalonia.csproj -c Release --no-restore
+dotnet test tests/Motion.Avalonia.Tests/Motion.Avalonia.Tests.csproj -c Release --no-restore
+```
+
+To run the desktop showcase (requires submodules — clone with `git clone --recursive`):
+
+```shell
+git submodule update --init --recursive
+dotnet run --project src/Motion.Avalonia.Demo.Desktop -c Release
 ```
 
 ## Contributing

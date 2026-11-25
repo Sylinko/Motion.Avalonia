@@ -60,7 +60,7 @@ jobs:
         run: |
           $projects = $env:PROJECTS -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
           foreach ($project in $projects) {
-            dotnet restore $project
+            dotnet restore $project --configfile NuGet.config
           }
 
       - name: Build

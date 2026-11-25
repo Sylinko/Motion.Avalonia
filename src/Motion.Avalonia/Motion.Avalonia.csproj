@@ -31,6 +31,6 @@
 
   <ItemGroup>
     <None Include="..\..\img\icon.png" Pack="true" PackagePath="\" />
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\NuGet.README.md" Pack="true" PackagePath="README.md" />
   </ItemGroup>
 </Project>

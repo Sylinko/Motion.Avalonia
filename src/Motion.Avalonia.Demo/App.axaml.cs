@@ -1,7 +1,6 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using ClassicDiagnostics.Avalonia;
 using Motion.Avalonia.Demo.Views;
 
 namespace Motion.Avalonia.Demo;
@@ -11,8 +10,6 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
-
-        this.AttachDevTools();
     }
 
     public override void OnFrameworkInitializationCompleted()
